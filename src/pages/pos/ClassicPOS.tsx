@@ -1,0 +1,229 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  ArrowLeft,
+  Barcode,
+  CreditCard,
+  DollarSign,
+  Minus,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
+import { NavLink } from "@/components/NavLink";
+
+interface CartItem {
+  id: string;
+  code: string;
+  name: string;
+  price: number;
+  qty: number;
+  vat: number;
+}
+
+const products = [
+  { id: "1", code: "ART-001", name: "Office Chair Ergonomic", price: 125.00, vat: 25 },
+  { id: "2", code: "ART-002", name: "LED Monitor 27\"", price: 320.00, vat: 25 },
+  { id: "3", code: "ART-003", name: "Paper A4 500 sheets", price: 4.50, vat: 25 },
+  { id: "4", code: "ART-004", name: "Printer Toner Black", price: 85.00, vat: 25 },
+  { id: "5", code: "ART-005", name: "USB-C Cable 2m", price: 12.99, vat: 25 },
+  { id: "6", code: "ART-006", name: "Wireless Mouse", price: 29.99, vat: 25 },
+];
+
+export default function ClassicPOS() {
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const addToCart = (product: typeof products[0]) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
+        );
+      }
+      return [...prev, { ...product, qty: 1 }];
+    });
+  };
+
+  const updateQty = (id: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((item) =>
+          item.id === id ? { ...item, qty: Math.max(0, item.qty + delta) } : item
+        )
+        .filter((item) => item.qty > 0)
+    );
+  };
+
+  const removeItem = (id: string) => {
+    setCart((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const clearCart = () => setCart([]);
+
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const vatTotal = cart.reduce(
+    (sum, item) => sum + (item.price * item.qty * item.vat) / 100,
+    0
+  );
+  const total = subtotal + vatTotal;
+
+  const filteredProducts = products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.code.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Left Panel - Products */}
+      <div className="flex flex-1 flex-col border-r">
+        {/* Header */}
+        <div className="flex h-14 items-center gap-4 border-b bg-card px-4">
+          <NavLink to="/pos">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </NavLink>
+          <h1 className="text-lg font-semibold">Classic POS</h1>
+          <span className="text-sm text-muted-foreground">Klasična blagajna</span>
+        </div>
+
+        {/* Search */}
+        <div className="border-b bg-card p-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search or scan barcode..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button variant="outline" size="icon">
+              <Barcode className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Products Grid */}
+        <div className="flex-1 overflow-auto p-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredProducts.map((product) => (
+              <button
+                key={product.id}
+                onClick={() => addToCart(product)}
+                className="pos-button"
+              >
+                <span className="text-xs text-muted-foreground">{product.code}</span>
+                <span className="mt-1 line-clamp-2 px-2 text-center text-sm font-medium">
+                  {product.name}
+                </span>
+                <span className="mt-1 text-lg font-bold text-primary">
+                  €{product.price.toFixed(2)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right Panel - Cart */}
+      <div className="flex w-96 flex-col bg-card">
+        {/* Cart Header */}
+        <div className="flex h-14 items-center justify-between border-b px-4">
+          <h2 className="font-semibold">Current Sale</h2>
+          <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive">
+            <Trash2 className="mr-1 h-4 w-4" />
+            Clear
+          </Button>
+        </div>
+
+        {/* Cart Items */}
+        <div className="flex-1 overflow-auto">
+          {cart.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              <p>No items in cart</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {cart.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 p-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      €{item.price.toFixed(2)} × {item.qty}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => updateQty(item.id, -1)}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-8 text-center text-sm font-medium">{item.qty}</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => updateQty(item.id, 1)}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive"
+                      onClick={() => removeItem(item.id)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <p className="w-20 text-right font-medium">
+                    €{(item.price * item.qty).toFixed(2)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Cart Footer */}
+        <div className="border-t bg-muted/30 p-4">
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>€{subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">VAT</span>
+              <span>€{vatTotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-2 text-lg font-bold">
+              <span>Total</span>
+              <span className="text-primary">€{total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Button variant="outline" className="h-12" disabled={cart.length === 0}>
+              <DollarSign className="mr-2 h-5 w-5" />
+              Cash
+            </Button>
+            <Button className="h-12" disabled={cart.length === 0}>
+              <CreditCard className="mr-2 h-5 w-5" />
+              Card
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
