@@ -218,15 +218,33 @@ export function useGeneratePayslips() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (periodId: string) => {
+      // Check for existing payslips to avoid duplicates
+      const { data: existingPayslips, error: existingError } = await supabase
+        .from("payslips")
+        .select("employee_id")
+        .eq("payroll_period_id", periodId);
+      if (existingError) throw existingError;
+
+      const existingEmployeeIds = new Set(existingPayslips?.map(p => p.employee_id) || []);
+
       // Get all active employees with contracts
       const { data: employees, error: empError } = await supabase
         .from("employees")
         .select(`
           id,
+          first_name,
+          last_name,
           contracts(id, salary, start_date, end_date)
         `)
         .eq("active", true);
       if (empError) throw empError;
+
+      // Filter out employees who already have payslips
+      const eligibleEmployees = (employees || []).filter(emp => !existingEmployeeIds.has(emp.id));
+
+      if (eligibleEmployees.length === 0) {
+        throw new Error("Nema novih zaposlenika za generisanje platnih lista");
+      }
 
       // Get mandatory deduction types
       const { data: deductionTypes, error: dedError } = await supabase
@@ -239,11 +257,17 @@ export function useGeneratePayslips() {
       let totalGross = 0;
       let totalDeductions = 0;
       let totalNet = 0;
+      let generatedCount = 0;
+      let skippedCount = 0;
 
-      for (const emp of employees || []) {
+      for (const emp of eligibleEmployees) {
         const contracts = emp.contracts as Array<{ id: string; salary: number; start_date: string; end_date: string | null }>;
         const activeContract = contracts?.find(c => !c.end_date || new Date(c.end_date) > new Date());
-        if (!activeContract || !activeContract.salary) continue;
+        
+        if (!activeContract || !activeContract.salary) {
+          skippedCount++;
+          continue;
+        }
 
         const grossSalary = activeContract.salary;
         let deductionsTotal = 0;
@@ -286,24 +310,43 @@ export function useGeneratePayslips() {
         totalGross += grossSalary;
         totalDeductions += deductionsTotal;
         totalNet += netSalary;
+        generatedCount++;
       }
+
+      // Get current period totals and add new amounts
+      const { data: currentPeriod } = await supabase
+        .from("payroll_periods")
+        .select("total_gross, total_deductions, total_net")
+        .eq("id", periodId)
+        .single();
+
+      const newTotalGross = (currentPeriod?.total_gross || 0) + totalGross;
+      const newTotalDeductions = (currentPeriod?.total_deductions || 0) + totalDeductions;
+      const newTotalNet = (currentPeriod?.total_net || 0) + totalNet;
 
       // Update period totals
       const { error: updateError } = await supabase
         .from("payroll_periods")
         .update({
-          total_gross: totalGross,
-          total_deductions: totalDeductions,
-          total_net: totalNet,
+          total_gross: newTotalGross,
+          total_deductions: newTotalDeductions,
+          total_net: newTotalNet,
         })
         .eq("id", periodId);
       if (updateError) throw updateError;
+
+      return { generatedCount, skippedCount };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["payslips"] });
       queryClient.invalidateQueries({ queryKey: ["payroll-periods"] });
       queryClient.invalidateQueries({ queryKey: ["payroll-period"] });
-      toast.success("Payslips generated successfully");
+      
+      let message = `Generisano ${result.generatedCount} platnih lista`;
+      if (result.skippedCount > 0) {
+        message += ` (${result.skippedCount} preskočeno - bez ugovora)`;
+      }
+      toast.success(message);
     },
     onError: (error: Error) => {
       toast.error(error.message);
