@@ -42,6 +42,9 @@ import EmployeeView from "./pages/hr/EmployeeView";
 import DepartmentList from "./pages/hr/DepartmentList";
 import AbsenceList from "./pages/hr/AbsenceList";
 import ContractList from "./pages/hr/ContractList";
+import PayrollList from "./pages/hr/PayrollList";
+import PayrollView from "./pages/hr/PayrollView";
+import PayslipView from "./pages/hr/PayslipView";
 import HSEIndex from "./pages/hse/HSEIndex";
 import HSECalendar from "./pages/hse/HSECalendar";
 import SettingsIndex from "./pages/settings/SettingsIndex";
@@ -111,6 +114,9 @@ const App = () => (
               <Route path="/hr/absences/new" element={<AbsenceList />} />
               <Route path="/hr/contracts" element={<ContractList />} />
               <Route path="/hr/contracts/new" element={<ContractList />} />
+              <Route path="/hr/payroll" element={<PayrollList />} />
+              <Route path="/hr/payroll/:id" element={<PayrollView />} />
+              <Route path="/hr/payslip/:id" element={<PayslipView />} />
               <Route path="/hse" element={<HSEIndex />} />
               <Route path="/hse/calendar" element={<HSECalendar />} />
               <Route path="/settings" element={<SettingsIndex />} />
