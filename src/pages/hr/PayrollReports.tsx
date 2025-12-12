@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { format, startOfYear, endOfYear, parseISO } from "date-fns";
-import { ArrowLeft, TrendingUp, Users, Building2, FileText } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { ArrowLeft, TrendingUp, Users, Building2, FileText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { usePayrollReportData } from "@/hooks/usePayrollReports";
+import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
@@ -48,6 +50,61 @@ export default function PayrollReports() {
     }));
   }, [periodSummaries]);
 
+  const exportToExcel = useCallback(() => {
+    const wb = XLSX.utils.book_new();
+
+    // Monthly summary sheet
+    if (periodSummaries.length > 0) {
+      const monthlyData = periodSummaries.map(p => ({
+        "Period": format(parseISO(p.period_month), "MMMM yyyy"),
+        "Status": p.status === "paid" ? "Isplaćeno" : p.status === "processed" ? "Obrađeno" : "Nacrt",
+        "Bruto plata": p.total_gross,
+        "Doprinosi": p.total_deductions,
+        "Neto plata": p.total_net,
+      }));
+      const wsMonthly = XLSX.utils.json_to_sheet(monthlyData);
+      XLSX.utils.book_append_sheet(wb, wsMonthly, "Mjesečni pregled");
+    }
+
+    // Department breakdown sheet
+    if (departmentBreakdown.length > 0) {
+      const deptData = departmentBreakdown.map(d => ({
+        "Odjeljenje": d.department_name || "Bez odjeljenja",
+        "Broj zaposlenika": d.employee_count,
+        "Ukupna bruto plata": d.total_gross,
+        "Ukupna neto plata": d.total_net,
+      }));
+      const wsDept = XLSX.utils.json_to_sheet(deptData);
+      XLSX.utils.book_append_sheet(wb, wsDept, "Po odjeljenjima");
+    }
+
+    // Deductions breakdown sheet
+    if (deductionBreakdown.length > 0) {
+      const dedData = deductionBreakdown.map(d => ({
+        "Vrsta doprinosa": d.deduction_name,
+        "Šifra": d.deduction_code,
+        "Ukupan iznos": d.total_amount,
+      }));
+      const wsDed = XLSX.utils.json_to_sheet(dedData);
+      XLSX.utils.book_append_sheet(wb, wsDed, "Doprinosi");
+    }
+
+    // Yearly summary sheet
+    const summaryData = [
+      { "Kategorija": "Ukupna bruto plata", "Iznos": yearlyTotals.totalGross },
+      { "Kategorija": "Ukupna neto plata", "Iznos": yearlyTotals.totalNet },
+      { "Kategorija": "Ukupni doprinosi", "Iznos": yearlyTotals.totalDeductions },
+      { "Kategorija": "Prosječna neto plata", "Iznos": yearlyTotals.averageNet },
+      { "Kategorija": "Broj zaposlenika", "Iznos": yearlyTotals.employeeCount },
+    ];
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Godišnji sažetak");
+
+    // Download the file
+    XLSX.writeFile(wb, `Izvjestaj_o_platama_${selectedYear}.xlsx`);
+    toast.success("Excel izvještaj uspješno preuzet");
+  }, [periodSummaries, departmentBreakdown, deductionBreakdown, yearlyTotals, selectedYear]);
+
   if (isLoading) {
     return <div className="p-6">Učitavanje...</div>;
   }
@@ -74,6 +131,10 @@ export default function PayrollReports() {
             ))}
           </SelectContent>
         </Select>
+        <Button onClick={exportToExcel} variant="outline">
+          <Download className="h-4 w-4 mr-2" />
+          Excel
+        </Button>
       </div>
 
       {/* Yearly Summary Cards */}
