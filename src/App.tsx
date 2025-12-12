@@ -12,6 +12,15 @@ import WarehouseIndex from "./pages/warehouse/WarehouseIndex";
 import GoodsReceiptList from "./pages/warehouse/GoodsReceiptList";
 import GoodsReceiptForm from "./pages/warehouse/GoodsReceiptForm";
 import GoodsReceiptView from "./pages/warehouse/GoodsReceiptView";
+import GoodsIssueList from "./pages/warehouse/GoodsIssueList";
+import GoodsIssueForm from "./pages/warehouse/GoodsIssueForm";
+import GoodsIssueView from "./pages/warehouse/GoodsIssueView";
+import TransferList from "./pages/warehouse/TransferList";
+import TransferForm from "./pages/warehouse/TransferForm";
+import TransferView from "./pages/warehouse/TransferView";
+import InventoryList from "./pages/warehouse/InventoryList";
+import InventoryForm from "./pages/warehouse/InventoryForm";
+import InventoryView from "./pages/warehouse/InventoryView";
 import FinanceIndex from "./pages/finance/FinanceIndex";
 import AssetsIndex from "./pages/assets/AssetsIndex";
 import POSIndex from "./pages/pos/POSIndex";
@@ -47,6 +56,18 @@ const App = () => (
               <Route path="/warehouse/receipts/new" element={<GoodsReceiptForm />} />
               <Route path="/warehouse/receipts/:id" element={<GoodsReceiptView />} />
               <Route path="/warehouse/receipts/:id/edit" element={<GoodsReceiptForm />} />
+              <Route path="/warehouse/issues" element={<GoodsIssueList />} />
+              <Route path="/warehouse/issues/new" element={<GoodsIssueForm />} />
+              <Route path="/warehouse/issues/:id" element={<GoodsIssueView />} />
+              <Route path="/warehouse/issues/:id/edit" element={<GoodsIssueForm />} />
+              <Route path="/warehouse/transfers" element={<TransferList />} />
+              <Route path="/warehouse/transfers/new" element={<TransferForm />} />
+              <Route path="/warehouse/transfers/:id" element={<TransferView />} />
+              <Route path="/warehouse/transfers/:id/edit" element={<TransferForm />} />
+              <Route path="/warehouse/inventory" element={<InventoryList />} />
+              <Route path="/warehouse/inventory/new" element={<InventoryForm />} />
+              <Route path="/warehouse/inventory/:id" element={<InventoryView />} />
+              <Route path="/warehouse/inventory/:id/edit" element={<InventoryForm />} />
               <Route path="/finance" element={<FinanceIndex />} />
               <Route path="/assets" element={<AssetsIndex />} />
               <Route path="/pos" element={<POSIndex />} />

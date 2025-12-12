@@ -57,7 +57,7 @@ export default function GoodsIssueView() {
   };
 
   const handleCancel = async () => {
-    await cancelDocument.mutateAsync({ id: id!, documentType: 'goods_issue' });
+    await cancelDocument.mutateAsync(id!);
   };
 
   return (
