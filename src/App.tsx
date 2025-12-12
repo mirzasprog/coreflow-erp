@@ -23,6 +23,13 @@ import InventoryForm from "./pages/warehouse/InventoryForm";
 import InventoryView from "./pages/warehouse/InventoryView";
 import StockReport from "./pages/warehouse/StockReport";
 import FinanceIndex from "./pages/finance/FinanceIndex";
+import OutgoingInvoiceList from "./pages/finance/OutgoingInvoiceList";
+import IncomingInvoiceList from "./pages/finance/IncomingInvoiceList";
+import InvoiceForm from "./pages/finance/InvoiceForm";
+import InvoiceView from "./pages/finance/InvoiceView";
+import GLEntryList from "./pages/finance/GLEntryList";
+import GLEntryForm from "./pages/finance/GLEntryForm";
+import GLEntryView from "./pages/finance/GLEntryView";
 import AssetsIndex from "./pages/assets/AssetsIndex";
 import POSIndex from "./pages/pos/POSIndex";
 import ClassicPOS from "./pages/pos/ClassicPOS";
@@ -71,6 +78,18 @@ const App = () => (
               <Route path="/warehouse/inventory/:id/edit" element={<InventoryForm />} />
               <Route path="/warehouse/stock-report" element={<StockReport />} />
               <Route path="/finance" element={<FinanceIndex />} />
+              <Route path="/finance/invoices/outgoing" element={<OutgoingInvoiceList />} />
+              <Route path="/finance/invoices/outgoing/new" element={<InvoiceForm />} />
+              <Route path="/finance/invoices/outgoing/:id" element={<InvoiceView />} />
+              <Route path="/finance/invoices/outgoing/:id/edit" element={<InvoiceForm />} />
+              <Route path="/finance/invoices/incoming" element={<IncomingInvoiceList />} />
+              <Route path="/finance/invoices/incoming/new" element={<InvoiceForm />} />
+              <Route path="/finance/invoices/incoming/:id" element={<InvoiceView />} />
+              <Route path="/finance/invoices/incoming/:id/edit" element={<InvoiceForm />} />
+              <Route path="/finance/gl-entries" element={<GLEntryList />} />
+              <Route path="/finance/gl-entries/new" element={<GLEntryForm />} />
+              <Route path="/finance/gl-entries/:id" element={<GLEntryView />} />
+              <Route path="/finance/gl-entries/:id/edit" element={<GLEntryForm />} />
               <Route path="/assets" element={<AssetsIndex />} />
               <Route path="/pos" element={<POSIndex />} />
               <Route path="/hr" element={<HRIndex />} />
