@@ -69,6 +69,38 @@ export function usePOSItems(searchQuery: string = "") {
   });
 }
 
+// Lookup item by barcode
+export function usePOSItemByBarcode() {
+  return async (barcode: string): Promise<POSItem | null> => {
+    const { data, error } = await supabase
+      .from("items")
+      .select(`
+        id,
+        code,
+        name,
+        barcode,
+        selling_price,
+        vat_rate_id,
+        vat_rates(rate)
+      `)
+      .eq("active", true)
+      .eq("barcode", barcode)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      code: data.code,
+      name: data.name,
+      barcode: data.barcode,
+      selling_price: data.selling_price || 0,
+      vat_rate: data.vat_rates?.rate || 0,
+      vat_rate_id: data.vat_rate_id,
+    };
+  };
+}
+
 // Fetch item categories for grouping
 export function usePOSCategories() {
   return useQuery({

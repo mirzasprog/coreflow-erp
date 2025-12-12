@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -8,12 +8,14 @@ import {
   Trash2,
   Loader2,
   Package,
+  Barcode,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
-import { usePOSItems, useCreateReceipt, CartItem, POSItem } from "@/hooks/usePOS";
+import { usePOSItems, usePOSItemByBarcode, useCreateReceipt, CartItem, POSItem } from "@/hooks/usePOS";
 import { PaymentModal } from "@/components/pos/PaymentModal";
 import { ReceiptModal } from "@/components/pos/ReceiptModal";
+import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
 import { toast } from "sonner";
 
 // Define product categories based on VAT rates or other criteria
@@ -29,10 +31,12 @@ export default function TouchPOS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [numpadValue, setNumpadValue] = useState("");
   const [showPayment, setShowPayment] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<any>(null);
 
   const { data: items = [], isLoading } = usePOSItems("");
   const createReceipt = useCreateReceipt();
+  const findByBarcode = usePOSItemByBarcode();
 
   // Filter items by category (based on name patterns for demo)
   const filteredItems = useMemo(() => {
@@ -72,6 +76,26 @@ export default function TouchPOS() {
     setCart([]);
     setNumpadValue("");
   };
+
+  const handleBarcodeScan = useCallback(async (barcode: string) => {
+    const product = await findByBarcode(barcode);
+    if (product) {
+      const qty = numpadValue ? parseInt(numpadValue) : 1;
+      setCart((prev) => {
+        const existing = prev.find((item) => item.id === product.id);
+        if (existing) {
+          return prev.map((item) =>
+            item.id === product.id ? { ...item, qty: item.qty + qty } : item
+          );
+        }
+        return [...prev, { ...product, qty, discount_percent: 0 }];
+      });
+      setNumpadValue("");
+      toast.success(`Added: ${product.name}`);
+    } else {
+      toast.error(`Product not found: ${barcode}`);
+    }
+  }, [findByBarcode, numpadValue]);
 
   const handleNumpad = (value: string) => {
     if (value === "C") {
@@ -122,7 +146,11 @@ export default function TouchPOS() {
             </Button>
           </NavLink>
           <h1 className="text-xl font-bold">Touch POS</h1>
-          <span className="text-muted-foreground">Touch screen blagajna</span>
+          <span className="flex-1 text-muted-foreground">Touch screen blagajna</span>
+          <Button variant="outline" size="lg" onClick={() => setShowScanner(true)}>
+            <Barcode className="mr-2 h-5 w-5" />
+            Scan
+          </Button>
         </div>
 
         {/* Categories */}
@@ -289,6 +317,13 @@ export default function TouchPOS() {
         open={!!lastReceipt}
         onClose={() => setLastReceipt(null)}
         receipt={lastReceipt}
+      />
+
+      {/* Barcode Scanner */}
+      <BarcodeScanner
+        open={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScan={handleBarcodeScan}
       />
     </div>
   );
