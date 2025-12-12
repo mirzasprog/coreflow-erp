@@ -1,6 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft, Printer, FileText } from "lucide-react";
+import { ArrowLeft, Printer, Download } from "lucide-react";
+import { useRef } from "react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,8 +24,35 @@ export default function PayslipView() {
     }).format(amount);
   };
 
+  const contentRef = useRef<HTMLDivElement>(null);
+
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleExportPDF = async () => {
+    if (!contentRef.current || !payslip) return;
+    
+    const canvas = await html2canvas(contentRef.current, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+    
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+    
+    const imgWidth = 210;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+    
+    const fileName = `platna-lista-${payslip.employee?.employee_code}-${period ? format(new Date(period.period_month), "yyyy-MM") : "unknown"}.pdf`;
+    pdf.save(fileName);
   };
 
   if (payslipLoading || deductionsLoading) {
@@ -46,13 +76,17 @@ export default function PayslipView() {
             {period && format(new Date(period.period_month), "MMMM yyyy")}
           </p>
         </div>
+        <Button variant="outline" onClick={handleExportPDF}>
+          <Download className="h-4 w-4 mr-2" />
+          Preuzmi PDF
+        </Button>
         <Button variant="outline" onClick={handlePrint}>
           <Printer className="h-4 w-4 mr-2" />
           Štampaj
         </Button>
       </div>
 
-      <Card className="print:shadow-none print:border-none">
+      <Card ref={contentRef} className="print:shadow-none print:border-none">
         <CardHeader className="print:pb-2">
           <div className="flex justify-between items-start">
             <div>
