@@ -19,6 +19,7 @@ import {
   FileText,
   Search,
   Building,
+  DollarSign,
 } from "lucide-react";
 import { useState } from "react";
 import { useHREmployees, useHRStats } from "@/hooks/useHR";
@@ -101,6 +102,12 @@ export default function HRIndex() {
             title="Departments"
             subtitle="Odjeli"
             onClick={() => navigate("/hr/departments")}
+          />
+          <QuickAction
+            icon={DollarSign}
+            title="Payroll"
+            subtitle="Obračun plaća"
+            onClick={() => navigate("/hr/payroll")}
           />
         </div>
 

@@ -251,6 +251,39 @@ export type Database = {
           },
         ]
       }
+      deduction_types: {
+        Row: {
+          active: boolean | null
+          code: string
+          created_at: string | null
+          fixed_amount: number | null
+          id: string
+          is_mandatory: boolean | null
+          name: string
+          percentage: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          code: string
+          created_at?: string | null
+          fixed_amount?: number | null
+          id?: string
+          is_mandatory?: boolean | null
+          name: string
+          percentage?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          code?: string
+          created_at?: string | null
+          fixed_amount?: number | null
+          id?: string
+          is_mandatory?: boolean | null
+          name?: string
+          percentage?: number | null
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           active: boolean | null
@@ -950,6 +983,148 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_periods: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          paid_at: string | null
+          period_month: string
+          processed_at: string | null
+          status: Database["public"]["Enums"]["payroll_status"] | null
+          total_deductions: number | null
+          total_gross: number | null
+          total_net: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          paid_at?: string | null
+          period_month: string
+          processed_at?: string | null
+          status?: Database["public"]["Enums"]["payroll_status"] | null
+          total_deductions?: number | null
+          total_gross?: number | null
+          total_net?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          paid_at?: string | null
+          period_month?: string
+          processed_at?: string | null
+          status?: Database["public"]["Enums"]["payroll_status"] | null
+          total_deductions?: number | null
+          total_gross?: number | null
+          total_net?: number | null
+        }
+        Relationships: []
+      }
+      payslip_deductions: {
+        Row: {
+          amount: number
+          deduction_type_id: string
+          description: string | null
+          id: string
+          payslip_id: string
+        }
+        Insert: {
+          amount?: number
+          deduction_type_id: string
+          description?: string | null
+          id?: string
+          payslip_id: string
+        }
+        Update: {
+          amount?: number
+          deduction_type_id?: string
+          description?: string | null
+          id?: string
+          payslip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payslip_deductions_deduction_type_id_fkey"
+            columns: ["deduction_type_id"]
+            isOneToOne: false
+            referencedRelation: "deduction_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslip_deductions_payslip_id_fkey"
+            columns: ["payslip_id"]
+            isOneToOne: false
+            referencedRelation: "payslips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payslips: {
+        Row: {
+          contract_id: string | null
+          created_at: string | null
+          employee_id: string
+          gross_salary: number
+          id: string
+          net_salary: number | null
+          notes: string | null
+          payroll_period_id: string
+          total_deductions: number | null
+          worked_days: number | null
+          working_days: number | null
+        }
+        Insert: {
+          contract_id?: string | null
+          created_at?: string | null
+          employee_id: string
+          gross_salary?: number
+          id?: string
+          net_salary?: number | null
+          notes?: string | null
+          payroll_period_id: string
+          total_deductions?: number | null
+          worked_days?: number | null
+          working_days?: number | null
+        }
+        Update: {
+          contract_id?: string | null
+          created_at?: string | null
+          employee_id?: string
+          gross_salary?: number
+          id?: string
+          net_salary?: number | null
+          notes?: string | null
+          payroll_period_id?: string
+          total_deductions?: number | null
+          worked_days?: number | null
+          working_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payslips_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslips_payroll_period_id_fkey"
+            columns: ["payroll_period_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_receipt_lines: {
         Row: {
           discount_percent: number | null
@@ -1514,6 +1689,7 @@ export type Database = {
       document_status: "draft" | "posted" | "cancelled"
       partner_type: "supplier" | "customer" | "both"
       payment_type: "cash" | "card" | "voucher" | "other"
+      payroll_status: "draft" | "processed" | "paid"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1648,6 +1824,7 @@ export const Constants = {
       document_status: ["draft", "posted", "cancelled"],
       partner_type: ["supplier", "customer", "both"],
       payment_type: ["cash", "card", "voucher", "other"],
+      payroll_status: ["draft", "processed", "paid"],
     },
   },
 } as const
