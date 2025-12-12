@@ -2,6 +2,9 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { NavLink } from "@/components/NavLink";
+import { useTodayReceipts } from "@/hooks/usePOS";
+import { format } from "date-fns";
+import { Loader2 } from "lucide-react";
 import {
   Monitor,
   Smartphone,
@@ -13,14 +16,21 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-const todaySales = [
-  { id: "R-2024-0125", time: "14:32", terminal: "POS-1", cashier: "Mike R.", items: 5, total: 127.50, payment: "Card" },
-  { id: "R-2024-0124", time: "14:15", terminal: "POS-2", cashier: "Sarah M.", items: 2, total: 45.00, payment: "Cash" },
-  { id: "R-2024-0123", time: "13:48", terminal: "POS-1", cashier: "Mike R.", items: 8, total: 234.80, payment: "Card" },
-  { id: "R-2024-0122", time: "13:22", terminal: "POS-1", cashier: "Mike R.", items: 1, total: 15.99, payment: "Cash" },
-];
-
 export default function POSIndex() {
+  const { data: receipts = [], isLoading } = useTodayReceipts();
+
+  // Calculate stats
+  const totalSales = receipts.reduce((sum, r) => sum + (r.total || 0), 0);
+  const cashSales = receipts
+    .filter((r) => r.payment_type === "cash")
+    .reduce((sum, r) => sum + (r.total || 0), 0);
+  const cardSales = receipts
+    .filter((r) => r.payment_type === "card")
+    .reduce((sum, r) => sum + (r.total || 0), 0);
+  const avgTransaction = receipts.length > 0 ? totalSales / receipts.length : 0;
+  const cashPercent = totalSales > 0 ? Math.round((cashSales / totalSales) * 100) : 0;
+  const cardPercent = totalSales > 0 ? Math.round((cardSales / totalSales) * 100) : 0;
+
   return (
     <div>
       <Header title="Point of Sale" subtitle="Blagajna • Cash Register System" />
@@ -73,30 +83,29 @@ export default function POSIndex() {
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Today's Sales"
-            value="€3,847.29"
-            change="47 transactions"
+            value={`${totalSales.toFixed(2)} KM`}
+            change={`${receipts.length} transactions`}
             icon={ShoppingCart}
             iconColor="bg-module-pos/10 text-module-pos"
           />
           <StatCard
             title="Cash Payments"
-            value="€1,234.50"
-            change="32% of total"
+            value={`${cashSales.toFixed(2)} KM`}
+            change={`${cashPercent}% of total`}
             icon={DollarSign}
             iconColor="bg-success/10 text-success"
           />
           <StatCard
             title="Card Payments"
-            value="€2,612.79"
-            change="68% of total"
+            value={`${cardSales.toFixed(2)} KM`}
+            change={`${cardPercent}% of total`}
             icon={CreditCard}
             iconColor="bg-primary/10 text-primary"
           />
           <StatCard
             title="Avg. Transaction"
-            value="€81.86"
-            change="+12% vs yesterday"
-            changeType="positive"
+            value={`${avgTransaction.toFixed(2)} KM`}
+            change="Today's average"
             icon={TrendingUp}
             iconColor="bg-info/10 text-info"
           />
@@ -115,45 +124,68 @@ export default function POSIndex() {
             </Button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Receipt No.</th>
-                  <th>Time</th>
-                  <th>Terminal</th>
-                  <th>Cashier</th>
-                  <th className="text-right">Items</th>
-                  <th className="text-right">Total</th>
-                  <th>Payment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {todaySales.map((sale) => (
-                  <tr key={sale.id} className="cursor-pointer">
-                    <td className="font-medium">{sale.id}</td>
-                    <td>
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                        {sale.time}
-                      </div>
-                    </td>
-                    <td>{sale.terminal}</td>
-                    <td>{sale.cashier}</td>
-                    <td className="text-right">{sale.items}</td>
-                    <td className="text-right font-medium">€{sale.total.toFixed(2)}</td>
-                    <td>
-                      {sale.payment === "Card" ? (
-                        <span className="badge-info">Card</span>
-                      ) : (
-                        <span className="badge-success">Cash</span>
-                      )}
-                    </td>
+          {isLoading ? (
+            <div className="flex h-32 items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : receipts.length === 0 ? (
+            <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
+              <Receipt className="mb-2 h-12 w-12" />
+              <p>No receipts today</p>
+              <p className="text-sm">Start selling to see transactions here</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Receipt No.</th>
+                    <th>Time</th>
+                    <th className="text-right">Items</th>
+                    <th className="text-right">Subtotal</th>
+                    <th className="text-right">VAT</th>
+                    <th className="text-right">Total</th>
+                    <th>Payment</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {receipts.map((receipt) => {
+                    const itemCount = receipt.pos_receipt_lines?.reduce(
+                      (sum: number, line: any) => sum + (line.quantity || 0),
+                      0
+                    ) || 0;
+                    
+                    return (
+                      <tr key={receipt.id} className="cursor-pointer">
+                        <td className="font-medium">{receipt.receipt_number}</td>
+                        <td>
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                            {format(new Date(receipt.receipt_date || receipt.created_at), "HH:mm")}
+                          </div>
+                        </td>
+                        <td className="text-right">{itemCount}</td>
+                        <td className="text-right">{(receipt.subtotal || 0).toFixed(2)} KM</td>
+                        <td className="text-right">{(receipt.vat_amount || 0).toFixed(2)} KM</td>
+                        <td className="text-right font-medium">{(receipt.total || 0).toFixed(2)} KM</td>
+                        <td>
+                          {receipt.payment_type === "card" ? (
+                            <span className="inline-flex items-center rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">
+                              Card
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                              Cash
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
