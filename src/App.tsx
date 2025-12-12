@@ -37,6 +37,11 @@ import POSIndex from "./pages/pos/POSIndex";
 import ClassicPOS from "./pages/pos/ClassicPOS";
 import TouchPOS from "./pages/pos/TouchPOS";
 import HRIndex from "./pages/hr/HRIndex";
+import EmployeeForm from "./pages/hr/EmployeeForm";
+import EmployeeView from "./pages/hr/EmployeeView";
+import DepartmentList from "./pages/hr/DepartmentList";
+import AbsenceList from "./pages/hr/AbsenceList";
+import ContractList from "./pages/hr/ContractList";
 import HSEIndex from "./pages/hse/HSEIndex";
 import HSECalendar from "./pages/hse/HSECalendar";
 import SettingsIndex from "./pages/settings/SettingsIndex";
@@ -98,6 +103,14 @@ const App = () => (
               <Route path="/assets/:id/edit" element={<AssetForm />} />
               <Route path="/pos" element={<POSIndex />} />
               <Route path="/hr" element={<HRIndex />} />
+              <Route path="/hr/employees/new" element={<EmployeeForm />} />
+              <Route path="/hr/employees/:id" element={<EmployeeView />} />
+              <Route path="/hr/employees/:id/edit" element={<EmployeeForm />} />
+              <Route path="/hr/departments" element={<DepartmentList />} />
+              <Route path="/hr/absences" element={<AbsenceList />} />
+              <Route path="/hr/absences/new" element={<AbsenceList />} />
+              <Route path="/hr/contracts" element={<ContractList />} />
+              <Route path="/hr/contracts/new" element={<ContractList />} />
               <Route path="/hse" element={<HSEIndex />} />
               <Route path="/hse/calendar" element={<HSECalendar />} />
               <Route path="/settings" element={<SettingsIndex />} />

@@ -1,7 +1,17 @@
+import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/dashboard/StatCard";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Users,
   UserPlus,
@@ -9,18 +19,25 @@ import {
   FileText,
   Search,
   Building,
-  Clock,
 } from "lucide-react";
-
-const employees = [
-  { id: "EMP-001", name: "John Doe", position: "Software Developer", department: "IT", location: "Office HQ", status: "active", startDate: "2022-03-15" },
-  { id: "EMP-002", name: "Sarah Miller", position: "HR Manager", department: "HR", location: "Office HQ", status: "active", startDate: "2021-01-10" },
-  { id: "EMP-003", name: "Mike Smith", position: "Sales Rep", department: "Sales", location: "Store 1", status: "on-leave", startDate: "2023-06-01" },
-  { id: "EMP-004", name: "Ana Kovač", position: "Cashier", department: "Retail", location: "Store 2", status: "active", startDate: "2023-09-15" },
-  { id: "EMP-005", name: "Peter Johnson", position: "Warehouse Mgr", department: "Logistics", location: "Warehouse", status: "active", startDate: "2020-08-20" },
-];
+import { useState } from "react";
+import { useHREmployees, useHRStats } from "@/hooks/useHR";
+import { format } from "date-fns";
 
 export default function HRIndex() {
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const { data: employees, isLoading } = useHREmployees();
+  const { data: stats } = useHRStats();
+
+  const filteredEmployees = employees?.filter(
+    (emp) =>
+      emp.first_name.toLowerCase().includes(search.toLowerCase()) ||
+      emp.last_name.toLowerCase().includes(search.toLowerCase()) ||
+      emp.employee_code.toLowerCase().includes(search.toLowerCase()) ||
+      emp.position?.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div>
       <Header title="Human Resources" subtitle="Ljudski resursi • Employee Management" />
@@ -30,41 +47,61 @@ export default function HRIndex() {
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total Employees"
-            value="47"
-            change="3 new this month"
+            value={stats?.totalEmployees.toString() || "0"}
+            change={`${stats?.activeEmployees || 0} active`}
             changeType="positive"
             icon={Users}
             iconColor="bg-module-hr/10 text-module-hr"
           />
           <StatCard
             title="On Leave"
-            value="4"
-            change="2 returning tomorrow"
+            value={stats?.onLeave.toString() || "0"}
+            change={`${stats?.pendingAbsences || 0} pending approval`}
             icon={Calendar}
             iconColor="bg-warning/10 text-warning"
           />
           <StatCard
-            title="Open Positions"
-            value="3"
-            change="12 applications"
-            icon={UserPlus}
-            iconColor="bg-info/10 text-info"
-          />
-          <StatCard
             title="Active Contracts"
-            value="52"
-            change="5 expiring soon"
+            value={stats?.totalContracts.toString() || "0"}
+            change={`${stats?.expiringContracts || 0} expiring soon`}
             icon={FileText}
             iconColor="bg-primary/10 text-primary"
+          />
+          <StatCard
+            title="Departments"
+            value="—"
+            change="Manage structure"
+            icon={Building}
+            iconColor="bg-info/10 text-info"
           />
         </div>
 
         {/* Quick Actions */}
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <QuickAction icon={UserPlus} title="Add Employee" subtitle="Novi zaposlenik" />
-          <QuickAction icon={Calendar} title="Register Absence" subtitle="Evidencija odsutnosti" />
-          <QuickAction icon={FileText} title="New Contract" subtitle="Novi ugovor" />
-          <QuickAction icon={Clock} title="Time Tracking" subtitle="Evidencija radnog vremena" />
+          <QuickAction
+            icon={UserPlus}
+            title="Add Employee"
+            subtitle="Novi zaposlenik"
+            onClick={() => navigate("/hr/employees/new")}
+          />
+          <QuickAction
+            icon={Calendar}
+            title="Absences"
+            subtitle="Evidencija odsutnosti"
+            onClick={() => navigate("/hr/absences")}
+          />
+          <QuickAction
+            icon={FileText}
+            title="Contracts"
+            subtitle="Ugovori o radu"
+            onClick={() => navigate("/hr/contracts")}
+          />
+          <QuickAction
+            icon={Building}
+            title="Departments"
+            subtitle="Odjeli"
+            onClick={() => navigate("/hr/departments")}
+          />
         </div>
 
         {/* Employees Table */}
@@ -77,72 +114,107 @@ export default function HRIndex() {
             <div className="flex gap-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input placeholder="Search employees..." className="w-64 pl-9" />
+                <Input
+                  placeholder="Search employees..."
+                  className="w-64 pl-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
               </div>
-              <Button>
+              <Button onClick={() => navigate("/hr/employees/new")}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 Add Employee
               </Button>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Name</th>
-                  <th>Position</th>
-                  <th>Department</th>
-                  <th>Location</th>
-                  <th>Start Date</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employees.map((emp) => (
-                  <tr key={emp.id} className="cursor-pointer">
-                    <td className="font-medium">{emp.id}</td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-                          {emp.name.split(" ").map((n) => n[0]).join("")}
+          {isLoading ? (
+            <div className="py-8 text-center text-muted-foreground">Loading employees...</div>
+          ) : !filteredEmployees?.length ? (
+            <div className="py-8 text-center text-muted-foreground">
+              {search ? "No employees match your search." : "No employees registered yet."}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Position</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Hire Date</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredEmployees.map((emp) => (
+                    <TableRow
+                      key={emp.id}
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/hr/employees/${emp.id}`)}
+                    >
+                      <TableCell className="font-medium">{emp.employee_code}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+                            {emp.first_name[0]}{emp.last_name[0]}
+                          </div>
+                          {emp.first_name} {emp.last_name}
                         </div>
-                        {emp.name}
-                      </div>
-                    </td>
-                    <td>{emp.position}</td>
-                    <td>
-                      <span className="rounded bg-muted px-2 py-1 text-xs">{emp.department}</span>
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-1.5">
-                        <Building className="h-3.5 w-3.5 text-muted-foreground" />
-                        {emp.location}
-                      </div>
-                    </td>
-                    <td>{emp.startDate}</td>
-                    <td>
-                      {emp.status === "active" ? (
-                        <span className="badge-success">Active</span>
-                      ) : (
-                        <span className="badge-warning">On Leave</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </TableCell>
+                      <TableCell>{emp.position || "—"}</TableCell>
+                      <TableCell>
+                        {emp.departments && (
+                          <span className="rounded bg-muted px-2 py-1 text-xs">
+                            {emp.departments.name}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {emp.locations && (
+                          <div className="flex items-center gap-1.5">
+                            <Building className="h-3.5 w-3.5 text-muted-foreground" />
+                            {emp.locations.name}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {emp.hire_date ? format(new Date(emp.hire_date), "dd.MM.yyyy") : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {emp.active ? (
+                          <Badge variant="default">Active</Badge>
+                        ) : (
+                          <Badge variant="secondary">Inactive</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function QuickAction({ icon: Icon, title, subtitle }: { icon: any; title: string; subtitle: string }) {
+function QuickAction({
+  icon: Icon,
+  title,
+  subtitle,
+  onClick,
+}: {
+  icon: any;
+  title: string;
+  subtitle: string;
+  onClick?: () => void;
+}) {
   return (
-    <button className="module-card flex items-center gap-4 text-left">
+    <button className="module-card flex items-center gap-4 text-left" onClick={onClick}>
       <div className="rounded-lg bg-module-hr/10 p-3">
         <Icon className="h-6 w-6 text-module-hr" />
       </div>
