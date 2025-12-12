@@ -21,6 +21,7 @@ import TransferView from "./pages/warehouse/TransferView";
 import InventoryList from "./pages/warehouse/InventoryList";
 import InventoryForm from "./pages/warehouse/InventoryForm";
 import InventoryView from "./pages/warehouse/InventoryView";
+import StockReport from "./pages/warehouse/StockReport";
 import FinanceIndex from "./pages/finance/FinanceIndex";
 import AssetsIndex from "./pages/assets/AssetsIndex";
 import POSIndex from "./pages/pos/POSIndex";
@@ -68,6 +69,7 @@ const App = () => (
               <Route path="/warehouse/inventory/new" element={<InventoryForm />} />
               <Route path="/warehouse/inventory/:id" element={<InventoryView />} />
               <Route path="/warehouse/inventory/:id/edit" element={<InventoryForm />} />
+              <Route path="/warehouse/stock-report" element={<StockReport />} />
               <Route path="/finance" element={<FinanceIndex />} />
               <Route path="/assets" element={<AssetsIndex />} />
               <Route path="/pos" element={<POSIndex />} />
