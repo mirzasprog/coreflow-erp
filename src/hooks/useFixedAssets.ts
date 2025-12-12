@@ -156,3 +156,75 @@ export function useAssetStats() {
     },
   });
 }
+
+export type AssetTransfer = {
+  id: string;
+  asset_id: string;
+  from_location_id: string | null;
+  to_location_id: string | null;
+  from_custodian_id: string | null;
+  to_custodian_id: string | null;
+  transfer_date: string;
+  reason: string | null;
+  notes: string | null;
+  created_at: string | null;
+  from_location?: Tables<"locations"> | null;
+  to_location?: Tables<"locations"> | null;
+  from_custodian?: Tables<"employees"> | null;
+  to_custodian?: Tables<"employees"> | null;
+};
+
+export function useAssetTransfers(assetId: string | undefined) {
+  return useQuery({
+    queryKey: ["asset_transfers", assetId],
+    queryFn: async () => {
+      if (!assetId) return [];
+      const { data, error } = await supabase
+        .from("asset_transfers")
+        .select(`
+          *,
+          from_location:locations!asset_transfers_from_location_id_fkey(id, name),
+          to_location:locations!asset_transfers_to_location_id_fkey(id, name),
+          from_custodian:employees!asset_transfers_from_custodian_id_fkey(id, first_name, last_name),
+          to_custodian:employees!asset_transfers_to_custodian_id_fkey(id, first_name, last_name)
+        `)
+        .eq("asset_id", assetId)
+        .order("transfer_date", { ascending: false });
+
+      if (error) throw error;
+      return data as unknown as AssetTransfer[];
+    },
+    enabled: !!assetId,
+  });
+}
+
+export function useCreateAssetTransfer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (transfer: {
+      asset_id: string;
+      from_location_id: string | null;
+      to_location_id: string | null;
+      from_custodian_id: string | null;
+      to_custodian_id: string | null;
+      transfer_date: string;
+      reason?: string;
+      notes?: string;
+    }) => {
+      const { data, error } = await supabase
+        .from("asset_transfers")
+        .insert(transfer)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["asset_transfers", variables.asset_id] });
+      queryClient.invalidateQueries({ queryKey: ["fixed_assets"] });
+      queryClient.invalidateQueries({ queryKey: ["fixed_assets", variables.asset_id] });
+    },
+  });
+}

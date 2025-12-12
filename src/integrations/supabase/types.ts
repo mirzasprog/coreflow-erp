@@ -90,6 +90,84 @@ export type Database = {
           },
         ]
       }
+      asset_transfers: {
+        Row: {
+          asset_id: string
+          created_at: string | null
+          created_by: string | null
+          from_custodian_id: string | null
+          from_location_id: string | null
+          id: string
+          notes: string | null
+          reason: string | null
+          to_custodian_id: string | null
+          to_location_id: string | null
+          transfer_date: string
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string | null
+          created_by?: string | null
+          from_custodian_id?: string | null
+          from_location_id?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          to_custodian_id?: string | null
+          to_location_id?: string | null
+          transfer_date?: string
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          from_custodian_id?: string | null
+          from_location_id?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          to_custodian_id?: string | null
+          to_location_id?: string | null
+          transfer_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_transfers_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_transfers_from_custodian_id_fkey"
+            columns: ["from_custodian_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_transfers_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_transfers_to_custodian_id_fkey"
+            columns: ["to_custodian_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_transfers_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           active: boolean | null
