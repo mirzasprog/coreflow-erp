@@ -23,6 +23,7 @@ import {
   Calendar,
   FileText,
   User,
+  Banknote,
 } from "lucide-react";
 
 export default function EmployeeView() {
@@ -132,6 +133,10 @@ export default function EmployeeView() {
                   <Calendar className="mr-2 h-4 w-4" />
                   Absences
                 </TabsTrigger>
+                <TabsTrigger value="payslips">
+                  <Banknote className="mr-2 h-4 w-4" />
+                  Payslips
+                </TabsTrigger>
                 <TabsTrigger value="details">
                   <User className="mr-2 h-4 w-4" />
                   Details
@@ -237,6 +242,18 @@ export default function EmployeeView() {
                 ) : (
                   <p className="py-8 text-center text-muted-foreground">No absences recorded.</p>
                 )}
+              </TabsContent>
+
+              <TabsContent value="payslips" className="module-card mt-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="font-semibold">Payslip History</h3>
+                  <Button size="sm" onClick={() => navigate(`/hr/employees/${id}/payslips`)}>
+                    View Full History
+                  </Button>
+                </div>
+                <p className="text-muted-foreground py-4">
+                  Click "View Full History" to see all payslips with detailed summaries and totals.
+                </p>
               </TabsContent>
 
               <TabsContent value="details" className="module-card mt-4">
