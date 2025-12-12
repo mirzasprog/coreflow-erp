@@ -17,6 +17,7 @@ export interface WarehouseDocument {
   total_value: number;
   created_at: string;
   locations?: { name: string } | null;
+  target_locations?: { name: string } | null;
   partners?: { name: string } | null;
 }
 
@@ -42,6 +43,7 @@ export function useWarehouseDocuments(documentType: DocumentType) {
         .select(`
           *,
           locations!warehouse_documents_location_id_fkey(name),
+          target_locations:locations!warehouse_documents_target_location_id_fkey(name),
           partners(name)
         `)
         .eq('document_type', documentType)
@@ -63,9 +65,9 @@ export function useWarehouseDocument(id: string | undefined) {
         .from('warehouse_documents')
         .select(`
           *,
-          locations:location_id(name),
-          target_locations:target_location_id(name),
-          partners:partner_id(name)
+          locations!warehouse_documents_location_id_fkey(name),
+          target_locations:locations!warehouse_documents_target_location_id_fkey(name),
+          partners(name)
         `)
         .eq('id', id)
         .single();
@@ -281,6 +283,30 @@ export function useDeleteDocument() {
     },
     onError: (error: Error) => {
       toast.error(`Failed to delete document: ${error.message}`);
+    }
+  });
+}
+
+export function useCancelDocument() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('warehouse_documents')
+        .update({ status: 'cancelled' })
+        .eq('id', id);
+      
+      if (error) throw error;
+      return { id };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['warehouse-documents'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse-document'] });
+      toast.success('Document cancelled successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to cancel document: ${error.message}`);
     }
   });
 }

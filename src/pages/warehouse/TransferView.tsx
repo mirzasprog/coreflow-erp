@@ -57,7 +57,7 @@ export default function TransferView() {
   };
 
   const handleCancel = async () => {
-    await cancelDocument.mutateAsync({ id: id!, documentType: 'transfer' });
+    await cancelDocument.mutateAsync(id!);
   };
 
   return (

@@ -57,7 +57,7 @@ export default function InventoryView() {
   };
 
   const handleCancel = async () => {
-    await cancelDocument.mutateAsync({ id: id!, documentType: 'inventory' });
+    await cancelDocument.mutateAsync(id!);
   };
 
   return (
