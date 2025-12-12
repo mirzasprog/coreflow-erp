@@ -1,9 +1,7 @@
+import { useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft, Printer, Download } from "lucide-react";
-import { useRef } from "react";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { ArrowLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -30,31 +28,6 @@ export default function PayslipView() {
     window.print();
   };
 
-  const handleExportPDF = async () => {
-    if (!contentRef.current || !payslip) return;
-    
-    const canvas = await html2canvas(contentRef.current, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-    });
-    
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-    });
-    
-    const imgWidth = 210;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-    
-    const fileName = `platna-lista-${payslip.employee?.employee_code}-${period ? format(new Date(period.period_month), "yyyy-MM") : "unknown"}.pdf`;
-    pdf.save(fileName);
-  };
-
   if (payslipLoading || deductionsLoading) {
     return <div className="p-6">Učitavanje...</div>;
   }
@@ -76,13 +49,9 @@ export default function PayslipView() {
             {period && format(new Date(period.period_month), "MMMM yyyy")}
           </p>
         </div>
-        <Button variant="outline" onClick={handleExportPDF}>
-          <Download className="h-4 w-4 mr-2" />
-          Preuzmi PDF
-        </Button>
         <Button variant="outline" onClick={handlePrint}>
           <Printer className="h-4 w-4 mr-2" />
-          Štampaj
+          Štampaj / Sačuvaj PDF
         </Button>
       </div>
 
@@ -103,7 +72,7 @@ export default function PayslipView() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Employee Info */}
-          <div className="grid md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+          <div className="grid md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg print:bg-gray-100">
             <div>
               <p className="text-sm text-muted-foreground">Zaposlenik</p>
               <p className="font-medium text-lg">
@@ -127,7 +96,7 @@ export default function PayslipView() {
           {/* Earnings */}
           <div>
             <h3 className="font-semibold mb-3">Bruto plaća</h3>
-            <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg">
+            <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg print:bg-blue-50">
               <span>Osnovna bruto plaća</span>
               <span className="font-bold text-lg">{formatCurrency(payslip.gross_salary)}</span>
             </div>
@@ -180,7 +149,7 @@ export default function PayslipView() {
           <Separator />
 
           {/* Net Salary */}
-          <div className="p-4 bg-primary/10 rounded-lg">
+          <div className="p-4 bg-primary/10 rounded-lg print:bg-green-50">
             <div className="flex justify-between items-center">
               <span className="text-lg font-semibold">NETO ZA ISPLATU</span>
               <span className="text-2xl font-bold text-primary">
