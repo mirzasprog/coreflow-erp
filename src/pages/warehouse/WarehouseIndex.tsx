@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Package, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, ClipboardList } from "lucide-react";
+import { Plus, Search, Package, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, ClipboardList, BarChart3 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const stockItems = [
@@ -24,6 +24,7 @@ const documentTypes = [
   { icon: ArrowUpFromLine, label: "Goods Issue", labelAlt: "Otpremnica", href: "/warehouse/issues", count: 18 },
   { icon: ArrowLeftRight, label: "Transfer", labelAlt: "Međuskladišnica", href: "/warehouse/transfers", count: 7 },
   { icon: ClipboardList, label: "Inventory", labelAlt: "Inventura", href: "/warehouse/inventory", count: 2 },
+  { icon: BarChart3, label: "Stock Report", labelAlt: "Izvještaj o zalihama", href: "/warehouse/stock-report", count: null },
 ];
 
 export default function WarehouseIndex() {
@@ -33,7 +34,7 @@ export default function WarehouseIndex() {
 
       <div className="p-6">
         {/* Document Types Grid */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {documentTypes.map((doc) => (
             <NavLink key={doc.href} to={doc.href}>
               <div className="module-card group cursor-pointer border-l-4 border-l-module-warehouse">
@@ -41,7 +42,9 @@ export default function WarehouseIndex() {
                   <div className="rounded-lg bg-module-warehouse/10 p-2">
                     <doc.icon className="h-5 w-5 text-module-warehouse" />
                   </div>
-                  <span className="text-2xl font-bold text-module-warehouse">{doc.count}</span>
+                  {doc.count !== null && (
+                    <span className="text-2xl font-bold text-module-warehouse">{doc.count}</span>
+                  )}
                 </div>
                 <div className="mt-3">
                   <p className="font-medium">{doc.label}</p>
