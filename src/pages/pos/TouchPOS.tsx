@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -6,63 +6,55 @@ import {
   DollarSign,
   Delete,
   Trash2,
+  Loader2,
+  Package,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
+import { usePOSItems, useCreateReceipt, CartItem, POSItem } from "@/hooks/usePOS";
+import { PaymentModal } from "@/components/pos/PaymentModal";
+import { ReceiptModal } from "@/components/pos/ReceiptModal";
+import { toast } from "sonner";
 
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  qty: number;
-}
-
+// Define product categories based on VAT rates or other criteria
 const categories = [
-  { id: "drinks", name: "Drinks", color: "bg-blue-500" },
+  { id: "all", name: "All Products", color: "bg-primary" },
   { id: "food", name: "Food", color: "bg-green-500" },
-  { id: "snacks", name: "Snacks", color: "bg-yellow-500" },
+  { id: "drinks", name: "Drinks", color: "bg-blue-500" },
   { id: "other", name: "Other", color: "bg-purple-500" },
 ];
 
-const products: Record<string, { id: string; name: string; price: number }[]> = {
-  drinks: [
-    { id: "d1", name: "Coffee", price: 2.50 },
-    { id: "d2", name: "Tea", price: 2.00 },
-    { id: "d3", name: "Cola", price: 2.50 },
-    { id: "d4", name: "Water", price: 1.50 },
-    { id: "d5", name: "Juice", price: 3.00 },
-    { id: "d6", name: "Latte", price: 3.50 },
-  ],
-  food: [
-    { id: "f1", name: "Sandwich", price: 5.50 },
-    { id: "f2", name: "Salad", price: 6.00 },
-    { id: "f3", name: "Soup", price: 4.50 },
-    { id: "f4", name: "Pizza Slice", price: 3.50 },
-    { id: "f5", name: "Burger", price: 7.00 },
-    { id: "f6", name: "Hot Dog", price: 4.00 },
-  ],
-  snacks: [
-    { id: "s1", name: "Chips", price: 1.50 },
-    { id: "s2", name: "Chocolate", price: 2.00 },
-    { id: "s3", name: "Cookies", price: 2.50 },
-    { id: "s4", name: "Candy Bar", price: 1.80 },
-    { id: "s5", name: "Nuts", price: 3.00 },
-    { id: "s6", name: "Popcorn", price: 2.50 },
-  ],
-  other: [
-    { id: "o1", name: "Newspaper", price: 2.00 },
-    { id: "o2", name: "Magazine", price: 5.00 },
-    { id: "o3", name: "Lottery", price: 2.00 },
-    { id: "o4", name: "Phone Card", price: 10.00 },
-  ],
-};
-
 export default function TouchPOS() {
-  const [activeCategory, setActiveCategory] = useState("drinks");
+  const [activeCategory, setActiveCategory] = useState("all");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [numpadValue, setNumpadValue] = useState("");
+  const [showPayment, setShowPayment] = useState(false);
+  const [lastReceipt, setLastReceipt] = useState<any>(null);
 
-  const addToCart = (product: { id: string; name: string; price: number }) => {
+  const { data: items = [], isLoading } = usePOSItems("");
+  const createReceipt = useCreateReceipt();
+
+  // Filter items by category (based on name patterns for demo)
+  const filteredItems = useMemo(() => {
+    if (activeCategory === "all") return items;
+    
+    return items.filter((item) => {
+      const name = item.name.toLowerCase();
+      if (activeCategory === "drinks") {
+        return name.includes("cola") || name.includes("fanta") || name.includes("sprite") || 
+               name.includes("voda") || name.includes("sok") || name.includes("mlijeko") ||
+               name.includes("čaj") || name.includes("kafa");
+      }
+      if (activeCategory === "food") {
+        return name.includes("kruh") || name.includes("brašno") || name.includes("jaja") ||
+               name.includes("šećer") || name.includes("ulje") || name.includes("čips") ||
+               name.includes("čokolada");
+      }
+      return true;
+    });
+  }, [items, activeCategory]);
+
+  const addToCart = (product: POSItem) => {
     const qty = numpadValue ? parseInt(numpadValue) : 1;
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
@@ -71,7 +63,7 @@ export default function TouchPOS() {
           item.id === product.id ? { ...item, qty: item.qty + qty } : item
         );
       }
-      return [...prev, { ...product, qty }];
+      return [...prev, { ...product, qty, discount_percent: 0 }];
     });
     setNumpadValue("");
   };
@@ -91,7 +83,32 @@ export default function TouchPOS() {
     }
   };
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const { subtotal, vatTotal, total } = useMemo(() => {
+    const sub = cart.reduce(
+      (sum, item) => sum + item.selling_price * item.qty * (1 - item.discount_percent / 100),
+      0
+    );
+    const vat = cart.reduce((sum, item) => {
+      const itemTotal = item.selling_price * item.qty * (1 - item.discount_percent / 100);
+      return sum + (itemTotal * item.vat_rate) / (100 + item.vat_rate);
+    }, 0);
+    return { subtotal: sub - vat, vatTotal: vat, total: sub };
+  }, [cart]);
+
+  const handlePayment = async (paymentType: "cash" | "card") => {
+    try {
+      const receipt = await createReceipt.mutateAsync({
+        cart,
+        paymentType,
+      });
+      setLastReceipt(receipt);
+      setShowPayment(false);
+      setCart([]);
+      toast.success("Sale completed successfully!");
+    } catch (error) {
+      toast.error("Failed to process payment");
+    }
+  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -127,20 +144,31 @@ export default function TouchPOS() {
 
         {/* Products Grid */}
         <div className="flex-1 overflow-auto p-4">
-          <div className="grid grid-cols-3 gap-3 lg:grid-cols-4">
-            {products[activeCategory]?.map((product) => (
-              <button
-                key={product.id}
-                onClick={() => addToCart(product)}
-                className="flex h-24 flex-col items-center justify-center rounded-xl border-2 bg-card text-center transition-all hover:border-primary hover:bg-primary/5 active:scale-95"
-              >
-                <span className="text-lg font-semibold">{product.name}</span>
-                <span className="mt-1 text-xl font-bold text-primary">
-                  €{product.price.toFixed(2)}
-                </span>
-              </button>
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+              <Package className="mb-2 h-16 w-16" />
+              <p className="text-lg">No products in this category</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3 lg:grid-cols-4">
+              {filteredItems.map((product) => (
+                <button
+                  key={product.id}
+                  onClick={() => addToCart(product)}
+                  className="flex h-24 flex-col items-center justify-center rounded-xl border-2 bg-card text-center transition-all hover:border-primary hover:bg-primary/5 active:scale-95"
+                >
+                  <span className="line-clamp-2 px-2 text-lg font-semibold">{product.name}</span>
+                  <span className="mt-1 text-xl font-bold text-primary">
+                    {product.selling_price.toFixed(2)} KM
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -149,7 +177,13 @@ export default function TouchPOS() {
         {/* Cart Header */}
         <div className="flex h-16 items-center justify-between border-b px-4">
           <h2 className="text-lg font-semibold">Cart</h2>
-          <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearCart}
+            className="text-destructive"
+            disabled={cart.length === 0}
+          >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -167,10 +201,12 @@ export default function TouchPOS() {
                   <div>
                     <p className="font-medium">{item.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {item.qty} × €{item.price.toFixed(2)}
+                      {item.qty} × {item.selling_price.toFixed(2)} KM
                     </p>
                   </div>
-                  <p className="text-lg font-bold">€{(item.price * item.qty).toFixed(2)}</p>
+                  <p className="text-lg font-bold">
+                    {(item.selling_price * item.qty).toFixed(2)} KM
+                  </p>
                 </div>
               ))}
             </div>
@@ -188,9 +224,10 @@ export default function TouchPOS() {
                 key={key}
                 onClick={() => handleNumpad(key)}
                 className={cn(
-                  "touch-numpad-btn",
-                  key === "C" && "bg-warning/20 text-warning",
-                  key === "DEL" && "bg-destructive/20 text-destructive"
+                  "flex h-12 items-center justify-center rounded-lg border-2 text-lg font-semibold transition-all active:scale-95",
+                  key === "C" && "bg-warning/20 text-warning border-warning/30",
+                  key === "DEL" && "bg-destructive/20 text-destructive border-destructive/30",
+                  key !== "C" && key !== "DEL" && "bg-muted hover:bg-muted/80"
                 )}
               >
                 {key === "DEL" ? <Delete className="h-5 w-5" /> : key}
@@ -201,26 +238,58 @@ export default function TouchPOS() {
 
         {/* Total & Payment */}
         <div className="border-t p-4">
+          <div className="mb-2 space-y-1 text-sm">
+            <div className="flex justify-between text-muted-foreground">
+              <span>Subtotal (bez PDV)</span>
+              <span>{subtotal.toFixed(2)} KM</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>PDV</span>
+              <span>{vatTotal.toFixed(2)} KM</span>
+            </div>
+          </div>
           <div className="mb-4 flex items-center justify-between text-2xl font-bold">
             <span>Total</span>
-            <span className="text-primary">€{total.toFixed(2)}</span>
+            <span className="text-primary">{total.toFixed(2)} KM</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
               className="h-16 text-lg"
               disabled={cart.length === 0}
+              onClick={() => setShowPayment(true)}
             >
               <DollarSign className="mr-2 h-6 w-6" />
               Cash
             </Button>
-            <Button className="h-16 text-lg" disabled={cart.length === 0}>
+            <Button
+              className="h-16 text-lg"
+              disabled={cart.length === 0}
+              onClick={() => setShowPayment(true)}
+            >
               <CreditCard className="mr-2 h-6 w-6" />
               Card
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        open={showPayment}
+        onClose={() => setShowPayment(false)}
+        cart={cart}
+        total={total}
+        onConfirm={handlePayment}
+        isProcessing={createReceipt.isPending}
+      />
+
+      {/* Receipt Modal */}
+      <ReceiptModal
+        open={!!lastReceipt}
+        onClose={() => setLastReceipt(null)}
+        receipt={lastReceipt}
+      />
     </div>
   );
 }

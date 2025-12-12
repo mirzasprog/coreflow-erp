@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -6,6 +6,7 @@ import {
   Barcode,
   CreditCard,
   DollarSign,
+  Loader2,
   Minus,
   Plus,
   Search,
@@ -13,30 +14,21 @@ import {
   X,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-
-interface CartItem {
-  id: string;
-  code: string;
-  name: string;
-  price: number;
-  qty: number;
-  vat: number;
-}
-
-const products = [
-  { id: "1", code: "ART-001", name: "Office Chair Ergonomic", price: 125.00, vat: 25 },
-  { id: "2", code: "ART-002", name: "LED Monitor 27\"", price: 320.00, vat: 25 },
-  { id: "3", code: "ART-003", name: "Paper A4 500 sheets", price: 4.50, vat: 25 },
-  { id: "4", code: "ART-004", name: "Printer Toner Black", price: 85.00, vat: 25 },
-  { id: "5", code: "ART-005", name: "USB-C Cable 2m", price: 12.99, vat: 25 },
-  { id: "6", code: "ART-006", name: "Wireless Mouse", price: 29.99, vat: 25 },
-];
+import { usePOSItems, useCreateReceipt, CartItem, POSItem } from "@/hooks/usePOS";
+import { PaymentModal } from "@/components/pos/PaymentModal";
+import { ReceiptModal } from "@/components/pos/ReceiptModal";
+import { toast } from "sonner";
 
 export default function ClassicPOS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showPayment, setShowPayment] = useState(false);
+  const [lastReceipt, setLastReceipt] = useState<any>(null);
 
-  const addToCart = (product: typeof products[0]) => {
+  const { data: items = [], isLoading } = usePOSItems(searchQuery);
+  const createReceipt = useCreateReceipt();
+
+  const addToCart = (product: POSItem) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
@@ -44,7 +36,7 @@ export default function ClassicPOS() {
           item.id === product.id ? { ...item, qty: item.qty + 1 } : item
         );
       }
-      return [...prev, { ...product, qty: 1 }];
+      return [...prev, { ...product, qty: 1, discount_percent: 0 }];
     });
   };
 
@@ -64,18 +56,32 @@ export default function ClassicPOS() {
 
   const clearCart = () => setCart([]);
 
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const vatTotal = cart.reduce(
-    (sum, item) => sum + (item.price * item.qty * item.vat) / 100,
-    0
-  );
-  const total = subtotal + vatTotal;
+  const { subtotal, vatTotal, total } = useMemo(() => {
+    const sub = cart.reduce(
+      (sum, item) => sum + item.selling_price * item.qty * (1 - item.discount_percent / 100),
+      0
+    );
+    const vat = cart.reduce((sum, item) => {
+      const itemTotal = item.selling_price * item.qty * (1 - item.discount_percent / 100);
+      return sum + (itemTotal * item.vat_rate) / (100 + item.vat_rate);
+    }, 0);
+    return { subtotal: sub - vat, vatTotal: vat, total: sub };
+  }, [cart]);
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handlePayment = async (paymentType: "cash" | "card") => {
+    try {
+      const receipt = await createReceipt.mutateAsync({
+        cart,
+        paymentType,
+      });
+      setLastReceipt(receipt);
+      setShowPayment(false);
+      setCart([]);
+      toast.success("Sale completed successfully!");
+    } catch (error) {
+      toast.error("Failed to process payment");
+    }
+  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -98,7 +104,7 @@ export default function ClassicPOS() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search or scan barcode..."
+                placeholder="Search products or scan barcode..."
                 className="pl-9"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -112,23 +118,44 @@ export default function ClassicPOS() {
 
         {/* Products Grid */}
         <div className="flex-1 overflow-auto p-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredProducts.map((product) => (
-              <button
-                key={product.id}
-                onClick={() => addToCart(product)}
-                className="pos-button"
-              >
-                <span className="text-xs text-muted-foreground">{product.code}</span>
-                <span className="mt-1 line-clamp-2 px-2 text-center text-sm font-medium">
-                  {product.name}
-                </span>
-                <span className="mt-1 text-lg font-bold text-primary">
-                  €{product.price.toFixed(2)}
-                </span>
-              </button>
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : items.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+              <Search className="mb-2 h-12 w-12" />
+              <p>No products found</p>
+              {searchQuery && (
+                <Button variant="link" onClick={() => setSearchQuery("")}>
+                  Clear search
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {items.map((product) => (
+                <button
+                  key={product.id}
+                  onClick={() => addToCart(product)}
+                  className="flex flex-col items-center justify-center rounded-xl border-2 bg-card p-4 text-center transition-all hover:border-primary hover:bg-primary/5 active:scale-95"
+                >
+                  <span className="text-xs text-muted-foreground">{product.code}</span>
+                  <span className="mt-1 line-clamp-2 px-2 text-sm font-medium">
+                    {product.name}
+                  </span>
+                  <span className="mt-1 text-lg font-bold text-primary">
+                    {product.selling_price.toFixed(2)} KM
+                  </span>
+                  {product.vat_rate > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      PDV {product.vat_rate}%
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -137,7 +164,13 @@ export default function ClassicPOS() {
         {/* Cart Header */}
         <div className="flex h-14 items-center justify-between border-b px-4">
           <h2 className="font-semibold">Current Sale</h2>
-          <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearCart}
+            className="text-destructive"
+            disabled={cart.length === 0}
+          >
             <Trash2 className="mr-1 h-4 w-4" />
             Clear
           </Button>
@@ -156,7 +189,7 @@ export default function ClassicPOS() {
                   <div className="flex-1">
                     <p className="text-sm font-medium">{item.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      €{item.price.toFixed(2)} × {item.qty}
+                      {item.selling_price.toFixed(2)} KM × {item.qty}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
@@ -187,7 +220,7 @@ export default function ClassicPOS() {
                     </Button>
                   </div>
                   <p className="w-20 text-right font-medium">
-                    €{(item.price * item.qty).toFixed(2)}
+                    {(item.selling_price * item.qty).toFixed(2)} KM
                   </p>
                 </div>
               ))}
@@ -199,31 +232,57 @@ export default function ClassicPOS() {
         <div className="border-t bg-muted/30 p-4">
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span>€{subtotal.toFixed(2)}</span>
+              <span className="text-muted-foreground">Subtotal (bez PDV)</span>
+              <span>{subtotal.toFixed(2)} KM</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">VAT</span>
-              <span>€{vatTotal.toFixed(2)}</span>
+              <span className="text-muted-foreground">PDV</span>
+              <span>{vatTotal.toFixed(2)} KM</span>
             </div>
             <div className="flex justify-between border-t pt-2 text-lg font-bold">
               <span>Total</span>
-              <span className="text-primary">€{total.toFixed(2)}</span>
+              <span className="text-primary">{total.toFixed(2)} KM</span>
             </div>
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <Button variant="outline" className="h-12" disabled={cart.length === 0}>
+            <Button
+              variant="outline"
+              className="h-12"
+              disabled={cart.length === 0}
+              onClick={() => setShowPayment(true)}
+            >
               <DollarSign className="mr-2 h-5 w-5" />
               Cash
             </Button>
-            <Button className="h-12" disabled={cart.length === 0}>
+            <Button
+              className="h-12"
+              disabled={cart.length === 0}
+              onClick={() => setShowPayment(true)}
+            >
               <CreditCard className="mr-2 h-5 w-5" />
               Card
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        open={showPayment}
+        onClose={() => setShowPayment(false)}
+        cart={cart}
+        total={total}
+        onConfirm={handlePayment}
+        isProcessing={createReceipt.isPending}
+      />
+
+      {/* Receipt Modal */}
+      <ReceiptModal
+        open={!!lastReceipt}
+        onClose={() => setLastReceipt(null)}
+        receipt={lastReceipt}
+      />
     </div>
   );
 }
