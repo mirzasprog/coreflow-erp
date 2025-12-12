@@ -31,6 +31,8 @@ import GLEntryList from "./pages/finance/GLEntryList";
 import GLEntryForm from "./pages/finance/GLEntryForm";
 import GLEntryView from "./pages/finance/GLEntryView";
 import AssetsIndex from "./pages/assets/AssetsIndex";
+import AssetForm from "./pages/assets/AssetForm";
+import AssetView from "./pages/assets/AssetView";
 import POSIndex from "./pages/pos/POSIndex";
 import ClassicPOS from "./pages/pos/ClassicPOS";
 import TouchPOS from "./pages/pos/TouchPOS";
@@ -91,6 +93,9 @@ const App = () => (
               <Route path="/finance/gl-entries/:id" element={<GLEntryView />} />
               <Route path="/finance/gl-entries/:id/edit" element={<GLEntryForm />} />
               <Route path="/assets" element={<AssetsIndex />} />
+              <Route path="/assets/new" element={<AssetForm />} />
+              <Route path="/assets/:id" element={<AssetView />} />
+              <Route path="/assets/:id/edit" element={<AssetForm />} />
               <Route path="/pos" element={<POSIndex />} />
               <Route path="/hr" element={<HRIndex />} />
               <Route path="/hse" element={<HSEIndex />} />
