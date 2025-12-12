@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -27,7 +36,10 @@ import {
   useDepreciationRecords,
   useCreateDepreciationRecord,
   useUpdateFixedAsset,
+  useAssetTransfers,
+  useCreateAssetTransfer,
 } from "@/hooks/useFixedAssets";
+import { useLocations, useEmployees } from "@/hooks/useMasterData";
 import {
   ArrowLeft,
   Edit,
@@ -38,6 +50,8 @@ import {
   DollarSign,
   Clock,
   Plus,
+  ArrowRightLeft,
+  ArrowRight,
 } from "lucide-react";
 
 export default function AssetView() {
@@ -47,12 +61,24 @@ export default function AssetView() {
 
   const { data: asset, isLoading } = useFixedAsset(id);
   const { data: depreciationRecords } = useDepreciationRecords(id);
+  const { data: transfers } = useAssetTransfers(id);
+  const { data: locations } = useLocations();
+  const { data: employees } = useEmployees();
+
   const createDepreciation = useCreateDepreciationRecord();
   const updateAsset = useUpdateFixedAsset();
+  const createTransfer = useCreateAssetTransfer();
 
   const [showDepreciationModal, setShowDepreciationModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [depAmount, setDepAmount] = useState("");
   const [depDate, setDepDate] = useState(format(new Date(), "yyyy-MM-dd"));
+
+  const [transferDate, setTransferDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [toLocationId, setToLocationId] = useState("");
+  const [toCustodianId, setToCustodianId] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [transferNotes, setTransferNotes] = useState("");
 
   if (isLoading) {
     return (
@@ -104,6 +130,48 @@ export default function AssetView() {
     }
   };
 
+  const handleTransfer = async () => {
+    if (!toLocationId && !toCustodianId) {
+      toast({ title: "Select a new location or custodian", variant: "destructive" });
+      return;
+    }
+
+    try {
+      // Create transfer record
+      await createTransfer.mutateAsync({
+        asset_id: asset.id,
+        from_location_id: asset.location_id,
+        to_location_id: toLocationId || null,
+        from_custodian_id: asset.custodian_id,
+        to_custodian_id: toCustodianId || null,
+        transfer_date: transferDate,
+        reason: transferReason || undefined,
+        notes: transferNotes || undefined,
+      });
+
+      // Update asset with new location/custodian
+      await updateAsset.mutateAsync({
+        id: asset.id,
+        location_id: toLocationId || asset.location_id,
+        custodian_id: toCustodianId || asset.custodian_id,
+      });
+
+      toast({ title: "Asset transferred successfully" });
+      setShowTransferModal(false);
+      resetTransferForm();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const resetTransferForm = () => {
+    setToLocationId("");
+    setToCustodianId("");
+    setTransferReason("");
+    setTransferNotes("");
+    setTransferDate(format(new Date(), "yyyy-MM-dd"));
+  };
+
   const statusVariant =
     asset.status === "active" ? "default" : asset.status === "sold" ? "secondary" : "outline";
 
@@ -117,10 +185,20 @@ export default function AssetView() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Assets
           </Button>
-          <Button onClick={() => navigate(`/assets/${id}/edit`)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Asset
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowTransferModal(true)}
+              disabled={asset.status !== "active"}
+            >
+              <ArrowRightLeft className="mr-2 h-4 w-4" />
+              Transfer
+            </Button>
+            <Button onClick={() => navigate(`/assets/${id}/edit`)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Asset
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -262,38 +340,102 @@ export default function AssetView() {
           </div>
         </div>
 
-        {/* Depreciation History */}
+        {/* History Tabs */}
         <div className="module-card mt-6">
-          <h3 className="mb-4 text-lg font-semibold">Depreciation History</h3>
+          <Tabs defaultValue="depreciation">
+            <TabsList>
+              <TabsTrigger value="depreciation">Depreciation History</TabsTrigger>
+              <TabsTrigger value="transfers">Transfer History</TabsTrigger>
+            </TabsList>
 
-          {depreciationRecords && depreciationRecords.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Recorded</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {depreciationRecords.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell>{format(new Date(record.period_date), "MMMM yyyy")}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      €{Number(record.amount).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {format(new Date(record.created_at!), "dd.MM.yyyy")}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-center text-muted-foreground py-8">
-              No depreciation records yet.
-            </p>
-          )}
+            <TabsContent value="depreciation" className="mt-4">
+              {depreciationRecords && depreciationRecords.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Period</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Recorded</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {depreciationRecords.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell>{format(new Date(record.period_date), "MMMM yyyy")}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          €{Number(record.amount).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {format(new Date(record.created_at!), "dd.MM.yyyy")}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  No depreciation records yet.
+                </p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="transfers" className="mt-4">
+              {transfers && transfers.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Custodian</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transfers.map((transfer) => (
+                      <TableRow key={transfer.id}>
+                        <TableCell>
+                          {format(new Date(transfer.transfer_date), "dd.MM.yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">
+                              {transfer.from_location?.name || "—"}
+                            </span>
+                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">
+                              {transfer.to_location?.name || "—"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">
+                              {transfer.from_custodian
+                                ? `${transfer.from_custodian.first_name} ${transfer.from_custodian.last_name}`
+                                : "—"}
+                            </span>
+                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">
+                              {transfer.to_custodian
+                                ? `${transfer.to_custodian.first_name} ${transfer.to_custodian.last_name}`
+                                : "—"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {transfer.reason || "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  No transfer history.
+                </p>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
@@ -333,6 +475,93 @@ export default function AssetView() {
             </Button>
             <Button onClick={handleAddDepreciation} disabled={createDepreciation.isPending}>
               Record Depreciation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Modal */}
+      <Dialog open={showTransferModal} onOpenChange={(open) => {
+        setShowTransferModal(open);
+        if (!open) resetTransferForm();
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transfer Asset</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Transfer Date</Label>
+              <Input
+                type="date"
+                value={transferDate}
+                onChange={(e) => setTransferDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>New Location</Label>
+              <Select value={toLocationId} onValueChange={setToLocationId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select new location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations?.filter(l => l.id !== asset.location_id).map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Current: {asset.locations?.name || "None"}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>New Custodian</Label>
+              <Select value={toCustodianId} onValueChange={setToCustodianId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select new custodian" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees?.filter(e => e.id !== asset.custodian_id).map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.first_name} {emp.last_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Current: {asset.employees ? `${asset.employees.first_name} ${asset.employees.last_name}` : "None"}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Input
+                placeholder="e.g., Relocation, Department change"
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                placeholder="Additional notes..."
+                value={transferNotes}
+                onChange={(e) => setTransferNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTransferModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleTransfer} disabled={createTransfer.isPending}>
+              <ArrowRightLeft className="mr-2 h-4 w-4" />
+              Transfer Asset
             </Button>
           </DialogFooter>
         </DialogContent>
