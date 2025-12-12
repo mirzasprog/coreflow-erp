@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,19 +14,22 @@ import {
   X,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { usePOSItems, useCreateReceipt, CartItem, POSItem } from "@/hooks/usePOS";
+import { usePOSItems, usePOSItemByBarcode, useCreateReceipt, CartItem, POSItem } from "@/hooks/usePOS";
 import { PaymentModal } from "@/components/pos/PaymentModal";
 import { ReceiptModal } from "@/components/pos/ReceiptModal";
+import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
 import { toast } from "sonner";
 
 export default function ClassicPOS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showPayment, setShowPayment] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<any>(null);
 
   const { data: items = [], isLoading } = usePOSItems(searchQuery);
   const createReceipt = useCreateReceipt();
+  const findByBarcode = usePOSItemByBarcode();
 
   const addToCart = (product: POSItem) => {
     setCart((prev) => {
@@ -55,6 +58,16 @@ export default function ClassicPOS() {
   };
 
   const clearCart = () => setCart([]);
+
+  const handleBarcodeScan = useCallback(async (barcode: string) => {
+    const product = await findByBarcode(barcode);
+    if (product) {
+      addToCart(product);
+      toast.success(`Added: ${product.name}`);
+    } else {
+      toast.error(`Product not found: ${barcode}`);
+    }
+  }, [findByBarcode]);
 
   const { subtotal, vatTotal, total } = useMemo(() => {
     const sub = cart.reduce(
@@ -110,7 +123,7 @@ export default function ClassicPOS() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" onClick={() => setShowScanner(true)}>
               <Barcode className="h-5 w-5" />
             </Button>
           </div>
@@ -282,6 +295,13 @@ export default function ClassicPOS() {
         open={!!lastReceipt}
         onClose={() => setLastReceipt(null)}
         receipt={lastReceipt}
+      />
+
+      {/* Barcode Scanner */}
+      <BarcodeScanner
+        open={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScan={handleBarcodeScan}
       />
     </div>
   );
