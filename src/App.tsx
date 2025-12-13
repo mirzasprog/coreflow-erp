@@ -58,6 +58,7 @@ import EmployeePayslipHistory from "./pages/hr/EmployeePayslipHistory";
 import HSEIndex from "./pages/hse/HSEIndex";
 import HSECalendar from "./pages/hse/HSECalendar";
 import SettingsIndex from "./pages/settings/SettingsIndex";
+import PartnersList from "./pages/settings/PartnersList";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -142,6 +143,7 @@ const App = () => (
               <Route path="/hse" element={<HSEIndex />} />
               <Route path="/hse/calendar" element={<HSECalendar />} />
               <Route path="/settings" element={<SettingsIndex />} />
+              <Route path="/settings/partners" element={<PartnersList />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
