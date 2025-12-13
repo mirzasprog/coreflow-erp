@@ -235,6 +235,7 @@ export function usePostDocument() {
 
       let totalAdjustmentValue = 0;
       let totalReceiptValue = 0;
+      let totalIssueValue = 0;
       const adjustmentDetails: { itemName: string; difference: number; value: number }[] = [];
 
       // Update stock based on document type
@@ -247,6 +248,8 @@ export function usePostDocument() {
         } else if (documentType === 'goods_issue') {
           // Decrease stock
           await updateStock(line.item_id, doc.location_id, -line.quantity);
+          // Track issue value for COGS GL entry
+          totalIssueValue += line.total_price || (line.quantity * (line.unit_price || 0));
         } else if (documentType === 'transfer') {
           // Decrease source, increase target
           await updateStock(line.item_id, doc.location_id, -line.quantity);
@@ -319,6 +322,64 @@ export function usePostDocument() {
 
         if (glError) {
           console.error('Failed to create GL entry for goods receipt:', glError);
+          glEntryNumber = null;
+        } else {
+          const linesWithEntryId = glLines.map((line) => ({
+            entry_id: glEntry.id,
+            ...line,
+          }));
+
+          const { error: linesError } = await supabase
+            .from('gl_entry_lines')
+            .insert(linesWithEntryId);
+
+          if (linesError) {
+            console.error('Failed to create GL entry lines:', linesError);
+            await supabase.from('gl_entries').delete().eq('id', glEntry.id);
+            glEntryNumber = null;
+          }
+        }
+      }
+
+      // Create GL entry for goods issues (COGS recognition)
+      if (documentType === 'goods_issue' && totalIssueValue > 0 && accounts && accounts.length > 0) {
+        const inventoryAccount = findAccount(GL_ACCOUNTS.INVENTORY) || accounts[0];
+        const cogsAccount = findAccount(GL_ACCOUNTS.COGS) || accounts[0];
+
+        glEntryNumber = await generateGLDocumentNumber();
+
+        const glLines = [
+          {
+            account_id: cogsAccount.id,
+            debit: totalIssueValue,
+            credit: 0,
+            description: `Cost of goods sold - ${doc.document_number}`,
+            partner_id: doc.partner_id,
+          },
+          {
+            account_id: inventoryAccount.id,
+            debit: 0,
+            credit: totalIssueValue,
+            description: `Inventory decrease - ${doc.document_number}`,
+            partner_id: doc.partner_id,
+          },
+        ];
+
+        const { data: glEntry, error: glError } = await supabase
+          .from('gl_entries')
+          .insert({
+            entry_date: doc.document_date,
+            description: `Goods issue / COGS - ${doc.document_number}`,
+            reference_type: 'goods_issue',
+            reference_id: id,
+            status: 'posted',
+            document_number: glEntryNumber,
+          })
+          .select()
+          .single();
+
+        if (glError) {
+          console.error('Failed to create GL entry for goods issue:', glError);
           glEntryNumber = null;
         } else {
           const linesWithEntryId = glLines.map((line) => ({
@@ -438,7 +499,7 @@ export function usePostDocument() {
       
       if (updateError) throw updateError;
 
-      const glValue = totalReceiptValue || totalAdjustmentValue;
+      const glValue = totalReceiptValue || totalIssueValue || totalAdjustmentValue;
       return { id, glEntryNumber, glValue, documentType };
     },
     onSuccess: (data) => {
@@ -448,7 +509,11 @@ export function usePostDocument() {
       queryClient.invalidateQueries({ queryKey: ['gl-entries'] });
       
       if (data.glEntryNumber) {
-        const valueLabel = data.documentType === 'goods_receipt' ? 'receipt value' : 'adjustment';
+        let valueLabel = 'value';
+        if (data.documentType === 'goods_receipt') valueLabel = 'receipt value';
+        else if (data.documentType === 'goods_issue') valueLabel = 'COGS';
+        else if (data.documentType === 'inventory') valueLabel = 'adjustment';
+        
         toast.success(`Document posted. GL Entry ${data.glEntryNumber} created (${valueLabel}: ${Math.abs(data.glValue || 0).toFixed(2)} KM).`);
       } else {
         toast.success('Document posted successfully');
