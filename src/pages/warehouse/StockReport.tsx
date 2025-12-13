@@ -19,11 +19,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, ArrowLeft, AlertTriangle, Package, TrendingDown, Warehouse } from 'lucide-react';
+import { Search, ArrowLeft, AlertTriangle, Package, TrendingDown, Warehouse, ShoppingCart } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useLocations } from '@/hooks/useMasterData';
+import { useGeneratePurchaseOrders } from '@/hooks/usePurchaseOrders';
 
 interface StockItem {
   id: string;
@@ -39,6 +40,7 @@ interface StockItem {
     purchase_price: number | null;
     selling_price: number | null;
     category_id: string | null;
+    preferred_supplier_id: string | null;
     item_categories?: { name: string } | null;
   };
   locations: {
@@ -55,7 +57,7 @@ function useStockReport() {
         .from('stock')
         .select(`
           *,
-          items!inner(code, name, min_stock, max_stock, purchase_price, selling_price, category_id, item_categories(name)),
+          items!inner(code, name, min_stock, max_stock, purchase_price, selling_price, category_id, preferred_supplier_id, item_categories(name)),
           locations!inner(code, name)
         `)
         .order('quantity', { ascending: true });
@@ -69,9 +71,31 @@ function useStockReport() {
 export default function StockReport() {
   const { data: stockItems, isLoading } = useStockReport();
   const { data: locations } = useLocations();
+  const generatePurchaseOrders = useGeneratePurchaseOrders();
   const [search, setSearch] = useState('');
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<string>('all');
+
+  // Get low stock items for purchase order generation
+  const lowStockItemsData = stockItems?.filter(item => item.quantity <= (item.items.min_stock || 0)) || [];
+  
+  const handleGeneratePurchaseOrders = () => {
+    const orderItems = lowStockItemsData.map(item => ({
+      item_id: item.item_id,
+      item_code: item.items.code,
+      item_name: item.items.name,
+      location_id: item.location_id,
+      location_name: item.locations.name,
+      current_quantity: item.quantity,
+      min_stock: item.items.min_stock || 0,
+      // Order quantity: bring stock up to min_stock level, or at least min_stock quantity
+      order_quantity: Math.max((item.items.min_stock || 0) - item.quantity, item.items.min_stock || 10),
+      purchase_price: item.items.purchase_price || 0,
+      preferred_supplier_id: item.items.preferred_supplier_id
+    }));
+    
+    generatePurchaseOrders.mutate(orderItems);
+  };
 
   const filteredItems = stockItems?.filter(item => {
     const matchesSearch = 
@@ -170,10 +194,20 @@ export default function StockReport() {
         {lowStockItems > 0 && (
           <Card className="mb-6 border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                <AlertTriangle className="h-5 w-5" />
-                Low Stock Alerts ({lowStockItems})
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-5 w-5" />
+                  Low Stock Alerts ({lowStockItems})
+                </CardTitle>
+                <Button 
+                  onClick={handleGeneratePurchaseOrders}
+                  disabled={generatePurchaseOrders.isPending}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  {generatePurchaseOrders.isPending ? 'Creating...' : 'Create Purchase Orders'}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
