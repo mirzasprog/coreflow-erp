@@ -78,7 +78,7 @@ export default function FinanceIndex() {
         </div>
 
         {/* Module Links */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <NavLink to="/finance/invoices/outgoing" className="module-card p-6 hover:border-primary transition-colors">
             <div className="flex items-center gap-4">
               <div className="rounded-lg bg-success/10 p-3">
@@ -120,6 +120,17 @@ export default function FinanceIndex() {
               <div>
                 <h3 className="font-semibold">Chart of Accounts</h3>
                 <p className="text-sm text-muted-foreground">Kontni plan</p>
+              </div>
+            </div>
+          </NavLink>
+          <NavLink to="/finance/balance-report" className="module-card p-6 hover:border-primary transition-colors">
+            <div className="flex items-center gap-4">
+              <div className="rounded-lg bg-info/10 p-3">
+                <TrendingUp className="h-6 w-6 text-info" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Balance Report</h3>
+                <p className="text-sm text-muted-foreground">Bruto bilanca</p>
               </div>
             </div>
           </NavLink>
