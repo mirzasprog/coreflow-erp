@@ -208,3 +208,106 @@
     }
   }
 }
+
+/* Print styles for payslip PDF export */
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+
+  .print-hidden,
+  nav,
+  aside,
+  header:not(.print-header),
+  button,
+  [role="navigation"] {
+    display: none !important;
+  }
+
+  .print-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-payslip {
+    page-break-inside: avoid;
+    border: 1px solid #000 !important;
+    padding: 20px !important;
+  }
+
+  .print-payslip h1,
+  .print-payslip h2,
+  .print-payslip h3 {
+    color: black !important;
+  }
+
+  .print-payslip table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  .print-payslip th,
+  .print-payslip td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+  }
+
+  .print-payslip th {
+    background-color: #f0f0f0 !important;
+    font-weight: 600;
+  }
+
+  .print-section {
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+  }
+
+  .print-highlight {
+    background-color: #e8f4fd !important;
+    padding: 15px !important;
+    border-radius: 4px;
+  }
+
+  .print-net-salary {
+    background-color: #e8f5e9 !important;
+    padding: 15px !important;
+    border-radius: 4px;
+    font-size: 14pt;
+  }
+
+  .print-company-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #000;
+  }
+
+  .print-footer {
+    margin-top: 30px;
+    padding-top: 15px;
+    border-top: 1px solid #ccc;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .print-signature {
+    width: 200px;
+    text-align: center;
+    border-top: 1px solid #000;
+    padding-top: 5px;
+    margin-top: 50px;
+  }
+}
