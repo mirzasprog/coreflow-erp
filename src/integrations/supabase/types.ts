@@ -1637,6 +1637,50 @@ export type Database = {
           },
         ]
       }
+      supplier_ratings: {
+        Row: {
+          communication_rating: number
+          created_at: string | null
+          created_by: string | null
+          delivery_rating: number
+          id: string
+          notes: string | null
+          partner_id: string
+          quality_rating: number
+          rating_date: string
+        }
+        Insert: {
+          communication_rating: number
+          created_at?: string | null
+          created_by?: string | null
+          delivery_rating: number
+          id?: string
+          notes?: string | null
+          partner_id: string
+          quality_rating: number
+          rating_date?: string
+        }
+        Update: {
+          communication_rating?: number
+          created_at?: string | null
+          created_by?: string | null
+          delivery_rating?: number
+          id?: string
+          notes?: string | null
+          partner_id?: string
+          quality_rating?: number
+          rating_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_ratings_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       units_of_measure: {
         Row: {
           code: string
