@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useRef } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,13 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Clock, ShoppingCart, CheckCircle, Pencil, Trash2, Package, Mail } from 'lucide-react';
+import { ArrowLeft, Clock, ShoppingCart, CheckCircle, Pencil, Trash2, Package, Mail, Printer } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { usePurchaseOrder, useUpdatePurchaseOrderStatus, useConvertToGoodsReceipt } from '@/hooks/usePurchaseOrders';
+import { PurchaseOrderPDF } from '@/components/warehouse/PurchaseOrderPDF';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,6 +53,104 @@ export default function PurchaseOrderView() {
   const { data: order, isLoading } = usePurchaseOrder(id);
   const updateStatusMutation = useUpdatePurchaseOrderStatus();
   const convertToGoodsReceiptMutation = useConvertToGoodsReceipt();
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = () => {
+    const printContent = printRef.current;
+    if (!printContent) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({
+        title: 'Error',
+        description: 'Could not open print window. Please allow popups.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Purchase Order ${order?.order_number}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+            .print-container { padding: 2rem; max-width: 800px; margin: 0 auto; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #d1d5db; padding: 0.5rem 0.75rem; text-align: left; font-size: 0.875rem; }
+            th { background-color: #f3f4f6; font-weight: 600; }
+            .text-right { text-align: right; }
+            .font-bold { font-weight: 700; }
+            .font-medium { font-weight: 500; }
+            .font-semibold { font-weight: 600; }
+            .text-sm { font-size: 0.875rem; }
+            .text-xs { font-size: 0.75rem; }
+            .text-lg { font-size: 1.125rem; }
+            .text-xl { font-size: 1.25rem; }
+            .text-2xl { font-size: 1.5rem; }
+            .text-3xl { font-size: 1.875rem; }
+            .text-gray-400 { color: #9ca3af; }
+            .text-gray-500 { color: #6b7280; }
+            .text-gray-600 { color: #4b5563; }
+            .text-gray-700 { color: #374151; }
+            .text-gray-800 { color: #1f2937; }
+            .text-gray-900 { color: #111827; }
+            .bg-gray-50 { background-color: #f9fafb; }
+            .bg-gray-100 { background-color: #f3f4f6; }
+            .bg-white { background-color: #ffffff; }
+            .border { border: 1px solid #e5e7eb; }
+            .border-b { border-bottom: 1px solid #e5e7eb; }
+            .border-t { border-top: 1px solid #e5e7eb; }
+            .border-gray-300 { border-color: #d1d5db; }
+            .border-gray-400 { border-color: #9ca3af; }
+            .rounded-lg { border-radius: 0.5rem; }
+            .rounded-full { border-radius: 9999px; }
+            .p-4 { padding: 1rem; }
+            .p-8 { padding: 2rem; }
+            .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+            .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+            .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+            .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+            .pt-2 { padding-top: 0.5rem; }
+            .pt-4 { padding-top: 1rem; }
+            .pt-8 { padding-top: 2rem; }
+            .pb-6 { padding-bottom: 1.5rem; }
+            .mb-2 { margin-bottom: 0.5rem; }
+            .mb-8 { margin-bottom: 2rem; }
+            .mb-12 { margin-bottom: 3rem; }
+            .mt-1 { margin-top: 0.25rem; }
+            .mt-2 { margin-top: 0.5rem; }
+            .mt-8 { margin-top: 2rem; }
+            .mt-12 { margin-top: 3rem; }
+            .uppercase { text-transform: uppercase; }
+            .capitalize { text-transform: capitalize; }
+            .inline-block { display: inline-block; }
+            .grid { display: grid; }
+            .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .gap-8 { gap: 2rem; }
+            .flex { display: flex; }
+            .justify-between { justify-content: space-between; }
+            .items-start { align-items: flex-start; }
+            .text-center { text-align: center; }
+            @media print { 
+              body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+              .print-container { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -130,12 +230,16 @@ export default function PurchaseOrderView() {
       <Header title={order.order_number} subtitle="Narudžbenica • Purchase Order Details" />
 
       <div className="p-6">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between print-hidden">
           <NavLink to="/warehouse/purchase-orders" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="mr-1 h-4 w-4" />
             Back to Purchase Orders
           </NavLink>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print / PDF
+            </Button>
             {order.status === 'draft' && (
               <>
                 <Button variant="outline" onClick={() => navigate(`/warehouse/purchase-orders/${id}/edit`)}>
@@ -319,6 +423,13 @@ export default function PurchaseOrderView() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Hidden printable PDF content */}
+        <div className="hidden">
+          <div ref={printRef}>
+            <PurchaseOrderPDF order={order} />
+          </div>
+        </div>
       </div>
     </div>
   );
