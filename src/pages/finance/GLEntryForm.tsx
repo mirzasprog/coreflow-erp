@@ -318,7 +318,7 @@ export default function GLEntryForm() {
                 <div className="sm:col-span-2 space-y-1">
                   <Label className="text-xs">Account / Konto</Label>
                   <Select
-                    value={newLine.account_id || ''}
+                    value={newLine.account_id || undefined}
                     onValueChange={(value) => setNewLine({ ...newLine, account_id: value })}
                   >
                     <SelectTrigger>
