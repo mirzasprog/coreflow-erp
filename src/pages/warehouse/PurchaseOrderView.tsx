@@ -18,12 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Clock, ShoppingCart, CheckCircle, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Clock, ShoppingCart, CheckCircle, Pencil, Trash2, Package, Mail } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { usePurchaseOrder, useUpdatePurchaseOrderStatus, useConvertToGoodsReceipt } from '@/hooks/usePurchaseOrders';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,59 +36,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
-interface PurchaseOrderLine {
-  id: string;
-  order_id: string;
-  item_id: string;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
-  notes: string | null;
-  items?: { code: string; name: string };
-}
-
-interface PurchaseOrder {
-  id: string;
-  order_number: string;
-  partner_id: string | null;
-  location_id: string | null;
-  order_date: string;
-  expected_date: string | null;
-  status: string;
-  total_value: number | null;
-  notes: string | null;
-  created_at: string | null;
-  partners?: { name: string; code: string } | null;
-  locations?: { name: string; code: string } | null;
-  lines?: PurchaseOrderLine[];
-}
-
-function usePurchaseOrder(id: string | undefined) {
-  return useQuery({
-    queryKey: ['purchase-order', id],
-    enabled: !!id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('purchase_orders')
-        .select(`*, partners(name, code), locations(name, code)`)
-        .eq('id', id!)
-        .maybeSingle();
-      
-      if (error) throw error;
-      if (!data) return null;
-
-      const { data: lines, error: linesError } = await supabase
-        .from('purchase_order_lines')
-        .select(`*, items(code, name)`)
-        .eq('order_id', id!);
-      
-      if (linesError) throw linesError;
-
-      return { ...data, lines: lines as unknown as PurchaseOrderLine[] } as PurchaseOrder;
-    }
-  });
-}
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ElementType; color: string }> = {
   draft: { label: 'Draft', variant: 'secondary', icon: Clock, color: 'text-muted-foreground' },
@@ -101,32 +49,8 @@ export default function PurchaseOrderView() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: order, isLoading } = usePurchaseOrder(id);
-
-  const updateStatusMutation = useMutation({
-    mutationFn: async (newStatus: string) => {
-      const { error } = await supabase
-        .from('purchase_orders')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', id!);
-      
-      if (error) throw error;
-    },
-    onSuccess: (_, newStatus) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-order', id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-orders-list'] });
-      toast({
-        title: 'Status Updated',
-        description: `Order status changed to ${statusConfig[newStatus]?.label || newStatus}`
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive'
-      });
-    }
-  });
+  const updateStatusMutation = useUpdatePurchaseOrderStatus();
+  const convertToGoodsReceiptMutation = useConvertToGoodsReceipt();
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -153,6 +77,24 @@ export default function PurchaseOrderView() {
       });
     }
   });
+
+  const handleStatusChange = (newStatus: string) => {
+    if (!order) return;
+    updateStatusMutation.mutate({
+      orderId: id!,
+      newStatus,
+      locationId: order.location_id
+    });
+  };
+
+  const handleConvertToGoodsReceipt = () => {
+    if (!id) return;
+    convertToGoodsReceiptMutation.mutate(id, {
+      onSuccess: ({ documentId }) => {
+        navigate(`/warehouse/receipts/${documentId}`);
+      }
+    });
+  };
 
   if (isLoading) {
     return (
@@ -224,6 +166,16 @@ export default function PurchaseOrderView() {
                 </AlertDialog>
               </>
             )}
+            {order.status === 'received' && (
+              <Button 
+                onClick={handleConvertToGoodsReceipt}
+                disabled={convertToGoodsReceiptMutation.isPending}
+                className="bg-module-warehouse hover:bg-module-warehouse/90"
+              >
+                <Package className="mr-2 h-4 w-4" />
+                {convertToGoodsReceiptMutation.isPending ? 'Creating...' : 'Create Goods Receipt'}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -242,6 +194,12 @@ export default function PurchaseOrderView() {
                 <div>
                   <p className="text-sm text-muted-foreground">Supplier</p>
                   <p className="font-medium">{order.partners?.name || 'No supplier assigned'}</p>
+                  {order.partners?.email && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      {order.partners.email}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Delivery Location</p>
@@ -292,7 +250,7 @@ export default function PurchaseOrderView() {
                 <p className="mb-2 text-sm text-muted-foreground">Change Status</p>
                 <Select 
                   value={order.status} 
-                  onValueChange={(value) => updateStatusMutation.mutate(value)}
+                  onValueChange={handleStatusChange}
                   disabled={updateStatusMutation.isPending}
                 >
                   <SelectTrigger>
@@ -300,10 +258,22 @@ export default function PurchaseOrderView() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="ordered">Ordered</SelectItem>
-                    <SelectItem value="received">Received</SelectItem>
+                    <SelectItem value="ordered">Ordered (Send to Supplier)</SelectItem>
+                    <SelectItem value="received">Received (Update Stock)</SelectItem>
                   </SelectContent>
                 </Select>
+                {updateStatusMutation.isPending && (
+                  <p className="mt-2 text-xs text-muted-foreground">Processing...</p>
+                )}
+              </div>
+
+              {/* Status Action Info */}
+              <div className="mt-4 rounded-lg border bg-muted/30 p-3">
+                <p className="text-xs font-medium mb-1">Status Actions:</p>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>• <strong>Ordered:</strong> Sends email to supplier</li>
+                  <li>• <strong>Received:</strong> Updates inventory stock</li>
+                </ul>
               </div>
             </CardContent>
           </Card>

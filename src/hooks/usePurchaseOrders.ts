@@ -13,7 +13,7 @@ interface PurchaseOrder {
   total_value: number | null;
   notes: string | null;
   created_at: string | null;
-  partners?: { name: string; code: string } | null;
+  partners?: { name: string; code: string; email?: string } | null;
   locations?: { name: string; code: string } | null;
 }
 
@@ -63,11 +63,12 @@ export function usePurchaseOrder(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_orders')
-        .select(`*, partners(name, code), locations(name, code)`)
+        .select(`*, partners(name, code, email), locations(name, code)`)
         .eq('id', id!)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
+      if (!data) return null;
 
       const { data: lines, error: linesError } = await supabase
         .from('purchase_order_lines')
@@ -99,6 +100,234 @@ async function generateOrderNumber(): Promise<string> {
   }
   
   return `${prefix}${String(nextNumber).padStart(5, '0')}`;
+}
+
+async function generateDocumentNumber(prefix: string): Promise<string> {
+  const year = new Date().getFullYear();
+  const fullPrefix = `${prefix}-${year}-`;
+  
+  const { data } = await supabase
+    .from('warehouse_documents')
+    .select('document_number')
+    .like('document_number', `${fullPrefix}%`)
+    .order('document_number', { ascending: false })
+    .limit(1);
+  
+  let nextNumber = 1;
+  if (data && data.length > 0) {
+    const lastNumber = parseInt(data[0].document_number.replace(fullPrefix, ''), 10);
+    nextNumber = lastNumber + 1;
+  }
+  
+  return `${fullPrefix}${String(nextNumber).padStart(5, '0')}`;
+}
+
+// Send email to supplier when order status changes to 'ordered'
+async function sendOrderEmail(orderId: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-purchase-order-email', {
+      body: { orderId }
+    });
+    
+    if (error) {
+      console.error('Error calling email function:', error);
+      return { success: false, message: error.message };
+    }
+    
+    return data as { success: boolean; message: string };
+  } catch (err) {
+    console.error('Error sending email:', err);
+    return { success: false, message: 'Failed to send email' };
+  }
+}
+
+// Update stock when order is received
+async function updateStockForReceivedOrder(orderId: string, locationId: string): Promise<void> {
+  // Get order lines
+  const { data: lines, error: linesError } = await supabase
+    .from('purchase_order_lines')
+    .select('item_id, quantity')
+    .eq('order_id', orderId);
+  
+  if (linesError) throw linesError;
+  
+  // Update stock for each item
+  for (const line of lines || []) {
+    // Check if stock record exists
+    const { data: existingStock } = await supabase
+      .from('stock')
+      .select('id, quantity')
+      .eq('item_id', line.item_id)
+      .eq('location_id', locationId)
+      .maybeSingle();
+    
+    if (existingStock) {
+      // Update existing stock
+      const newQuantity = (existingStock.quantity || 0) + line.quantity;
+      await supabase
+        .from('stock')
+        .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
+        .eq('id', existingStock.id);
+    } else {
+      // Create new stock record
+      await supabase
+        .from('stock')
+        .insert({
+          item_id: line.item_id,
+          location_id: locationId,
+          quantity: line.quantity
+        });
+    }
+  }
+}
+
+export function useUpdatePurchaseOrderStatus() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ orderId, newStatus, locationId }: { orderId: string; newStatus: string; locationId: string | null }) => {
+      // Update order status
+      const { error } = await supabase
+        .from('purchase_orders')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+
+      let emailResult = null;
+      
+      // If status is 'ordered', send email to supplier
+      if (newStatus === 'ordered') {
+        emailResult = await sendOrderEmail(orderId);
+      }
+      
+      // If status is 'received', update stock
+      if (newStatus === 'received' && locationId) {
+        await updateStockForReceivedOrder(orderId, locationId);
+      }
+
+      return { newStatus, emailResult };
+    },
+    onSuccess: ({ newStatus, emailResult }) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-order'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders-list'] });
+      queryClient.invalidateQueries({ queryKey: ['stock'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-report'] });
+      
+      if (newStatus === 'ordered') {
+        if (emailResult?.success) {
+          toast({
+            title: 'Order Sent',
+            description: `Status updated to Ordered. ${emailResult.message}`
+          });
+        } else {
+          toast({
+            title: 'Status Updated',
+            description: `Status changed to Ordered. ${emailResult?.message || 'Email not sent (no supplier email configured)'}`
+          });
+        }
+      } else if (newStatus === 'received') {
+        toast({
+          title: 'Order Received',
+          description: 'Status updated to Received. Inventory has been updated automatically.'
+        });
+      } else {
+        toast({
+          title: 'Status Updated',
+          description: `Order status changed to ${newStatus}`
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+}
+
+export function useConvertToGoodsReceipt() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      // Get the order with lines
+      const { data: order, error: orderError } = await supabase
+        .from('purchase_orders')
+        .select('*, partners(name, code), locations(name, code)')
+        .eq('id', orderId)
+        .single();
+      
+      if (orderError) throw orderError;
+      if (!order) throw new Error('Order not found');
+      if (order.status !== 'received') throw new Error('Only received orders can be converted');
+
+      const { data: lines, error: linesError } = await supabase
+        .from('purchase_order_lines')
+        .select('*, items(code, name)')
+        .eq('order_id', orderId);
+      
+      if (linesError) throw linesError;
+
+      // Generate goods receipt document number
+      const documentNumber = await generateDocumentNumber('GR');
+
+      // Create goods receipt document
+      const { data: grDoc, error: grError } = await supabase
+        .from('warehouse_documents')
+        .insert({
+          document_number: documentNumber,
+          document_type: 'goods_receipt',
+          document_date: new Date().toISOString().split('T')[0],
+          location_id: order.location_id,
+          partner_id: order.partner_id,
+          status: 'draft',
+          total_value: order.total_value,
+          notes: `Created from Purchase Order ${order.order_number}`
+        })
+        .select()
+        .single();
+      
+      if (grError) throw grError;
+
+      // Create goods receipt lines
+      const grLines = (lines || []).map(line => ({
+        document_id: grDoc.id,
+        item_id: line.item_id,
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        total_price: line.total_price,
+        notes: line.notes
+      }));
+
+      const { error: grLinesError } = await supabase
+        .from('warehouse_document_lines')
+        .insert(grLines);
+      
+      if (grLinesError) throw grLinesError;
+
+      return { documentNumber, documentId: grDoc.id };
+    },
+    onSuccess: ({ documentNumber }) => {
+      queryClient.invalidateQueries({ queryKey: ['warehouse-documents'] });
+      toast({
+        title: 'Goods Receipt Created',
+        description: `Created goods receipt ${documentNumber}`
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
 }
 
 export function useGeneratePurchaseOrders() {
@@ -195,6 +424,7 @@ export function useGeneratePurchaseOrders() {
     },
     onSuccess: (orderNumbers) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders-list'] });
       toast({
         title: 'Purchase Orders Created',
         description: `Created ${orderNumbers.length} purchase order(s): ${orderNumbers.join(', ')}`
