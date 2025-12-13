@@ -402,14 +402,14 @@ export default function ItemsList() {
                 <div>
                   <Label htmlFor="category_id">Category</Label>
                   <Select 
-                    value={formData.category_id} 
-                    onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+                    value={formData.category_id || "none"} 
+                    onValueChange={(value) => setFormData({ ...formData, category_id: value === "none" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {categories?.map(cat => (
                         <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                       ))}
@@ -419,14 +419,14 @@ export default function ItemsList() {
                 <div>
                   <Label htmlFor="unit_id">Unit of Measure</Label>
                   <Select 
-                    value={formData.unit_id} 
-                    onValueChange={(value) => setFormData({ ...formData, unit_id: value })}
+                    value={formData.unit_id || "none"} 
+                    onValueChange={(value) => setFormData({ ...formData, unit_id: value === "none" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select unit" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {units?.map(unit => (
                         <SelectItem key={unit.id} value={unit.id}>{unit.name} ({unit.code})</SelectItem>
                       ))}
@@ -441,14 +441,14 @@ export default function ItemsList() {
                   Used for automatic purchase order generation
                 </p>
                 <Select 
-                  value={formData.preferred_supplier_id} 
-                  onValueChange={(value) => setFormData({ ...formData, preferred_supplier_id: value })}
+                  value={formData.preferred_supplier_id || "none"} 
+                  onValueChange={(value) => setFormData({ ...formData, preferred_supplier_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select preferred supplier" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {suppliers?.map(supplier => (
                       <SelectItem key={supplier.id} value={supplier.id}>
                         {supplier.code} - {supplier.name}
@@ -503,14 +503,14 @@ export default function ItemsList() {
                 <div>
                   <Label htmlFor="vat_rate_id">VAT Rate</Label>
                   <Select 
-                    value={formData.vat_rate_id} 
-                    onValueChange={(value) => setFormData({ ...formData, vat_rate_id: value })}
+                    value={formData.vat_rate_id || "none"} 
+                    onValueChange={(value) => setFormData({ ...formData, vat_rate_id: value === "none" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select VAT" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {vatRates?.map(vat => (
                         <SelectItem key={vat.id} value={vat.id}>{vat.name} ({vat.rate}%)</SelectItem>
                       ))}
