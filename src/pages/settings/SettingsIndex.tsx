@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import {
   Building,
@@ -8,35 +9,44 @@ import {
   Bell,
   Palette,
   Key,
+  Truck,
 } from "lucide-react";
 
 const settingsSections = [
   {
+    title: "Master Data",
+    items: [
+      { icon: Truck, label: "Business Partners", description: "Manage suppliers and customers", href: "/settings/partners" },
+      { icon: Building, label: "Company Settings", description: "Manage company information and locations", href: null },
+    ],
+  },
+  {
     title: "Organization",
     items: [
-      { icon: Building, label: "Company Settings", description: "Manage company information and locations" },
-      { icon: Users, label: "User Management", description: "Add and manage user accounts" },
-      { icon: Shield, label: "Roles & Permissions", description: "Configure access control" },
+      { icon: Users, label: "User Management", description: "Add and manage user accounts", href: null },
+      { icon: Shield, label: "Roles & Permissions", description: "Configure access control", href: null },
     ],
   },
   {
     title: "System",
     items: [
-      { icon: Database, label: "Data Management", description: "Backup, restore, and import data" },
-      { icon: Globe, label: "Localization", description: "Language and regional settings" },
-      { icon: Bell, label: "Notifications", description: "Configure alerts and reminders" },
+      { icon: Database, label: "Data Management", description: "Backup, restore, and import data", href: null },
+      { icon: Globe, label: "Localization", description: "Language and regional settings", href: null },
+      { icon: Bell, label: "Notifications", description: "Configure alerts and reminders", href: null },
     ],
   },
   {
     title: "Customization",
     items: [
-      { icon: Palette, label: "Appearance", description: "Theme and display settings" },
-      { icon: Key, label: "API Keys", description: "Manage integrations and API access" },
+      { icon: Palette, label: "Appearance", description: "Theme and display settings", href: null },
+      { icon: Key, label: "API Keys", description: "Manage integrations and API access", href: null },
     ],
   },
 ];
 
 export default function SettingsIndex() {
+  const navigate = useNavigate();
+  
   return (
     <div>
       <Header title="Settings" subtitle="System Configuration & Administration" />
@@ -50,7 +60,8 @@ export default function SettingsIndex() {
                 {section.items.map((item) => (
                   <button
                     key={item.label}
-                    className="module-card flex items-start gap-4 text-left transition-all hover:shadow-md"
+                    onClick={() => item.href && navigate(item.href)}
+                    className={`module-card flex items-start gap-4 text-left transition-all hover:shadow-md ${!item.href ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     <div className="rounded-lg bg-primary/10 p-3">
                       <item.icon className="h-6 w-6 text-primary" />
