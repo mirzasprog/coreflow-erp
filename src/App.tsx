@@ -46,6 +46,7 @@ import PayrollList from "./pages/hr/PayrollList";
 import PayrollView from "./pages/hr/PayrollView";
 import PayslipView from "./pages/hr/PayslipView";
 import PayrollReports from "./pages/hr/PayrollReports";
+import PayrollComparison from "./pages/hr/PayrollComparison";
 import EmployeePayslipHistory from "./pages/hr/EmployeePayslipHistory";
 import HSEIndex from "./pages/hse/HSEIndex";
 import HSECalendar from "./pages/hse/HSECalendar";
@@ -121,6 +122,7 @@ const App = () => (
               <Route path="/hr/payroll/:id" element={<PayrollView />} />
               <Route path="/hr/payslip/:id" element={<PayslipView />} />
               <Route path="/hr/payroll/reports" element={<PayrollReports />} />
+              <Route path="/hr/payroll/comparison" element={<PayrollComparison />} />
               <Route path="/hse" element={<HSEIndex />} />
               <Route path="/hse/calendar" element={<HSECalendar />} />
               <Route path="/settings" element={<SettingsIndex />} />
