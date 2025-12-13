@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, TrendingDown, TrendingUp, ArrowUpDown } from 'lucide-react';
+import { Search, TrendingDown, TrendingUp, ArrowUpDown, LineChart as LineChartIcon } from 'lucide-react';
 import { format } from 'date-fns';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface PriceData {
   item_id: string;
@@ -19,6 +20,25 @@ interface PriceData {
   last_order_date: string;
   order_count: number;
 }
+
+interface PriceHistoryPoint {
+  date: string;
+  [supplierName: string]: number | string;
+}
+
+// Generate distinct colors for suppliers
+const SUPPLIER_COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  '#8884d8',
+  '#82ca9d',
+  '#ffc658',
+  '#ff7c43',
+  '#a05195',
+];
 
 export default function SupplierPriceComparison() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,6 +90,51 @@ export default function SupplierPriceComparison() {
 
       return Array.from(grouped.values());
     }
+  });
+
+  // Fetch price history for selected item
+  const { data: priceHistory } = useQuery({
+    queryKey: ['price-history', selectedItem],
+    queryFn: async (): Promise<{ data: PriceHistoryPoint[]; suppliers: string[] }> => {
+      if (!selectedItem) return { data: [], suppliers: [] };
+
+      const { data, error } = await supabase
+        .from('purchase_order_lines')
+        .select(`
+          unit_price,
+          purchase_orders!inner(
+            order_date,
+            partner_id,
+            partners!inner(name)
+          )
+        `)
+        .eq('item_id', selectedItem)
+        .gt('unit_price', 0)
+        .order('purchase_orders(order_date)', { ascending: true });
+
+      if (error) throw error;
+
+      // Group by date and supplier
+      const historyMap = new Map<string, PriceHistoryPoint>();
+      const suppliers = new Set<string>();
+
+      data?.forEach((line: any) => {
+        const date = format(new Date(line.purchase_orders.order_date), 'dd.MM.yy');
+        const supplierName = line.purchase_orders.partners.name;
+        suppliers.add(supplierName);
+
+        if (!historyMap.has(date)) {
+          historyMap.set(date, { date });
+        }
+        historyMap.get(date)![supplierName] = Number(line.unit_price);
+      });
+
+      return {
+        data: Array.from(historyMap.values()),
+        suppliers: Array.from(suppliers)
+      };
+    },
+    enabled: !!selectedItem
   });
 
   // Get unique items
@@ -234,6 +299,60 @@ export default function SupplierPriceComparison() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Price History Chart */}
+      {selectedItem && priceHistory && priceHistory.data && priceHistory.data.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <LineChartIcon className="h-5 w-5" />
+              Povijest cijena: {items.find(i => i.item_id === selectedItem)?.item_name}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={priceHistory.data}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="date" 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <YAxis 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    tickFormatter={(value) => `${value} KM`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                    labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    formatter={(value: number) => [`${value.toFixed(2)} KM`, '']}
+                  />
+                  <Legend />
+                  {priceHistory.suppliers.map((supplier, index) => (
+                    <Line
+                      key={supplier}
+                      type="monotone"
+                      dataKey={supplier}
+                      name={supplier}
+                      stroke={SUPPLIER_COLORS[index % SUPPLIER_COLORS.length]}
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                      connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
