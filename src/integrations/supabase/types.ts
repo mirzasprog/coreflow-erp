@@ -791,6 +791,7 @@ export type Database = {
           max_stock: number | null
           min_stock: number | null
           name: string
+          preferred_supplier_id: string | null
           purchase_price: number | null
           selling_price: number | null
           unit_id: string | null
@@ -808,6 +809,7 @@ export type Database = {
           max_stock?: number | null
           min_stock?: number | null
           name: string
+          preferred_supplier_id?: string | null
           purchase_price?: number | null
           selling_price?: number | null
           unit_id?: string | null
@@ -825,6 +827,7 @@ export type Database = {
           max_stock?: number | null
           min_stock?: number | null
           name?: string
+          preferred_supplier_id?: string | null
           purchase_price?: number | null
           selling_price?: number | null
           unit_id?: string | null
@@ -837,6 +840,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "item_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "items_preferred_supplier_id_fkey"
+            columns: ["preferred_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
           {
@@ -1364,6 +1374,111 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_order_lines: {
+        Row: {
+          id: string
+          item_id: string
+          notes: string | null
+          order_id: string
+          quantity: number
+          total_price: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          notes?: string | null
+          order_id: string
+          quantity?: number
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          notes?: string | null
+          order_id?: string
+          quantity?: number
+          total_price?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          expected_date: string | null
+          id: string
+          location_id: string | null
+          notes: string | null
+          order_date: string
+          order_number: string
+          partner_id: string | null
+          status: string
+          total_value: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          expected_date?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          order_date?: string
+          order_number: string
+          partner_id?: string | null
+          status?: string
+          total_value?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          expected_date?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          order_date?: string
+          order_number?: string
+          partner_id?: string | null
+          status?: string
+          total_value?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
             referencedColumns: ["id"]
           },
         ]
