@@ -5,6 +5,7 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { AlertsWidget } from "@/components/dashboard/AlertsWidget";
 import { ProfitLossWidget } from "@/components/dashboard/ProfitLossWidget";
 import { PurchaseOrdersWidget } from "@/components/dashboard/PurchaseOrdersWidget";
+import { SuppliersWidget } from "@/components/dashboard/SuppliersWidget";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -102,10 +103,15 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-2">
           <RecentActivity />
           <AlertsWidget />
+        </div>
+
+        {/* Procurement Section */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <PurchaseOrdersWidget />
+          <SuppliersWidget />
         </div>
 
         {/* Quick Actions */}
