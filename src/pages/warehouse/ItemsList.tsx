@@ -220,15 +220,44 @@ export default function ItemsList() {
           .eq('id', editItem.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        // Create new item and get the ID
+        const { data: newItem, error } = await supabase
           .from('items')
-          .insert(data);
+          .insert(data)
+          .select('id')
+          .single();
         if (error) throw error;
+
+        // Fetch all active locations (warehouses)
+        const { data: locations, error: locError } = await supabase
+          .from('locations')
+          .select('id')
+          .eq('active', true);
+        
+        if (locError) throw locError;
+
+        // Create stock records for each location with initial quantity 0
+        if (locations && locations.length > 0) {
+          const stockRecords = locations.map(loc => ({
+            item_id: newItem.id,
+            location_id: loc.id,
+            quantity: 0,
+            reserved_quantity: 0
+          }));
+
+          const { error: stockError } = await supabase
+            .from('stock')
+            .insert(stockRecords);
+          
+          if (stockError) throw stockError;
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items-list'] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-report'] });
+      queryClient.invalidateQueries({ queryKey: ['stock'] });
       toast({
         title: editItem ? 'Item Updated' : 'Item Created',
         description: `Item "${formData.name}" has been ${editItem ? 'updated' : 'created'} successfully`
