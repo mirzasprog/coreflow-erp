@@ -28,10 +28,11 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import { Truck, Plus, Pencil, ArrowRight, TrendingUp, Clock, CheckCircle, AlertTriangle, Package } from 'lucide-react';
+import { Truck, Plus, Pencil, ArrowRight, TrendingUp, Clock, CheckCircle, AlertTriangle, Package, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { format, differenceInDays, parseISO } from 'date-fns';
+import { SupplierRatingDialog } from './SupplierRatingDialog';
 
 interface Supplier {
   id: string;
@@ -77,6 +78,7 @@ export function SuppliersWidget() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
   const [selectedSupplier, setSelectedSupplier] = useState<SupplierPerformance | null>(null);
+  const [ratingSupplier, setRatingSupplier] = useState<{ id: string; name: string } | null>(null);
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -499,7 +501,17 @@ export function SuppliersWidget() {
                   }}
                 >
                   <Pencil className="h-4 w-4 mr-2" />
-                  Edit Supplier
+                  Edit
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setRatingSupplier({ id: selectedSupplier.supplier.id, name: selectedSupplier.supplier.name });
+                  }}
+                >
+                  <Star className="h-4 w-4 mr-2" />
+                  Rate
                 </Button>
                 <Button 
                   className="flex-1"
@@ -508,7 +520,7 @@ export function SuppliersWidget() {
                     navigate(`/warehouse/purchase-orders?supplier=${selectedSupplier.supplier.id}`);
                   }}
                 >
-                  View Orders
+                  Orders
                 </Button>
               </div>
             </div>
@@ -716,6 +728,13 @@ export function SuppliersWidget() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Supplier Rating Dialog */}
+      <SupplierRatingDialog
+        open={!!ratingSupplier}
+        onOpenChange={() => setRatingSupplier(null)}
+        supplier={ratingSupplier}
+      />
     </>
   );
 }
