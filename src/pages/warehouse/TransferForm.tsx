@@ -208,7 +208,7 @@ export default function TransferForm() {
               <div className="space-y-2">
                 <Label htmlFor="location_id">From Warehouse</Label>
                 <Select
-                  value={formData.location_id}
+                  value={formData.location_id || undefined}
                   onValueChange={(value) => setFormData({ ...formData, location_id: value })}
                   disabled={isPosted}
                 >
@@ -225,7 +225,7 @@ export default function TransferForm() {
               <div className="space-y-2">
                 <Label htmlFor="target_location_id">To Warehouse</Label>
                 <Select
-                  value={formData.target_location_id}
+                  value={formData.target_location_id || undefined}
                   onValueChange={(value) => setFormData({ ...formData, target_location_id: value })}
                   disabled={isPosted}
                 >
@@ -290,7 +290,7 @@ export default function TransferForm() {
             {!isPosted && (
               <div className="mb-4 flex gap-2 flex-wrap">
                 <Select
-                  value={newLine.item_id}
+                  value={newLine.item_id || undefined}
                   onValueChange={(value) => {
                     const item = items?.find(i => i.id === value);
                     setNewLine({ 

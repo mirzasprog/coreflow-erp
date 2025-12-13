@@ -202,7 +202,7 @@ export default function GoodsReceiptForm() {
               <div className="space-y-2">
                 <Label htmlFor="location_id">Warehouse</Label>
                 <Select
-                  value={formData.location_id}
+                  value={formData.location_id || undefined}
                   onValueChange={(value) => setFormData({ ...formData, location_id: value })}
                   disabled={isPosted}
                 >
@@ -219,7 +219,7 @@ export default function GoodsReceiptForm() {
               <div className="space-y-2">
                 <Label htmlFor="partner_id">Supplier</Label>
                 <Select
-                  value={formData.partner_id}
+                  value={formData.partner_id || undefined}
                   onValueChange={(value) => setFormData({ ...formData, partner_id: value })}
                   disabled={isPosted}
                 >
@@ -286,7 +286,7 @@ export default function GoodsReceiptForm() {
             {!isPosted && (
               <div className="mb-4 flex gap-2 flex-wrap">
                 <Select
-                  value={newLine.item_id}
+                  value={newLine.item_id || undefined}
                   onValueChange={(value) => {
                     const item = items?.find(i => i.id === value);
                     setNewLine({ 

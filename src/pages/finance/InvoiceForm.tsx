@@ -233,7 +233,7 @@ export default function InvoiceForm() {
               <div className="space-y-2">
                 <Label htmlFor="partner_id">{isOutgoing ? 'Customer' : 'Supplier'}</Label>
                 <Select
-                  value={formData.partner_id}
+                  value={formData.partner_id || undefined}
                   onValueChange={(value) => setFormData({ ...formData, partner_id: value })}
                   disabled={isPosted}
                 >
@@ -312,7 +312,7 @@ export default function InvoiceForm() {
             {!isPosted && (
               <div className="mb-4 flex gap-2 flex-wrap">
                 <Select
-                  value={newLine.item_id || ''}
+                  value={newLine.item_id || undefined}
                   onValueChange={(value) => {
                     const item = items?.find(i => i.id === value);
                     setNewLine({ 
@@ -356,7 +356,7 @@ export default function InvoiceForm() {
                   onChange={(e) => setNewLine({ ...newLine, unit_price: parseFloat(e.target.value) || 0 })}
                 />
                 <Select
-                  value={newLine.vat_rate_id || ''}
+                  value={newLine.vat_rate_id || undefined}
                   onValueChange={(value) => setNewLine({ ...newLine, vat_rate_id: value })}
                 >
                   <SelectTrigger className="w-28">
