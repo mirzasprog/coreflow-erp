@@ -34,12 +34,24 @@ import { useAbsences, useCreateAbsence, useUpdateAbsence, useHREmployees } from 
 import { ArrowLeft, Plus, Check, Calendar } from "lucide-react";
 
 const ABSENCE_TYPES = [
-  { value: "annual_leave", label: "Annual Leave" },
-  { value: "sick_leave", label: "Sick Leave" },
-  { value: "unpaid_leave", label: "Unpaid Leave" },
-  { value: "maternity_leave", label: "Maternity Leave" },
-  { value: "other", label: "Other" },
+  { value: "annual_leave", label: "Godišnji odmor (Annual Leave)", paid: true },
+  { value: "sick_leave", label: "Bolovanje (Sick Leave)", paid: true },
+  { value: "unpaid_leave", label: "Neplaćeno odsustvo (Unpaid Leave)", paid: false },
+  { value: "maternity_leave", label: "Porodiljsko odsustvo (Maternity Leave)", paid: true },
+  { value: "paternity_leave", label: "Očinsko odsustvo (Paternity Leave)", paid: true },
+  { value: "parental_leave", label: "Roditeljsko odsustvo (Parental Leave)", paid: true },
+  { value: "bereavement_leave", label: "Odsustvo zbog smrti u porodici (Bereavement)", paid: true },
+  { value: "study_leave", label: "Odsustvo za obrazovanje (Study Leave)", paid: true },
+  { value: "military_leave", label: "Vojna obaveza (Military Leave)", paid: true },
+  { value: "religious_holiday", label: "Vjerski praznik (Religious Holiday)", paid: true },
+  { value: "jury_duty", label: "Sudska dužnost (Jury Duty)", paid: true },
+  { value: "blood_donation", label: "Dobrovoljno davanje krvi (Blood Donation)", paid: true },
+  { value: "marriage_leave", label: "Odsustvo zbog vjenčanja (Marriage Leave)", paid: true },
+  { value: "other", label: "Ostalo (Other)", paid: false },
 ];
+
+// Absence types that result in salary deduction
+export const UNPAID_ABSENCE_TYPES = ["unpaid_leave", "other"];
 
 export default function AbsenceList() {
   const navigate = useNavigate();

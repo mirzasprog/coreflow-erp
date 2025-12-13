@@ -1855,7 +1855,21 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      absence_type: "annual_leave" | "sick_leave" | "unpaid_leave" | "other"
+      absence_type:
+        | "annual_leave"
+        | "sick_leave"
+        | "unpaid_leave"
+        | "other"
+        | "parental_leave"
+        | "maternity_leave"
+        | "paternity_leave"
+        | "bereavement_leave"
+        | "study_leave"
+        | "military_leave"
+        | "religious_holiday"
+        | "jury_duty"
+        | "blood_donation"
+        | "marriage_leave"
       asset_status: "active" | "written_off" | "sold"
       check_type: "sanitary_booklet" | "periodic_medical" | "other"
       device_status: "active" | "out_of_service"
@@ -1990,7 +2004,22 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      absence_type: ["annual_leave", "sick_leave", "unpaid_leave", "other"],
+      absence_type: [
+        "annual_leave",
+        "sick_leave",
+        "unpaid_leave",
+        "other",
+        "parental_leave",
+        "maternity_leave",
+        "paternity_leave",
+        "bereavement_leave",
+        "study_leave",
+        "military_leave",
+        "religious_holiday",
+        "jury_duty",
+        "blood_donation",
+        "marriage_leave",
+      ],
       asset_status: ["active", "written_off", "sold"],
       check_type: ["sanitary_booklet", "periodic_medical", "other"],
       device_status: ["active", "out_of_service"],
