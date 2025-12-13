@@ -22,6 +22,9 @@ import InventoryList from "./pages/warehouse/InventoryList";
 import InventoryForm from "./pages/warehouse/InventoryForm";
 import InventoryView from "./pages/warehouse/InventoryView";
 import StockReport from "./pages/warehouse/StockReport";
+import PurchaseOrderList from "./pages/warehouse/PurchaseOrderList";
+import PurchaseOrderView from "./pages/warehouse/PurchaseOrderView";
+import PurchaseOrderForm from "./pages/warehouse/PurchaseOrderForm";
 import FinanceIndex from "./pages/finance/FinanceIndex";
 import OutgoingInvoiceList from "./pages/finance/OutgoingInvoiceList";
 import IncomingInvoiceList from "./pages/finance/IncomingInvoiceList";
@@ -93,6 +96,10 @@ const App = () => (
               <Route path="/warehouse/inventory/:id" element={<InventoryView />} />
               <Route path="/warehouse/inventory/:id/edit" element={<InventoryForm />} />
               <Route path="/warehouse/stock-report" element={<StockReport />} />
+              <Route path="/warehouse/purchase-orders" element={<PurchaseOrderList />} />
+              <Route path="/warehouse/purchase-orders/new" element={<PurchaseOrderForm />} />
+              <Route path="/warehouse/purchase-orders/:id" element={<PurchaseOrderView />} />
+              <Route path="/warehouse/purchase-orders/:id/edit" element={<PurchaseOrderForm />} />
               <Route path="/finance" element={<FinanceIndex />} />
               <Route path="/finance/invoices/outgoing" element={<OutgoingInvoiceList />} />
               <Route path="/finance/invoices/outgoing/new" element={<InvoiceForm />} />

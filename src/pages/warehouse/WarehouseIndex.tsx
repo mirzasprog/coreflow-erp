@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Package, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, ClipboardList, BarChart3 } from "lucide-react";
+import { Plus, Search, Package, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, ClipboardList, BarChart3, ShoppingCart } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const stockItems = [
@@ -24,6 +24,7 @@ const documentTypes = [
   { icon: ArrowUpFromLine, label: "Goods Issue", labelAlt: "Otpremnica", href: "/warehouse/issues", count: 18 },
   { icon: ArrowLeftRight, label: "Transfer", labelAlt: "Međuskladišnica", href: "/warehouse/transfers", count: 7 },
   { icon: ClipboardList, label: "Inventory", labelAlt: "Inventura", href: "/warehouse/inventory", count: 2 },
+  { icon: ShoppingCart, label: "Purchase Orders", labelAlt: "Narudžbenice", href: "/warehouse/purchase-orders", count: null },
   { icon: BarChart3, label: "Stock Report", labelAlt: "Izvještaj o zalihama", href: "/warehouse/stock-report", count: null },
 ];
 
@@ -34,7 +35,7 @@ export default function WarehouseIndex() {
 
       <div className="p-6">
         {/* Document Types Grid */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
           {documentTypes.map((doc) => (
             <NavLink key={doc.href} to={doc.href}>
               <div className="module-card group cursor-pointer border-l-4 border-l-module-warehouse">
