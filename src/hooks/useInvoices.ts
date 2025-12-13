@@ -185,23 +185,239 @@ export function useUpdateInvoice() {
   });
 }
 
+// Helper function to generate GL document number
+async function generateGLDocumentNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `${year}-`;
+  
+  const { data } = await supabase
+    .from('gl_entries')
+    .select('document_number')
+    .like('document_number', `${prefix}%`)
+    .order('document_number', { ascending: false })
+    .limit(1);
+  
+  let nextNumber = 1;
+  if (data && data.length > 0 && data[0].document_number) {
+    const lastNumber = parseInt(data[0].document_number.replace(prefix, ''), 10);
+    if (!isNaN(lastNumber)) {
+      nextNumber = lastNumber + 1;
+    }
+  }
+  
+  return `${prefix}${String(nextNumber).padStart(6, '0')}`;
+}
+
+// Standard account codes - these should match your chart of accounts
+const GL_ACCOUNTS = {
+  ACCOUNTS_RECEIVABLE: '1200', // Potraživanja od kupaca
+  ACCOUNTS_PAYABLE: '2200',    // Obveze prema dobavljačima
+  SALES_REVENUE: '7000',       // Prihodi od prodaje
+  PURCHASE_EXPENSE: '4000',    // Troškovi nabave
+  VAT_OUTPUT: '2400',          // PDV - izlazni
+  VAT_INPUT: '1400',           // PDV - ulazni (pretporez)
+};
+
 export function usePostInvoice() {
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async (id: string) => {
+      // Get invoice with lines
+      const { data: invoice, error: invError } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          partners(id, name),
+          invoice_lines(*)
+        `)
+        .eq('id', id)
+        .single();
+      
+      if (invError) throw invError;
+      if (!invoice) throw new Error('Invoice not found');
+
+      // Get matching accounts from chart of accounts
+      const { data: accounts } = await supabase
+        .from('accounts')
+        .select('id, code, name')
+        .eq('active', true);
+      
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts found in chart of accounts. Please set up accounts first.');
+      }
+
+      // Find accounts by code prefix
+      const findAccount = (codePrefix: string) => {
+        return accounts.find(a => a.code.startsWith(codePrefix));
+      };
+
+      const isOutgoing = invoice.invoice_type === 'outgoing';
+      
+      // Determine accounts based on invoice type
+      const receivableAccount = findAccount(GL_ACCOUNTS.ACCOUNTS_RECEIVABLE);
+      const payableAccount = findAccount(GL_ACCOUNTS.ACCOUNTS_PAYABLE);
+      const revenueAccount = findAccount(GL_ACCOUNTS.SALES_REVENUE);
+      const expenseAccount = findAccount(GL_ACCOUNTS.PURCHASE_EXPENSE);
+      const vatOutputAccount = findAccount(GL_ACCOUNTS.VAT_OUTPUT);
+      const vatInputAccount = findAccount(GL_ACCOUNTS.VAT_INPUT);
+
+      // For outgoing (sales): Debit Receivable, Credit Revenue + VAT Output
+      // For incoming (purchase): Debit Expense + VAT Input, Credit Payable
+      const glLines: Array<{
+        account_id: string;
+        debit: number;
+        credit: number;
+        description: string | null;
+        partner_id: string | null;
+      }> = [];
+
+      const partnerId = invoice.partner_id;
+      const subtotal = invoice.subtotal || 0;
+      const vatAmount = invoice.vat_amount || 0;
+      const total = invoice.total || 0;
+
+      if (isOutgoing) {
+        // Sales invoice
+        if (!receivableAccount) {
+          console.warn('Accounts receivable account not found, using first available account');
+        }
+        if (!revenueAccount) {
+          console.warn('Sales revenue account not found, using first available account');
+        }
+        
+        const arAccount = receivableAccount || accounts[0];
+        const revAccount = revenueAccount || accounts[0];
+        const vatOutAccount = vatOutputAccount || accounts[0];
+
+        // Debit: Accounts Receivable (total)
+        glLines.push({
+          account_id: arAccount.id,
+          debit: total,
+          credit: 0,
+          description: `Invoice ${invoice.invoice_number} - Receivable`,
+          partner_id: partnerId
+        });
+
+        // Credit: Sales Revenue (subtotal)
+        if (subtotal > 0) {
+          glLines.push({
+            account_id: revAccount.id,
+            debit: 0,
+            credit: subtotal,
+            description: `Invoice ${invoice.invoice_number} - Revenue`,
+            partner_id: partnerId
+          });
+        }
+
+        // Credit: VAT Output (vat amount)
+        if (vatAmount > 0) {
+          glLines.push({
+            account_id: vatOutAccount.id,
+            debit: 0,
+            credit: vatAmount,
+            description: `Invoice ${invoice.invoice_number} - VAT`,
+            partner_id: partnerId
+          });
+        }
+      } else {
+        // Purchase invoice
+        const apAccount = payableAccount || accounts[0];
+        const expAccount = expenseAccount || accounts[0];
+        const vatInAccount = vatInputAccount || accounts[0];
+
+        // Debit: Expense (subtotal)
+        if (subtotal > 0) {
+          glLines.push({
+            account_id: expAccount.id,
+            debit: subtotal,
+            credit: 0,
+            description: `Invoice ${invoice.invoice_number} - Expense`,
+            partner_id: partnerId
+          });
+        }
+
+        // Debit: VAT Input (vat amount)
+        if (vatAmount > 0) {
+          glLines.push({
+            account_id: vatInAccount.id,
+            debit: vatAmount,
+            credit: 0,
+            description: `Invoice ${invoice.invoice_number} - Input VAT`,
+            partner_id: partnerId
+          });
+        }
+
+        // Credit: Accounts Payable (total)
+        glLines.push({
+          account_id: apAccount.id,
+          debit: 0,
+          credit: total,
+          description: `Invoice ${invoice.invoice_number} - Payable`,
+          partner_id: partnerId
+        });
+      }
+
+      // Generate document number
+      const documentNumber = await generateGLDocumentNumber();
+
+      // Create GL entry
+      const { data: glEntry, error: glError } = await supabase
+        .from('gl_entries')
+        .insert({
+          entry_date: invoice.invoice_date,
+          description: `${isOutgoing ? 'Sales' : 'Purchase'} Invoice: ${invoice.invoice_number}`,
+          reference_type: 'invoice',
+          reference_id: id,
+          status: 'posted',
+          document_number: documentNumber
+        })
+        .select()
+        .single();
+      
+      if (glError) {
+        console.error('Failed to create GL entry:', glError);
+        throw new Error(`Failed to create GL entry: ${glError.message}`);
+      }
+
+      // Create GL entry lines
+      if (glLines.length > 0) {
+        const linesWithEntryId = glLines.map(line => ({
+          entry_id: glEntry.id,
+          account_id: line.account_id,
+          debit: line.debit,
+          credit: line.credit,
+          description: line.description,
+          partner_id: line.partner_id
+        }));
+
+        const { error: linesError } = await supabase
+          .from('gl_entry_lines')
+          .insert(linesWithEntryId);
+        
+        if (linesError) {
+          console.error('Failed to create GL entry lines:', linesError);
+          // Rollback GL entry if lines fail
+          await supabase.from('gl_entries').delete().eq('id', glEntry.id);
+          throw new Error(`Failed to create GL entry lines: ${linesError.message}`);
+        }
+      }
+
+      // Update invoice status
       const { error } = await supabase
         .from('invoices')
         .update({ status: 'posted', posted_at: new Date().toISOString() })
         .eq('id', id);
       
       if (error) throw error;
-      return { id };
+      
+      return { id, glEntryId: glEntry.id, documentNumber };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoice'] });
-      toast.success('Invoice posted successfully');
+      queryClient.invalidateQueries({ queryKey: ['gl-entries'] });
+      toast.success(`Invoice posted successfully. GL Entry ${data.documentNumber} created.`);
     },
     onError: (error: Error) => {
       toast.error(`Failed to post invoice: ${error.message}`);
