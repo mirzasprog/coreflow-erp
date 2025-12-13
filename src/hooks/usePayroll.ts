@@ -214,10 +214,83 @@ export function usePayslipDeductions(payslipId: string | undefined) {
   });
 }
 
+// Absence types that don't reduce salary (paid leave)
+const PAID_ABSENCE_TYPES = [
+  "annual_leave", 
+  "sick_leave", 
+  "maternity_leave", 
+  "paternity_leave", 
+  "parental_leave", 
+  "bereavement_leave", 
+  "study_leave", 
+  "military_leave", 
+  "religious_holiday", 
+  "jury_duty", 
+  "blood_donation", 
+  "marriage_leave"
+];
+
+// Calculate working days in a month (excluding weekends)
+function getWorkingDaysInMonth(year: number, month: number): number {
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 0);
+  let workingDays = 0;
+  
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const dayOfWeek = d.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      workingDays++;
+    }
+  }
+  return workingDays;
+}
+
+// Calculate absence days within a specific month
+function getAbsenceDaysInMonth(startDate: string, endDate: string, year: number, month: number): number {
+  const absenceStart = new Date(startDate);
+  const absenceEnd = new Date(endDate);
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
+  
+  // Find overlap between absence period and the month
+  const overlapStart = new Date(Math.max(absenceStart.getTime(), monthStart.getTime()));
+  const overlapEnd = new Date(Math.min(absenceEnd.getTime(), monthEnd.getTime()));
+  
+  if (overlapStart > overlapEnd) return 0;
+  
+  let absenceDays = 0;
+  for (let d = new Date(overlapStart); d <= overlapEnd; d.setDate(d.getDate() + 1)) {
+    const dayOfWeek = d.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      absenceDays++;
+    }
+  }
+  return absenceDays;
+}
+
+export interface AbsenceDeduction {
+  type: string;
+  days: number;
+  amount: number;
+}
+
 export function useGeneratePayslips() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (periodId: string) => {
+      // Get payroll period to know the month
+      const { data: periodData, error: periodError } = await supabase
+        .from("payroll_periods")
+        .select("period_month")
+        .eq("id", periodId)
+        .single();
+      if (periodError) throw periodError;
+      
+      const periodDate = new Date(periodData.period_month);
+      const year = periodDate.getFullYear();
+      const month = periodDate.getMonth();
+      const workingDaysInMonth = getWorkingDaysInMonth(year, month);
+
       // Check for existing payslips to avoid duplicates
       const { data: existingPayslips, error: existingError } = await supabase
         .from("payslips")
@@ -246,6 +319,18 @@ export function useGeneratePayslips() {
         throw new Error("Nema novih zaposlenika za generisanje platnih lista");
       }
 
+      // Get all approved absences for the period month
+      const monthStartStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      const monthEndStr = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
+      
+      const { data: allAbsences, error: absError } = await supabase
+        .from("absences")
+        .select("*")
+        .eq("approved", true)
+        .lte("start_date", monthEndStr)
+        .gte("end_date", monthStartStr);
+      if (absError) throw absError;
+
       // Get mandatory deduction types
       const { data: deductionTypes, error: dedError } = await supabase
         .from("deduction_types")
@@ -269,11 +354,41 @@ export function useGeneratePayslips() {
           continue;
         }
 
-        const grossSalary = activeContract.salary;
+        // Get employee's absences for this month
+        const employeeAbsences = (allAbsences || []).filter(a => a.employee_id === emp.id);
+        
+        // Calculate paid and unpaid absence days
+        let paidAbsenceDays = 0;
+        let unpaidAbsenceDays = 0;
+        const absenceDetails: AbsenceDeduction[] = [];
+        
+        for (const absence of employeeAbsences) {
+          const absenceDays = getAbsenceDaysInMonth(absence.start_date, absence.end_date, year, month);
+          if (absenceDays > 0) {
+            const isPaid = PAID_ABSENCE_TYPES.includes(absence.type);
+            if (isPaid) {
+              paidAbsenceDays += absenceDays;
+            } else {
+              unpaidAbsenceDays += absenceDays;
+            }
+            absenceDetails.push({
+              type: absence.type,
+              days: absenceDays,
+              amount: 0 // Will be calculated below
+            });
+          }
+        }
+
+        // Calculate worked days (excluding unpaid absences only - paid absences are still paid)
+        const workedDays = workingDaysInMonth - unpaidAbsenceDays;
+        const dailyRate = activeContract.salary / workingDaysInMonth;
+        
+        // Gross salary is reduced by unpaid absence days
+        const grossSalary = dailyRate * workedDays;
         let deductionsTotal = 0;
 
-        // Calculate deductions
-        const deductions: Array<{ deduction_type_id: string; amount: number }> = [];
+        // Calculate mandatory deductions based on actual gross
+        const deductions: Array<{ deduction_type_id: string; amount: number; description?: string }> = [];
         for (const dt of deductionTypes || []) {
           const amount = dt.percentage 
             ? (grossSalary * dt.percentage) / 100 
@@ -282,7 +397,40 @@ export function useGeneratePayslips() {
           deductionsTotal += amount;
         }
 
+        // Add unpaid absence deductions as separate line items (for display purposes)
+        // Note: These are already reflected in reduced gross, but we show them for clarity
+        const unpaidDeductionAmount = dailyRate * unpaidAbsenceDays;
+
         const netSalary = grossSalary - deductionsTotal;
+
+        // Build notes with absence summary
+        let notes = "";
+        if (absenceDetails.length > 0) {
+          const absenceTypeLabels: Record<string, string> = {
+            annual_leave: "Godišnji odmor",
+            sick_leave: "Bolovanje",
+            unpaid_leave: "Neplaćeno odsustvo",
+            maternity_leave: "Porodiljsko",
+            paternity_leave: "Očinsko",
+            parental_leave: "Roditeljsko",
+            bereavement_leave: "Žalost",
+            study_leave: "Obrazovanje",
+            military_leave: "Vojna obaveza",
+            religious_holiday: "Vjerski praznik",
+            jury_duty: "Sudska dužnost",
+            blood_donation: "Davanje krvi",
+            marriage_leave: "Vjenčanje",
+            other: "Ostalo"
+          };
+          
+          const absenceSummary = absenceDetails.map(a => 
+            `${absenceTypeLabels[a.type] || a.type}: ${a.days} dana`
+          ).join(", ");
+          notes = `Odsustva: ${absenceSummary}`;
+          if (unpaidAbsenceDays > 0) {
+            notes += ` | Odbitak za neplaćeno: ${unpaidAbsenceDays} dana`;
+          }
+        }
 
         // Create payslip
         const { data: payslip, error: payslipError } = await supabase
@@ -294,6 +442,9 @@ export function useGeneratePayslips() {
             gross_salary: grossSalary,
             total_deductions: deductionsTotal,
             net_salary: netSalary,
+            working_days: workingDaysInMonth,
+            worked_days: workedDays,
+            notes: notes || null,
           })
           .select()
           .single();

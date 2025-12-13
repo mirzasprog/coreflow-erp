@@ -97,9 +97,14 @@ export default function PayslipView() {
               <p className="font-mono">{payslip.employee?.employee_code}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground print:text-gray-600">Radni dani</p>
-              <p>
-                {payslip.worked_days} / {payslip.working_days}
+              <p className="text-sm text-muted-foreground print:text-gray-600">Radni dani u mjesecu</p>
+              <p>{payslip.working_days}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground print:text-gray-600">Odrađeni radni dani</p>
+              <p className={payslip.worked_days < payslip.working_days ? "text-amber-600 font-medium" : ""}>
+                {payslip.worked_days} {payslip.worked_days < payslip.working_days && 
+                  `(${payslip.working_days - payslip.worked_days} dana odsustva)`}
               </p>
             </div>
             <div>
@@ -115,7 +120,7 @@ export default function PayslipView() {
           <div>
             <h3 className="font-semibold mb-3">Bruto plaća</h3>
             <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg print-highlight">
-              <span>Osnovna bruto plaća</span>
+              <span>Osnovna bruto plaća (za {payslip.worked_days} dana)</span>
               <span className="font-bold text-lg">{formatCurrency(payslip.gross_salary)}</span>
             </div>
           </div>
