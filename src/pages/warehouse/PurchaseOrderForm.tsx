@@ -256,7 +256,7 @@ export default function PurchaseOrderForm() {
                 <div>
                   <Label htmlFor="partner_id">Supplier</Label>
                   <Select 
-                    value={formData.partner_id} 
+                    value={formData.partner_id || undefined} 
                     onValueChange={(value) => setFormData({ ...formData, partner_id: value })}
                   >
                     <SelectTrigger>
@@ -274,7 +274,7 @@ export default function PurchaseOrderForm() {
                 <div>
                   <Label htmlFor="location_id">Delivery Location</Label>
                   <Select 
-                    value={formData.location_id} 
+                    value={formData.location_id || undefined} 
                     onValueChange={(value) => setFormData({ ...formData, location_id: value })}
                   >
                     <SelectTrigger>
@@ -383,7 +383,7 @@ export default function PurchaseOrderForm() {
                     <TableRow key={index}>
                       <TableCell>
                         <Select 
-                          value={line.item_id} 
+                          value={line.item_id || undefined} 
                           onValueChange={(value) => updateLine(index, 'item_id', value)}
                         >
                           <SelectTrigger>
