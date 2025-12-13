@@ -673,6 +673,13 @@ export function useShiftSummary(shiftId: string | undefined) {
     queryKey: ["pos-shift-summary", shiftId],
     enabled: !!shiftId,
     queryFn: async () => {
+      // First get the shift details
+      const { data: shift } = await supabase
+        .from("pos_shifts")
+        .select("opening_amount, closing_amount")
+        .eq("id", shiftId)
+        .single();
+
       const { data: receipts, error } = await supabase
         .from("pos_receipts")
         .select("total, vat_amount, payment_type, is_return")
@@ -685,7 +692,7 @@ export function useShiftSummary(shiftId: string | undefined) {
       let cashSales = 0;
       let cardSales = 0;
       let totalReturns = 0;
-      let receiptCount = 0;
+      let transactionCount = 0;
 
       (receipts || []).forEach((receipt) => {
         if (receipt.is_return) {
@@ -693,7 +700,7 @@ export function useShiftSummary(shiftId: string | undefined) {
         } else {
           totalSales += receipt.total || 0;
           totalVat += receipt.vat_amount || 0;
-          receiptCount++;
+          transactionCount++;
           if (receipt.payment_type === "cash") {
             cashSales += receipt.total || 0;
           } else if (receipt.payment_type === "card") {
@@ -709,8 +716,27 @@ export function useShiftSummary(shiftId: string | undefined) {
         cardSales,
         totalReturns,
         netSales: totalSales - totalVat,
-        receiptCount,
+        transactionCount,
+        openingAmount: shift?.opening_amount || 0,
+        closingAmount: shift?.closing_amount || 0,
       };
+    },
+  });
+}
+
+// Get POS terminals
+export function usePOSTerminals() {
+  return useQuery({
+    queryKey: ["pos-terminals"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pos_terminals")
+        .select("id, terminal_code, name, terminal_type, active")
+        .eq("active", true)
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
     },
   });
 }

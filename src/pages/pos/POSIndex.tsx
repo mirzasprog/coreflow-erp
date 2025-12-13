@@ -77,6 +77,26 @@ export default function POSIndex() {
               </Button>
             </div>
           </NavLink>
+
+          <NavLink to="/pos/shifts">
+            <div className="module-card group cursor-pointer border-2 border-transparent transition-all hover:border-module-pos">
+              <div className="flex items-center gap-4">
+                <div className="rounded-xl bg-module-pos/10 p-4">
+                  <Clock className="h-8 w-8 text-module-pos" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold">Shift Management</h3>
+                  <p className="text-muted-foreground">Upravljanje smjenama</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Open/close shifts and view Z-reports
+                  </p>
+                </div>
+              </div>
+              <Button variant="outline" className="mt-4 w-full">
+                Manage Shifts
+              </Button>
+            </div>
+          </NavLink>
         </div>
 
         {/* Today's Stats */}
