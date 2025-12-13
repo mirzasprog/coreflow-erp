@@ -1,0 +1,555 @@
+import { useState } from 'react';
+import { Header } from '@/components/layout/Header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Search, Plus, Pencil, Package } from 'lucide-react';
+import { NavLink } from '@/components/NavLink';
+import { ArrowLeft } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { usePartners } from '@/hooks/useMasterData';
+import { useToast } from '@/hooks/use-toast';
+
+interface Item {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  barcode: string | null;
+  purchase_price: number | null;
+  selling_price: number | null;
+  min_stock: number | null;
+  max_stock: number | null;
+  active: boolean | null;
+  preferred_supplier_id: string | null;
+  vat_rate_id: string | null;
+  unit_id: string | null;
+  category_id: string | null;
+  preferred_supplier?: { name: string; code: string } | null;
+  units_of_measure?: { name: string; code: string } | null;
+  vat_rates?: { name: string; rate: number } | null;
+  item_categories?: { name: string } | null;
+}
+
+function useItemsList() {
+  return useQuery({
+    queryKey: ['items-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('items')
+        .select(`
+          *,
+          preferred_supplier:partners!items_preferred_supplier_id_fkey(name, code),
+          units_of_measure(name, code),
+          vat_rates(name, rate),
+          item_categories(name)
+        `)
+        .order('code');
+      
+      if (error) throw error;
+      return data as unknown as Item[];
+    }
+  });
+}
+
+function useUnits() {
+  return useQuery({
+    queryKey: ['units'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('units_of_measure')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+}
+
+function useVatRates() {
+  return useQuery({
+    queryKey: ['vat-rates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vat_rates')
+        .select('*')
+        .eq('active', true)
+        .order('rate');
+      if (error) throw error;
+      return data;
+    }
+  });
+}
+
+function useCategories() {
+  return useQuery({
+    queryKey: ['item-categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('item_categories')
+        .select('*')
+        .eq('active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+}
+
+export default function ItemsList() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: items, isLoading } = useItemsList();
+  const { data: suppliers } = usePartners('supplier');
+  const { data: units } = useUnits();
+  const { data: vatRates } = useVatRates();
+  const { data: categories } = useCategories();
+  
+  const [search, setSearch] = useState('');
+  const [editItem, setEditItem] = useState<Item | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    code: '',
+    name: '',
+    description: '',
+    barcode: '',
+    purchase_price: 0,
+    selling_price: 0,
+    min_stock: 0,
+    max_stock: 0,
+    preferred_supplier_id: '',
+    unit_id: '',
+    vat_rate_id: '',
+    category_id: '',
+    active: true
+  });
+
+  const filteredItems = items?.filter(item => 
+    item.code.toLowerCase().includes(search.toLowerCase()) ||
+    item.name.toLowerCase().includes(search.toLowerCase()) ||
+    item.barcode?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const openEditDialog = (item: Item) => {
+    setEditItem(item);
+    setFormData({
+      code: item.code,
+      name: item.name,
+      description: item.description || '',
+      barcode: item.barcode || '',
+      purchase_price: item.purchase_price || 0,
+      selling_price: item.selling_price || 0,
+      min_stock: item.min_stock || 0,
+      max_stock: item.max_stock || 0,
+      preferred_supplier_id: item.preferred_supplier_id || '',
+      unit_id: item.unit_id || '',
+      vat_rate_id: item.vat_rate_id || '',
+      category_id: item.category_id || '',
+      active: item.active ?? true
+    });
+    setIsDialogOpen(true);
+  };
+
+  const openNewDialog = () => {
+    setEditItem(null);
+    setFormData({
+      code: '',
+      name: '',
+      description: '',
+      barcode: '',
+      purchase_price: 0,
+      selling_price: 0,
+      min_stock: 0,
+      max_stock: 0,
+      preferred_supplier_id: '',
+      unit_id: '',
+      vat_rate_id: '',
+      category_id: '',
+      active: true
+    });
+    setIsDialogOpen(true);
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const data = {
+        code: formData.code,
+        name: formData.name,
+        description: formData.description || null,
+        barcode: formData.barcode || null,
+        purchase_price: formData.purchase_price,
+        selling_price: formData.selling_price,
+        min_stock: formData.min_stock,
+        max_stock: formData.max_stock,
+        preferred_supplier_id: formData.preferred_supplier_id || null,
+        unit_id: formData.unit_id || null,
+        vat_rate_id: formData.vat_rate_id || null,
+        category_id: formData.category_id || null,
+        active: formData.active,
+        updated_at: new Date().toISOString()
+      };
+
+      if (editItem) {
+        const { error } = await supabase
+          .from('items')
+          .update(data)
+          .eq('id', editItem.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('items')
+          .insert(data);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items-list'] });
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      toast({
+        title: editItem ? 'Item Updated' : 'Item Created',
+        description: `Item "${formData.name}" has been ${editItem ? 'updated' : 'created'} successfully`
+      });
+      setIsDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
+  return (
+    <div>
+      <Header title="Items" subtitle="Artikli • Inventory Master Data" />
+
+      <div className="p-6">
+        <div className="mb-4">
+          <NavLink to="/warehouse" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            Back to Warehouse
+          </NavLink>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Items List
+              </CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search items..."
+                    className="w-64 pl-9"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+                <Button onClick={openNewDialog}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Item
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="py-8 text-center text-muted-foreground">Loading items...</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Preferred Supplier</TableHead>
+                    <TableHead className="text-right">Purchase Price</TableHead>
+                    <TableHead className="text-right">Selling Price</TableHead>
+                    <TableHead className="text-right">Min/Max Stock</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredItems?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+                        No items found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredItems?.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.code}</TableCell>
+                        <TableCell>{item.name}</TableCell>
+                        <TableCell>
+                          {item.item_categories?.name ? (
+                            <Badge variant="secondary">{item.item_categories.name}</Badge>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {item.preferred_supplier ? (
+                            <span className="text-sm">{item.preferred_supplier.name}</span>
+                          ) : (
+                            <span className="text-muted-foreground">Not set</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">€{(item.purchase_price || 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">€{(item.selling_price || 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          {item.min_stock || 0} / {item.max_stock || '∞'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={item.active ? 'default' : 'secondary'}>
+                            {item.active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => openEditDialog(item)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Edit/Create Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editItem ? 'Edit Item' : 'New Item'}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="code">Item Code *</Label>
+                  <Input
+                    id="code"
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    placeholder="e.g., ART-001"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="barcode">Barcode</Label>
+                  <Input
+                    id="barcode"
+                    value={formData.barcode}
+                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                    placeholder="e.g., 1234567890123"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Item name"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Optional description"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="category_id">Category</Label>
+                  <Select 
+                    value={formData.category_id} 
+                    onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {categories?.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="unit_id">Unit of Measure</Label>
+                  <Select 
+                    value={formData.unit_id} 
+                    onValueChange={(value) => setFormData({ ...formData, unit_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {units?.map(unit => (
+                        <SelectItem key={unit.id} value={unit.id}>{unit.name} ({unit.code})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-module-warehouse/30 bg-module-warehouse/5 p-4">
+                <Label className="text-module-warehouse font-medium">Preferred Supplier</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Used for automatic purchase order generation
+                </p>
+                <Select 
+                  value={formData.preferred_supplier_id} 
+                  onValueChange={(value) => setFormData({ ...formData, preferred_supplier_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select preferred supplier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {suppliers?.map(supplier => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.code} - {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="purchase_price">Purchase Price (€)</Label>
+                  <Input
+                    id="purchase_price"
+                    type="number"
+                    step="0.01"
+                    value={formData.purchase_price}
+                    onChange={(e) => setFormData({ ...formData, purchase_price: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="selling_price">Selling Price (€)</Label>
+                  <Input
+                    id="selling_price"
+                    type="number"
+                    step="0.01"
+                    value={formData.selling_price}
+                    onChange={(e) => setFormData({ ...formData, selling_price: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="min_stock">Minimum Stock</Label>
+                  <Input
+                    id="min_stock"
+                    type="number"
+                    value={formData.min_stock}
+                    onChange={(e) => setFormData({ ...formData, min_stock: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="max_stock">Maximum Stock</Label>
+                  <Input
+                    id="max_stock"
+                    type="number"
+                    value={formData.max_stock}
+                    onChange={(e) => setFormData({ ...formData, max_stock: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="vat_rate_id">VAT Rate</Label>
+                  <Select 
+                    value={formData.vat_rate_id} 
+                    onValueChange={(value) => setFormData({ ...formData, vat_rate_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select VAT" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {vatRates?.map(vat => (
+                        <SelectItem key={vat.id} value={vat.id}>{vat.name} ({vat.rate}%)</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="active">Status</Label>
+                <Select 
+                  value={formData.active ? 'true' : 'false'} 
+                  onValueChange={(value) => setFormData({ ...formData, active: value === 'true' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Active</SelectItem>
+                    <SelectItem value="false">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending || !formData.code || !formData.name}
+                >
+                  {saveMutation.isPending ? 'Saving...' : 'Save Item'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
+  );
+}
