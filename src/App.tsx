@@ -15,6 +15,7 @@ import GoodsReceiptView from "./pages/warehouse/GoodsReceiptView";
 import GoodsIssueList from "./pages/warehouse/GoodsIssueList";
 import GoodsIssueForm from "./pages/warehouse/GoodsIssueForm";
 import GoodsIssueView from "./pages/warehouse/GoodsIssueView";
+import ItemsList from "./pages/warehouse/ItemsList";
 import TransferList from "./pages/warehouse/TransferList";
 import TransferForm from "./pages/warehouse/TransferForm";
 import TransferView from "./pages/warehouse/TransferView";
@@ -100,6 +101,7 @@ const App = () => (
               <Route path="/warehouse/purchase-orders/new" element={<PurchaseOrderForm />} />
               <Route path="/warehouse/purchase-orders/:id" element={<PurchaseOrderView />} />
               <Route path="/warehouse/purchase-orders/:id/edit" element={<PurchaseOrderForm />} />
+              <Route path="/warehouse/items" element={<ItemsList />} />
               <Route path="/finance" element={<FinanceIndex />} />
               <Route path="/finance/invoices/outgoing" element={<OutgoingInvoiceList />} />
               <Route path="/finance/invoices/outgoing/new" element={<InvoiceForm />} />

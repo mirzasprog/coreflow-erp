@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Package, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, ClipboardList, BarChart3, ShoppingCart } from "lucide-react";
+import { Plus, Search, Package, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, ClipboardList, BarChart3, ShoppingCart, Box } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const stockItems = [
@@ -25,6 +25,7 @@ const documentTypes = [
   { icon: ArrowLeftRight, label: "Transfer", labelAlt: "Međuskladišnica", href: "/warehouse/transfers", count: 7 },
   { icon: ClipboardList, label: "Inventory", labelAlt: "Inventura", href: "/warehouse/inventory", count: 2 },
   { icon: ShoppingCart, label: "Purchase Orders", labelAlt: "Narudžbenice", href: "/warehouse/purchase-orders", count: null },
+  { icon: Box, label: "Items", labelAlt: "Artikli", href: "/warehouse/items", count: null },
   { icon: BarChart3, label: "Stock Report", labelAlt: "Izvještaj o zalihama", href: "/warehouse/stock-report", count: null },
 ];
 
