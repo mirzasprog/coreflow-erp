@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
@@ -25,6 +26,7 @@ function formatCurrency(value: number): string {
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useDashboardStats();
+  const navigate = useNavigate();
 
   return (
     <div>
@@ -112,21 +114,25 @@ export default function Dashboard() {
               title="New Goods Receipt"
               description="Record incoming inventory"
               color="bg-module-warehouse"
+              onClick={() => navigate('/warehouse/receipts/new')}
             />
             <QuickActionCard
               title="Create Invoice"
               description="Issue new invoice"
               color="bg-module-finance"
+              onClick={() => navigate('/finance/invoices/outgoing/new')}
             />
             <QuickActionCard
               title="Open POS"
               description="Start selling"
               color="bg-module-pos"
+              onClick={() => navigate('/pos')}
             />
             <QuickActionCard
               title="Add Employee"
               description="Register new staff"
               color="bg-module-hr"
+              onClick={() => navigate('/hr/employees/new')}
             />
           </div>
         </div>
@@ -135,9 +141,12 @@ export default function Dashboard() {
   );
 }
 
-function QuickActionCard({ title, description, color }: { title: string; description: string; color: string }) {
+function QuickActionCard({ title, description, color, onClick }: { title: string; description: string; color: string; onClick: () => void }) {
   return (
-    <button className="group relative overflow-hidden rounded-lg border bg-card p-4 text-left transition-all hover:shadow-md">
+    <button 
+      onClick={onClick}
+      className="group relative overflow-hidden rounded-lg border bg-card p-4 text-left transition-all hover:shadow-md"
+    >
       <div className={`absolute -right-4 -top-4 h-16 w-16 rounded-full ${color} opacity-10 transition-transform group-hover:scale-150`} />
       <h4 className="font-medium">{title}</h4>
       <p className="mt-1 text-sm text-muted-foreground">{description}</p>
