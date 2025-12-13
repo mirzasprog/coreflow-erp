@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Calculator,
   FileText,
+  FolderTree,
   Plus,
   Receipt,
   TrendingUp,
@@ -108,6 +109,17 @@ export default function FinanceIndex() {
               <div>
                 <h3 className="font-semibold">GL Entries</h3>
                 <p className="text-sm text-muted-foreground">Temeljnice</p>
+              </div>
+            </div>
+          </NavLink>
+          <NavLink to="/finance/accounts" className="module-card p-6 hover:border-primary transition-colors">
+            <div className="flex items-center gap-4">
+              <div className="rounded-lg bg-primary/10 p-3">
+                <FolderTree className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Chart of Accounts</h3>
+                <p className="text-sm text-muted-foreground">Kontni plan</p>
               </div>
             </div>
           </NavLink>
