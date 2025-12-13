@@ -520,33 +520,47 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           description: string | null
+          document_number: string | null
           entry_date: string
           id: string
           reference_id: string | null
           reference_type: string | null
+          reversed_entry_id: string | null
           status: Database["public"]["Enums"]["document_status"] | null
         }
         Insert: {
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          document_number?: string | null
           entry_date?: string
           id?: string
           reference_id?: string | null
           reference_type?: string | null
+          reversed_entry_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
         }
         Update: {
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          document_number?: string | null
           entry_date?: string
           id?: string
           reference_id?: string | null
           reference_type?: string | null
+          reversed_entry_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "gl_entries_reversed_entry_id_fkey"
+            columns: ["reversed_entry_id"]
+            isOneToOne: false
+            referencedRelation: "gl_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gl_entry_lines: {
         Row: {
