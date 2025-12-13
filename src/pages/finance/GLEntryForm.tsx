@@ -356,14 +356,14 @@ export default function GLEntryForm() {
                 <div className="space-y-1">
                   <Label className="text-xs">Partner</Label>
                   <Select
-                    value={newLine.partner_id || ''}
-                    onValueChange={(value) => setNewLine({ ...newLine, partner_id: value })}
+                    value={newLine.partner_id || '__none__'}
+                    onValueChange={(value) => setNewLine({ ...newLine, partner_id: value === '__none__' ? '' : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Optional" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="__none__">None</SelectItem>
                       {partners?.map((p) => (
                         <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                       ))}
