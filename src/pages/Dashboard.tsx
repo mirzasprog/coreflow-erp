@@ -3,6 +3,8 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { AlertsWidget } from "@/components/dashboard/AlertsWidget";
 import { ProfitLossWidget } from "@/components/dashboard/ProfitLossWidget";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Package,
   DollarSign,
@@ -12,7 +14,18 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export default function Dashboard() {
+  const { data: stats, isLoading } = useDashboardStats();
+
   return (
     <div>
       <Header title="Dashboard" subtitle="Overview of your ERP system" />
@@ -20,54 +33,64 @@ export default function Dashboard() {
       <div className="p-6">
         {/* Stats Grid */}
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <StatCard
-            title="Total Stock Value"
-            value="€125,420"
-            change="+12.5% from last month"
-            changeType="positive"
-            icon={Package}
-            iconColor="bg-module-warehouse/10 text-module-warehouse"
-          />
-          <StatCard
-            title="Open Invoices"
-            value="€48,230"
-            change="15 pending"
-            changeType="neutral"
-            icon={DollarSign}
-            iconColor="bg-module-finance/10 text-module-finance"
-          />
-          <StatCard
-            title="Today's Sales"
-            value="€3,847"
-            change="+8.2% vs yesterday"
-            changeType="positive"
-            icon={ShoppingCart}
-            iconColor="bg-module-pos/10 text-module-pos"
-          />
-          <StatCard
-            title="Active Employees"
-            value="47"
-            change="2 on leave"
-            changeType="neutral"
-            icon={Users}
-            iconColor="bg-module-hr/10 text-module-hr"
-          />
-          <StatCard
-            title="HSE Alerts"
-            value="5"
-            change="3 urgent"
-            changeType="negative"
-            icon={Shield}
-            iconColor="bg-module-hse/10 text-module-hse"
-          />
-          <StatCard
-            title="Monthly Revenue"
-            value="€89,540"
-            change="+18.3% growth"
-            changeType="positive"
-            icon={TrendingUp}
-            iconColor="bg-primary/10 text-primary"
-          />
+          {isLoading ? (
+            <>
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-[100px] rounded-lg" />
+              ))}
+            </>
+          ) : (
+            <>
+              <StatCard
+                title="Total Stock Value"
+                value={formatCurrency(stats?.totalStockValue || 0)}
+                change="Current inventory"
+                changeType="neutral"
+                icon={Package}
+                iconColor="bg-module-warehouse/10 text-module-warehouse"
+              />
+              <StatCard
+                title="Open Invoices"
+                value={formatCurrency(stats?.openInvoicesValue || 0)}
+                change={`${stats?.openInvoicesCount || 0} pending`}
+                changeType="neutral"
+                icon={DollarSign}
+                iconColor="bg-module-finance/10 text-module-finance"
+              />
+              <StatCard
+                title="Today's Sales"
+                value={formatCurrency(stats?.todaySales || 0)}
+                change="POS transactions"
+                changeType={stats?.todaySales ? "positive" : "neutral"}
+                icon={ShoppingCart}
+                iconColor="bg-module-pos/10 text-module-pos"
+              />
+              <StatCard
+                title="Active Employees"
+                value={stats?.activeEmployees || 0}
+                change={`${stats?.employeesOnLeave || 0} on leave`}
+                changeType="neutral"
+                icon={Users}
+                iconColor="bg-module-hr/10 text-module-hr"
+              />
+              <StatCard
+                title="HSE Alerts"
+                value={stats?.hseAlerts || 0}
+                change={stats?.hseUrgent ? `${stats.hseUrgent} overdue` : "All clear"}
+                changeType={stats?.hseUrgent ? "negative" : "positive"}
+                icon={Shield}
+                iconColor="bg-module-hse/10 text-module-hse"
+              />
+              <StatCard
+                title="Monthly Revenue"
+                value={formatCurrency(stats?.monthlyRevenue || 0)}
+                change="This month"
+                changeType={stats?.monthlyRevenue ? "positive" : "neutral"}
+                icon={TrendingUp}
+                iconColor="bg-primary/10 text-primary"
+              />
+            </>
+          )}
         </div>
 
         {/* Profit & Loss Report */}
