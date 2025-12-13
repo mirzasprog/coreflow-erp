@@ -4,6 +4,36 @@ import { toast } from 'sonner';
 
 export type DocumentType = 'goods_receipt' | 'goods_issue' | 'transfer' | 'inventory';
 
+// Standard account codes for warehouse GL entries
+const GL_ACCOUNTS = {
+  INVENTORY: '1200',           // Zalihe / Inventory
+  INVENTORY_ADJUSTMENT: '7900', // Viškovi i manjkovi / Inventory Adjustment (P&L)
+  COGS: '6000',                // Nabavna vrijednost / Cost of Goods Sold
+};
+
+// Helper function to generate GL document number
+async function generateGLDocumentNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `${year}-`;
+  
+  const { data } = await supabase
+    .from('gl_entries')
+    .select('document_number')
+    .like('document_number', `${prefix}%`)
+    .order('document_number', { ascending: false })
+    .limit(1);
+  
+  let nextNumber = 1;
+  if (data && data.length > 0 && data[0].document_number) {
+    const lastNumber = parseInt(data[0].document_number.replace(prefix, ''), 10);
+    if (!isNaN(lastNumber)) {
+      nextNumber = lastNumber + 1;
+    }
+  }
+  
+  return `${prefix}${String(nextNumber).padStart(6, '0')}`;
+}
+
 export interface WarehouseDocument {
   id: string;
   document_type: string;
@@ -194,12 +224,15 @@ export function usePostDocument() {
         .from('warehouse_documents')
         .select(`
           *,
-          warehouse_document_lines(*)
+          warehouse_document_lines(*, items(code, name))
         `)
         .eq('id', id)
         .single();
       
       if (docError) throw docError;
+
+      let totalAdjustmentValue = 0;
+      const adjustmentDetails: { itemName: string; difference: number; value: number }[] = [];
 
       // Update stock based on document type
       for (const line of (doc as any).warehouse_document_lines) {
@@ -217,6 +250,121 @@ export function usePostDocument() {
           // Set stock to counted quantity
           const difference = (line.counted_quantity || 0) - line.quantity;
           await updateStock(line.item_id, doc.location_id, difference);
+          
+          // Track adjustment value for GL entry
+          if (difference !== 0) {
+            const adjustmentValue = difference * (line.unit_price || 0);
+            totalAdjustmentValue += adjustmentValue;
+            adjustmentDetails.push({
+              itemName: line.items?.name || 'Unknown item',
+              difference,
+              value: adjustmentValue,
+            });
+          }
+        }
+      }
+
+      let glEntryNumber: string | null = null;
+
+      // Create GL entry for inventory adjustments
+      if (documentType === 'inventory' && totalAdjustmentValue !== 0) {
+        // Get accounts
+        const { data: accounts } = await supabase
+          .from('accounts')
+          .select('id, code, name')
+          .eq('active', true);
+
+        if (accounts && accounts.length > 0) {
+          const findAccount = (codePrefix: string) => 
+            accounts.find((a) => a.code.startsWith(codePrefix));
+
+          const inventoryAccount = findAccount(GL_ACCOUNTS.INVENTORY) || accounts[0];
+          const adjustmentAccount = findAccount(GL_ACCOUNTS.INVENTORY_ADJUSTMENT) || accounts[0];
+
+          glEntryNumber = await generateGLDocumentNumber();
+
+          const glLines: Array<{
+            account_id: string;
+            debit: number;
+            credit: number;
+            description: string | null;
+            partner_id: string | null;
+          }> = [];
+
+          const docDate = doc.document_date;
+          const adjustmentDesc = adjustmentDetails
+            .map((d) => `${d.itemName}: ${d.difference > 0 ? '+' : ''}${d.difference}`)
+            .join(', ');
+
+          if (totalAdjustmentValue > 0) {
+            // Surplus: Debit Inventory, Credit Adjustment Income
+            glLines.push({
+              account_id: inventoryAccount.id,
+              debit: totalAdjustmentValue,
+              credit: 0,
+              description: `Inventory surplus: ${adjustmentDesc}`,
+              partner_id: null,
+            });
+            glLines.push({
+              account_id: adjustmentAccount.id,
+              debit: 0,
+              credit: totalAdjustmentValue,
+              description: `Inventory surplus - Document ${doc.document_number}`,
+              partner_id: null,
+            });
+          } else {
+            // Shortage: Debit Adjustment Expense, Credit Inventory
+            const absValue = Math.abs(totalAdjustmentValue);
+            glLines.push({
+              account_id: adjustmentAccount.id,
+              debit: absValue,
+              credit: 0,
+              description: `Inventory shortage - Document ${doc.document_number}`,
+              partner_id: null,
+            });
+            glLines.push({
+              account_id: inventoryAccount.id,
+              debit: 0,
+              credit: absValue,
+              description: `Inventory shortage: ${adjustmentDesc}`,
+              partner_id: null,
+            });
+          }
+
+          // Create GL entry
+          const { data: glEntry, error: glError } = await supabase
+            .from('gl_entries')
+            .insert({
+              entry_date: docDate,
+              description: `Inventory adjustment - ${doc.document_number}`,
+              reference_type: 'inventory',
+              reference_id: id,
+              status: 'posted',
+              document_number: glEntryNumber,
+            })
+            .select()
+            .single();
+
+          if (glError) {
+            console.error('Failed to create GL entry:', glError);
+          } else {
+            // Create GL entry lines
+            const linesWithEntryId = glLines.map((line) => ({
+              entry_id: glEntry.id,
+              ...line,
+            }));
+
+            const { error: linesError } = await supabase
+              .from('gl_entry_lines')
+              .insert(linesWithEntryId);
+
+            if (linesError) {
+              console.error('Failed to create GL entry lines:', linesError);
+              // Rollback GL entry
+              await supabase.from('gl_entries').delete().eq('id', glEntry.id);
+              glEntryNumber = null;
+            }
+          }
         }
       }
 
@@ -228,13 +376,19 @@ export function usePostDocument() {
       
       if (updateError) throw updateError;
 
-      return { id };
+      return { id, glEntryNumber, totalAdjustmentValue };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['warehouse-documents'] });
       queryClient.invalidateQueries({ queryKey: ['warehouse-document'] });
       queryClient.invalidateQueries({ queryKey: ['stock'] });
-      toast.success('Document posted successfully');
+      queryClient.invalidateQueries({ queryKey: ['gl-entries'] });
+      
+      if (data.glEntryNumber) {
+        toast.success(`Document posted. GL Entry ${data.glEntryNumber} created for adjustment of ${data.totalAdjustmentValue?.toFixed(2)} KM.`);
+      } else {
+        toast.success('Document posted successfully');
+      }
     },
     onError: (error: Error) => {
       toast.error(`Failed to post document: ${error.message}`);
@@ -249,7 +403,7 @@ async function updateStock(itemId: string, locationId: string, quantityChange: n
     .select('*')
     .eq('item_id', itemId)
     .eq('location_id', locationId)
-    .single();
+    .maybeSingle();
 
   if (existing) {
     const newQty = (existing.quantity || 0) + quantityChange;
