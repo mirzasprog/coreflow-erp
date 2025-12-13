@@ -130,14 +130,14 @@ export default function GLEntryList() {
                 <div className="space-y-2">
                   <Label>Account</Label>
                   <Select
-                    value={filters.accountId || ''}
-                    onValueChange={(value) => setFilters({ ...filters, accountId: value || undefined })}
+                    value={filters.accountId || '__all__'}
+                    onValueChange={(value) => setFilters({ ...filters, accountId: value === '__all__' ? undefined : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="All accounts" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All accounts</SelectItem>
+                      <SelectItem value="__all__">All accounts</SelectItem>
                       {accounts?.map((acc) => (
                         <SelectItem key={acc.id} value={acc.id}>
                           {acc.code} - {acc.name}
@@ -149,14 +149,14 @@ export default function GLEntryList() {
                 <div className="space-y-2">
                   <Label>Document Type</Label>
                   <Select
-                    value={filters.referenceType || ''}
-                    onValueChange={(value) => setFilters({ ...filters, referenceType: value || undefined })}
+                    value={filters.referenceType || '__all__'}
+                    onValueChange={(value) => setFilters({ ...filters, referenceType: value === '__all__' ? undefined : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="All types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All types</SelectItem>
+                      <SelectItem value="__all__">All types</SelectItem>
                       {REFERENCE_TYPES.map((type) => (
                         <SelectItem key={type.value} value={type.value}>
                           {type.label}
@@ -168,14 +168,14 @@ export default function GLEntryList() {
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <Select
-                    value={filters.status || ''}
-                    onValueChange={(value) => setFilters({ ...filters, status: value || undefined })}
+                    value={filters.status || '__all__'}
+                    onValueChange={(value) => setFilters({ ...filters, status: value === '__all__' ? undefined : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All statuses</SelectItem>
+                      <SelectItem value="__all__">All statuses</SelectItem>
                       <SelectItem value="draft">Draft</SelectItem>
                       <SelectItem value="posted">Posted</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
