@@ -30,6 +30,7 @@ import InvoiceView from "./pages/finance/InvoiceView";
 import GLEntryList from "./pages/finance/GLEntryList";
 import GLEntryForm from "./pages/finance/GLEntryForm";
 import GLEntryView from "./pages/finance/GLEntryView";
+import ChartOfAccounts from "./pages/finance/ChartOfAccounts";
 import AssetsIndex from "./pages/assets/AssetsIndex";
 import AssetForm from "./pages/assets/AssetForm";
 import AssetView from "./pages/assets/AssetView";
@@ -103,6 +104,8 @@ const App = () => (
               <Route path="/finance/gl-entries" element={<GLEntryList />} />
               <Route path="/finance/gl-entries/new" element={<GLEntryForm />} />
               <Route path="/finance/gl-entries/:id" element={<GLEntryView />} />
+              <Route path="/finance/gl-entries/:id/edit" element={<GLEntryForm />} />
+              <Route path="/finance/accounts" element={<ChartOfAccounts />} />
               <Route path="/finance/gl-entries/:id/edit" element={<GLEntryForm />} />
               <Route path="/assets" element={<AssetsIndex />} />
               <Route path="/assets/new" element={<AssetForm />} />
