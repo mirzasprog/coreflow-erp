@@ -33,6 +33,16 @@ import {
 } from '@/hooks/useGLEntries';
 import { toast } from 'sonner';
 
+const REFERENCE_TYPES = [
+  { value: 'invoice', label: 'Invoice / Faktura' },
+  { value: 'payment', label: 'Payment / Uplata' },
+  { value: 'depreciation', label: 'Depreciation / Amortizacija' },
+  { value: 'pos_z_report', label: 'POS Z-Report' },
+  { value: 'inventory', label: 'Inventory / Inventura' },
+  { value: 'adjustment', label: 'Adjustment / Korekcija' },
+  { value: 'other', label: 'Other / Ostalo' },
+];
+
 export default function GLEntryForm() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -74,6 +84,24 @@ export default function GLEntryForm() {
     }
   }, [existingEntry]);
 
+  const handleDebitChange = (value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setNewLine({ 
+      ...newLine, 
+      debit: numValue,
+      credit: numValue > 0 ? 0 : newLine.credit 
+    });
+  };
+
+  const handleCreditChange = (value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setNewLine({ 
+      ...newLine, 
+      credit: numValue,
+      debit: numValue > 0 ? 0 : newLine.debit 
+    });
+  };
+
   const addLine = () => {
     if (!newLine.account_id) {
       toast.error('Please select an account');
@@ -81,10 +109,6 @@ export default function GLEntryForm() {
     }
     if ((newLine.debit || 0) === 0 && (newLine.credit || 0) === 0) {
       toast.error('Please enter a debit or credit amount');
-      return;
-    }
-    if ((newLine.debit || 0) > 0 && (newLine.credit || 0) > 0) {
-      toast.error('A line cannot have both debit and credit');
       return;
     }
 
@@ -111,8 +135,9 @@ export default function GLEntryForm() {
   const calculateTotals = () => {
     const totalDebit = lines.reduce((sum, line) => sum + (line.debit || 0), 0);
     const totalCredit = lines.reduce((sum, line) => sum + (line.credit || 0), 0);
-    const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
-    return { totalDebit, totalCredit, isBalanced };
+    const difference = Math.abs(totalDebit - totalCredit);
+    const isBalanced = difference < 0.01;
+    return { totalDebit, totalCredit, difference, isBalanced };
   };
 
   const handleSave = async (shouldPost = false) => {
@@ -162,6 +187,8 @@ export default function GLEntryForm() {
   }
 
   const isPosted = existingEntry?.status === 'posted';
+  const isCancelled = existingEntry?.status === 'cancelled';
+  const isLocked = isPosted || isCancelled;
   const totals = calculateTotals();
 
   return (
@@ -186,41 +213,42 @@ export default function GLEntryForm() {
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="entry_date">Entry Date</Label>
+                <Label htmlFor="entry_date">Entry Date / Datum knjiženja</Label>
                 <Input
                   id="entry_date"
                   type="date"
                   value={formData.entry_date}
                   onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
-                  disabled={isPosted}
+                  disabled={isLocked}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reference_type">Reference Type</Label>
+                <Label htmlFor="reference_type">Document Type / Tip dokumenta</Label>
                 <Select
                   value={formData.reference_type}
                   onValueChange={(value) => setFormData({ ...formData, reference_type: value })}
-                  disabled={isPosted}
+                  disabled={isLocked}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="invoice">Invoice</SelectItem>
-                    <SelectItem value="payment">Payment</SelectItem>
-                    <SelectItem value="adjustment">Adjustment</SelectItem>
-                    <SelectItem value="depreciation">Depreciation</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {REFERENCE_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Description / Opis knjiženja</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  disabled={isPosted}
+                  disabled={isLocked}
+                  placeholder="Enter description..."
                 />
               </div>
             </CardContent>
@@ -228,10 +256,10 @@ export default function GLEntryForm() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Summary</CardTitle>
+              <CardTitle>Summary / Pregled</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total Debit:</span>
                   <span className="font-medium">€{totals.totalDebit.toFixed(2)}</span>
@@ -240,30 +268,39 @@ export default function GLEntryForm() {
                   <span className="text-muted-foreground">Total Credit:</span>
                   <span className="font-medium">€{totals.totalCredit.toFixed(2)}</span>
                 </div>
-                <div className={`flex items-center justify-between border-t pt-2 ${totals.isBalanced ? 'text-success' : 'text-destructive'}`}>
+                <div className={`flex items-center justify-between border-t pt-3 ${totals.isBalanced ? 'text-success' : 'text-destructive'}`}>
                   <span className="font-medium flex items-center gap-1">
                     {!totals.isBalanced && <AlertTriangle className="h-4 w-4" />}
-                    Difference:
+                    Difference / Razlika:
                   </span>
                   <span className="font-bold">
-                    €{Math.abs(totals.totalDebit - totals.totalCredit).toFixed(2)}
+                    €{totals.difference.toFixed(2)}
                   </span>
                 </div>
+                {!totals.isBalanced && (
+                  <p className="text-xs text-destructive">
+                    Entry must be balanced to post
+                  </p>
+                )}
               </div>
-              {!isPosted && (
+              {!isLocked && (
                 <div className="mt-4 space-y-2">
-                  <Button className="w-full" onClick={() => handleSave(false)} disabled={createEntry.isPending || updateEntry.isPending}>
+                  <Button 
+                    className="w-full" 
+                    variant="outline"
+                    onClick={() => handleSave(false)} 
+                    disabled={createEntry.isPending || updateEntry.isPending}
+                  >
                     <Save className="mr-2 h-4 w-4" />
-                    Save Draft
+                    Save Draft / Spremi
                   </Button>
                   <Button 
                     className="w-full" 
-                    variant="default" 
                     onClick={() => handleSave(true)} 
                     disabled={createEntry.isPending || updateEntry.isPending || postEntry.isPending || !totals.isBalanced}
                   >
                     <CheckCircle className="mr-2 h-4 w-4" />
-                    Save & Post
+                    Save & Post / Spremi i Proknjiži
                   </Button>
                 </div>
               )}
@@ -273,53 +310,66 @@ export default function GLEntryForm() {
 
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Entry Lines</CardTitle>
+            <CardTitle>Entry Lines / Stavke</CardTitle>
           </CardHeader>
           <CardContent>
-            {!isPosted && (
-              <div className="mb-4 flex gap-2 flex-wrap">
-                <Select
-                  value={newLine.account_id || ''}
-                  onValueChange={(value) => setNewLine({ ...newLine, account_id: value })}
-                >
-                  <SelectTrigger className="w-64">
-                    <SelectValue placeholder="Select account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts?.map((acc) => (
-                      <SelectItem key={acc.id} value={acc.id}>
-                        {acc.code} - {acc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  placeholder="Debit"
-                  className="w-28"
-                  value={newLine.debit || ''}
-                  onChange={(e) => setNewLine({ ...newLine, debit: parseFloat(e.target.value) || 0 })}
-                />
-                <Input
-                  type="number"
-                  placeholder="Credit"
-                  className="w-28"
-                  value={newLine.credit || ''}
-                  onChange={(e) => setNewLine({ ...newLine, credit: parseFloat(e.target.value) || 0 })}
-                />
-                <Select
-                  value={newLine.partner_id || ''}
-                  onValueChange={(value) => setNewLine({ ...newLine, partner_id: value })}
-                >
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Partner (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {partners?.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {!isLocked && (
+              <div className="mb-4 grid gap-2 sm:grid-cols-6 items-end">
+                <div className="sm:col-span-2 space-y-1">
+                  <Label className="text-xs">Account / Konto</Label>
+                  <Select
+                    value={newLine.account_id || ''}
+                    onValueChange={(value) => setNewLine({ ...newLine, account_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts?.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.code} - {acc.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Debit / Duguje</Label>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={newLine.debit || ''}
+                    onChange={(e) => handleDebitChange(e.target.value)}
+                    disabled={(newLine.credit || 0) > 0}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Credit / Potražuje</Label>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={newLine.credit || ''}
+                    onChange={(e) => handleCreditChange(e.target.value)}
+                    disabled={(newLine.debit || 0) > 0}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Partner</Label>
+                  <Select
+                    value={newLine.partner_id || ''}
+                    onValueChange={(value) => setNewLine({ ...newLine, partner_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Optional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {partners?.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button onClick={addLine}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add
@@ -330,18 +380,18 @@ export default function GLEntryForm() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Account</TableHead>
+                  <TableHead>Account / Konto</TableHead>
                   <TableHead>Partner</TableHead>
-                  <TableHead className="text-right">Debit</TableHead>
-                  <TableHead className="text-right">Credit</TableHead>
-                  {!isPosted && <TableHead className="w-16"></TableHead>}
+                  <TableHead className="text-right">Debit / Duguje</TableHead>
+                  <TableHead className="text-right">Credit / Potražuje</TableHead>
+                  {!isLocked && <TableHead className="w-16"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lines.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isPosted ? 4 : 5} className="py-8 text-center text-muted-foreground">
-                      No lines added
+                    <TableCell colSpan={isLocked ? 4 : 5} className="py-8 text-center text-muted-foreground">
+                      No lines added / Nema stavki
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -351,13 +401,13 @@ export default function GLEntryForm() {
                         {line.accounts?.code} - {line.accounts?.name}
                       </TableCell>
                       <TableCell>{line.partners?.name || '-'}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right font-mono">
                         {line.debit > 0 ? `€${line.debit.toFixed(2)}` : '-'}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right font-mono">
                         {line.credit > 0 ? `€${line.credit.toFixed(2)}` : '-'}
                       </TableCell>
-                      {!isPosted && (
+                      {!isLocked && (
                         <TableCell>
                           <Button variant="ghost" size="icon" onClick={() => removeLine(index)}>
                             <Trash2 className="h-4 w-4" />
@@ -366,6 +416,14 @@ export default function GLEntryForm() {
                       )}
                     </TableRow>
                   ))
+                )}
+                {lines.length > 0 && (
+                  <TableRow className="border-t-2 font-bold">
+                    <TableCell colSpan={2}>Total / Ukupno</TableCell>
+                    <TableCell className="text-right font-mono">€{totals.totalDebit.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-mono">€{totals.totalCredit.toFixed(2)}</TableCell>
+                    {!isLocked && <TableCell></TableCell>}
+                  </TableRow>
                 )}
               </TableBody>
             </Table>
