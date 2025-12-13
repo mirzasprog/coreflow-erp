@@ -2,6 +2,7 @@ import { Header } from "@/components/layout/Header";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { AlertsWidget } from "@/components/dashboard/AlertsWidget";
+import { ProfitLossWidget } from "@/components/dashboard/ProfitLossWidget";
 import {
   Package,
   DollarSign,
@@ -67,6 +68,11 @@ export default function Dashboard() {
             icon={TrendingUp}
             iconColor="bg-primary/10 text-primary"
           />
+        </div>
+
+        {/* Profit & Loss Report */}
+        <div className="mb-6">
+          <ProfitLossWidget />
         </div>
 
         {/* Main Content Grid */}
