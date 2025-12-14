@@ -116,6 +116,12 @@ export default function HRIndex() {
             onClick={() => navigate("/hr/payroll")}
           />
           <QuickAction
+            icon={Calendar}
+            title="Leave Balances"
+            subtitle="Stanje godišnjih odmora"
+            onClick={() => navigate("/hr/leave-balances")}
+          />
+          <QuickAction
             icon={DollarSign}
             title="Deduction Types"
             subtitle="Vrste odbitaka"
