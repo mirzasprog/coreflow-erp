@@ -209,6 +209,7 @@ export type Database = {
       }
       contracts: {
         Row: {
+          annual_leave_days: number | null
           contract_type: string | null
           created_at: string | null
           employee_id: string
@@ -220,6 +221,7 @@ export type Database = {
           working_hours: number | null
         }
         Insert: {
+          annual_leave_days?: number | null
           contract_type?: string | null
           created_at?: string | null
           employee_id: string
@@ -231,6 +233,7 @@ export type Database = {
           working_hours?: number | null
         }
         Update: {
+          annual_leave_days?: number | null
           contract_type?: string | null
           created_at?: string | null
           employee_id?: string
