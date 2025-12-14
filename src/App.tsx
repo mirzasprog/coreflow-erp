@@ -56,6 +56,8 @@ import PayslipView from "./pages/hr/PayslipView";
 import PayrollReports from "./pages/hr/PayrollReports";
 import PayrollComparison from "./pages/hr/PayrollComparison";
 import EmployeePayslipHistory from "./pages/hr/EmployeePayslipHistory";
+import AbsenceCalendar from "./pages/hr/AbsenceCalendar";
+import DeductionTypesList from "./pages/hr/DeductionTypesList";
 import HSEIndex from "./pages/hse/HSEIndex";
 import HSECalendar from "./pages/hse/HSECalendar";
 import SettingsIndex from "./pages/settings/SettingsIndex";
@@ -135,8 +137,10 @@ const App = () => (
               <Route path="/hr/departments" element={<DepartmentList />} />
               <Route path="/hr/absences" element={<AbsenceList />} />
               <Route path="/hr/absences/new" element={<AbsenceList />} />
+              <Route path="/hr/absences/calendar" element={<AbsenceCalendar />} />
               <Route path="/hr/contracts" element={<ContractList />} />
               <Route path="/hr/contracts/new" element={<ContractList />} />
+              <Route path="/hr/deduction-types" element={<DeductionTypesList />} />
               <Route path="/hr/payroll" element={<PayrollList />} />
               <Route path="/hr/payroll/:id" element={<PayrollView />} />
               <Route path="/hr/payslip/:id" element={<PayslipView />} />

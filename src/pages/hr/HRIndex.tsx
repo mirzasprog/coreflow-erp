@@ -92,6 +92,12 @@ export default function HRIndex() {
             onClick={() => navigate("/hr/absences")}
           />
           <QuickAction
+            icon={Calendar}
+            title="Absence Calendar"
+            subtitle="Kalendar odsutnosti"
+            onClick={() => navigate("/hr/absences/calendar")}
+          />
+          <QuickAction
             icon={FileText}
             title="Contracts"
             subtitle="Ugovori o radu"
@@ -108,6 +114,12 @@ export default function HRIndex() {
             title="Payroll"
             subtitle="Obračun plaća"
             onClick={() => navigate("/hr/payroll")}
+          />
+          <QuickAction
+            icon={DollarSign}
+            title="Deduction Types"
+            subtitle="Vrste odbitaka"
+            onClick={() => navigate("/hr/deduction-types")}
           />
         </div>
 
