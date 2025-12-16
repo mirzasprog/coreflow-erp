@@ -20,6 +20,9 @@ import {
   useShiftSummary,
   usePOSTerminals,
 } from "@/hooks/usePOS";
+import { useGenerateXReport, type XReportData } from "@/hooks/useFiscalization";
+import { XReportModal } from "@/components/pos/XReportModal";
+import { ZReportModal } from "@/components/pos/ZReportModal";
 import { format } from "date-fns";
 import {
   Loader2,
@@ -32,6 +35,7 @@ import {
   ArrowDownCircle,
   FileText,
   Calendar,
+  FileBarChart,
 } from "lucide-react";
 import {
   Select,
@@ -48,6 +52,10 @@ export default function ShiftManagement() {
   const [openingAmount, setOpeningAmount] = useState("");
   const [closingAmount, setClosingAmount] = useState("");
   const [viewShiftId, setViewShiftId] = useState<string | null>(null);
+  const [xReportData, setXReportData] = useState<XReportData | null>(null);
+  const [showXReport, setShowXReport] = useState(false);
+  const [showZReport, setShowZReport] = useState(false);
+  const [zReportData, setZReportData] = useState<any>(null);
 
   const { data: terminals = [] } = usePOSTerminals();
   const { data: currentShift, isLoading: loadingCurrent } = useCurrentShift();
@@ -56,6 +64,7 @@ export default function ShiftManagement() {
 
   const openShiftMutation = useOpenShift();
   const closeShiftMutation = useCloseShift();
+  const generateXReportMutation = useGenerateXReport();
 
   const handleOpenShift = () => {
     if (!selectedTerminal) return;
@@ -74,17 +83,47 @@ export default function ShiftManagement() {
     );
   };
 
-  const handleCloseShift = () => {
+  const handleGenerateXReport = () => {
     if (!currentShift) return;
+    generateXReportMutation.mutate(currentShift.id, {
+      onSuccess: (data) => {
+        setXReportData(data);
+        setShowXReport(true);
+      },
+    });
+  };
+
+  const handleCloseShift = () => {
+    if (!currentShift || !shiftSummary) return;
+    const closingAmt = parseFloat(closingAmount) || 0;
+    
     closeShiftMutation.mutate(
       {
         shiftId: currentShift.id,
-        closingAmount: parseFloat(closingAmount) || 0,
+        closingAmount: closingAmt,
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           setCloseShiftDialog(false);
           setClosingAmount("");
+          // Show Z-Report
+          setZReportData({
+            shiftId: currentShift.id,
+            startTime: currentShift.start_time,
+            endTime: new Date().toISOString(),
+            openingAmount: currentShift.opening_amount || 0,
+            closingAmount: closingAmt,
+            cashSales: data.cashSales,
+            cardSales: data.cardSales,
+            totalSales: data.totalSales,
+            totalVat: data.totalVat,
+            netSales: data.totalSales - data.totalVat,
+            transactionCount: shiftSummary.transactionCount || 0,
+            expectedCash: (currentShift.opening_amount || 0) + data.cashSales,
+            cashDifference: closingAmt - ((currentShift.opening_amount || 0) + data.cashSales),
+            glDocumentNumber: data.documentNumber,
+          });
+          setShowZReport(true);
         },
       }
     );
@@ -127,6 +166,18 @@ export default function ShiftManagement() {
                       {format(new Date(currentShift.start_time), "dd.MM.yyyy HH:mm")}
                     </span>
                   </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleGenerateXReport}
+                    disabled={generateXReportMutation.isPending}
+                  >
+                    {generateXReportMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileBarChart className="mr-2 h-4 w-4" />
+                    )}
+                    X-Report
+                  </Button>
                   <Button
                     variant="destructive"
                     onClick={() => setCloseShiftDialog(true)}
@@ -519,6 +570,20 @@ export default function ShiftManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* X-Report Modal */}
+      <XReportModal
+        open={showXReport}
+        onClose={() => setShowXReport(false)}
+        data={xReportData}
+      />
+
+      {/* Z-Report Modal */}
+      <ZReportModal
+        open={showZReport}
+        onClose={() => setShowZReport(false)}
+        data={zReportData}
+      />
     </div>
   );
 }

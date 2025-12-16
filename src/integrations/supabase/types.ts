@@ -1152,6 +1152,163 @@ export type Database = {
           },
         ]
       }
+      pos_fiscalization_config: {
+        Row: {
+          active: boolean | null
+          auto_fiscalize: boolean | null
+          created_at: string | null
+          fbih_connection_type: string | null
+          fbih_device_ip: string | null
+          fbih_device_port: number | null
+          fbih_device_type: string | null
+          fbih_operator_code: string | null
+          fiscal_mode: string
+          id: string
+          location_id: string | null
+          max_retries: number | null
+          retry_on_failure: boolean | null
+          rs_api_key_encrypted: string | null
+          rs_api_url: string | null
+          rs_business_unit_code: string | null
+          rs_certificate_thumbprint: string | null
+          rs_pib: string | null
+          terminal_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          auto_fiscalize?: boolean | null
+          created_at?: string | null
+          fbih_connection_type?: string | null
+          fbih_device_ip?: string | null
+          fbih_device_port?: number | null
+          fbih_device_type?: string | null
+          fbih_operator_code?: string | null
+          fiscal_mode: string
+          id?: string
+          location_id?: string | null
+          max_retries?: number | null
+          retry_on_failure?: boolean | null
+          rs_api_key_encrypted?: string | null
+          rs_api_url?: string | null
+          rs_business_unit_code?: string | null
+          rs_certificate_thumbprint?: string | null
+          rs_pib?: string | null
+          terminal_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          auto_fiscalize?: boolean | null
+          created_at?: string | null
+          fbih_connection_type?: string | null
+          fbih_device_ip?: string | null
+          fbih_device_port?: number | null
+          fbih_device_type?: string | null
+          fbih_operator_code?: string | null
+          fiscal_mode?: string
+          id?: string
+          location_id?: string | null
+          max_retries?: number | null
+          retry_on_failure?: boolean | null
+          rs_api_key_encrypted?: string | null
+          rs_api_url?: string | null
+          rs_business_unit_code?: string | null
+          rs_certificate_thumbprint?: string | null
+          rs_pib?: string | null
+          terminal_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_fiscalization_config_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_fiscalization_config_terminal_id_fkey"
+            columns: ["terminal_id"]
+            isOneToOne: false
+            referencedRelation: "pos_terminals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_fiscalization_logs: {
+        Row: {
+          config_id: string | null
+          created_at: string | null
+          error_message: string | null
+          fiscal_date: string | null
+          fiscal_mode: string
+          fiscal_number: string | null
+          id: string
+          operation_type: string
+          receipt_id: string | null
+          request_data: Json | null
+          response_data: Json | null
+          retry_count: number | null
+          shift_id: string | null
+          status: string
+        }
+        Insert: {
+          config_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          fiscal_date?: string | null
+          fiscal_mode: string
+          fiscal_number?: string | null
+          id?: string
+          operation_type: string
+          receipt_id?: string | null
+          request_data?: Json | null
+          response_data?: Json | null
+          retry_count?: number | null
+          shift_id?: string | null
+          status: string
+        }
+        Update: {
+          config_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          fiscal_date?: string | null
+          fiscal_mode?: string
+          fiscal_number?: string | null
+          id?: string
+          operation_type?: string
+          receipt_id?: string | null
+          request_data?: Json | null
+          response_data?: Json | null
+          retry_count?: number | null
+          shift_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_fiscalization_logs_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "pos_fiscalization_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_fiscalization_logs_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "pos_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_fiscalization_logs_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "pos_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_receipt_lines: {
         Row: {
           discount_percent: number | null
@@ -1215,6 +1372,9 @@ export type Database = {
           cashier_id: string | null
           created_at: string | null
           discount_amount: number | null
+          fiscal_date: string | null
+          fiscal_number: string | null
+          fiscalized: boolean | null
           id: string
           is_return: boolean | null
           original_receipt_id: string | null
@@ -1231,6 +1391,9 @@ export type Database = {
           cashier_id?: string | null
           created_at?: string | null
           discount_amount?: number | null
+          fiscal_date?: string | null
+          fiscal_number?: string | null
+          fiscalized?: boolean | null
           id?: string
           is_return?: boolean | null
           original_receipt_id?: string | null
@@ -1247,6 +1410,9 @@ export type Database = {
           cashier_id?: string | null
           created_at?: string | null
           discount_amount?: number | null
+          fiscal_date?: string | null
+          fiscal_number?: string | null
+          fiscalized?: boolean | null
           id?: string
           is_return?: boolean | null
           original_receipt_id?: string | null
@@ -1292,12 +1458,16 @@ export type Database = {
           created_at: string | null
           end_time: string | null
           id: string
+          last_x_report_at: string | null
           opening_amount: number | null
           start_time: string
           status: string | null
           terminal_id: string | null
           total_returns: number | null
           total_sales: number | null
+          x_report_count: number | null
+          z_report_fiscal_number: string | null
+          z_report_number: string | null
         }
         Insert: {
           card_sales?: number | null
@@ -1307,12 +1477,16 @@ export type Database = {
           created_at?: string | null
           end_time?: string | null
           id?: string
+          last_x_report_at?: string | null
           opening_amount?: number | null
           start_time?: string
           status?: string | null
           terminal_id?: string | null
           total_returns?: number | null
           total_sales?: number | null
+          x_report_count?: number | null
+          z_report_fiscal_number?: string | null
+          z_report_number?: string | null
         }
         Update: {
           card_sales?: number | null
@@ -1322,12 +1496,16 @@ export type Database = {
           created_at?: string | null
           end_time?: string | null
           id?: string
+          last_x_report_at?: string | null
           opening_amount?: number | null
           start_time?: string
           status?: string | null
           terminal_id?: string | null
           total_returns?: number | null
           total_sales?: number | null
+          x_report_count?: number | null
+          z_report_fiscal_number?: string | null
+          z_report_number?: string | null
         }
         Relationships: [
           {
