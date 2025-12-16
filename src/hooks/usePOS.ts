@@ -202,8 +202,23 @@ export function useCreateReceipt() {
       cart: CartItem[];
       paymentType: "cash" | "card" | "voucher" | "other";
       discountAmount?: number;
-      shiftId?: string;
+      shiftId: string;
     }) => {
+      if (!shiftId) {
+        throw new Error("Active shift is required before issuing a receipt");
+      }
+
+      const { data: shift, error: shiftError } = await supabase
+        .from('pos_shifts')
+        .select('*')
+        .eq('id', shiftId)
+        .maybeSingle();
+
+      if (shiftError) throw shiftError;
+      if (!shift || shift.status !== 'open') {
+        throw new Error("Shift must be open to create a fiscal receipt");
+      }
+
       const receiptNumber = await generateReceiptNumber();
       
       const subtotal = cart.reduce(
