@@ -44,6 +44,7 @@ import POSIndex from "./pages/pos/POSIndex";
 import ClassicPOS from "./pages/pos/ClassicPOS";
 import TouchPOS from "./pages/pos/TouchPOS";
 import ShiftManagement from "./pages/pos/ShiftManagement";
+import FiscalizationConfig from "./pages/pos/FiscalizationConfig";
 import HRIndex from "./pages/hr/HRIndex";
 import EmployeeForm from "./pages/hr/EmployeeForm";
 import EmployeeView from "./pages/hr/EmployeeView";
@@ -130,6 +131,7 @@ const App = () => (
               <Route path="/assets/:id/edit" element={<AssetForm />} />
               <Route path="/pos" element={<POSIndex />} />
               <Route path="/pos/shifts" element={<ShiftManagement />} />
+              <Route path="/pos/fiscalization" element={<FiscalizationConfig />} />
               <Route path="/hr" element={<HRIndex />} />
               <Route path="/hr/employees/new" element={<EmployeeForm />} />
               <Route path="/hr/employees/:id" element={<EmployeeView />} />
