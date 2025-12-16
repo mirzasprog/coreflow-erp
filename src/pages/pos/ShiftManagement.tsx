@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import { useGenerateXReport, type XReportData } from "@/hooks/useFiscalization";
 import { XReportModal } from "@/components/pos/XReportModal";
 import { ZReportModal } from "@/components/pos/ZReportModal";
 import { format } from "date-fns";
+import * as XLSX from "xlsx";
 import {
   Loader2,
   PlayCircle,
@@ -65,12 +66,18 @@ export default function ShiftManagement() {
   const openShiftMutation = useOpenShift();
   const closeShiftMutation = useCloseShift();
   const generateXReportMutation = useGenerateXReport();
+  const hasTerminals = terminals.length > 0;
+
+  useEffect(() => {
+    if (openShiftDialog && hasTerminals && !selectedTerminal) {
+      setSelectedTerminal(terminals[0].id);
+    }
+  }, [openShiftDialog, hasTerminals, selectedTerminal, terminals]);
 
   const handleOpenShift = () => {
-    if (!selectedTerminal) return;
     openShiftMutation.mutate(
       {
-        terminalId: selectedTerminal,
+        terminalId: selectedTerminal || undefined,
         openingAmount: parseFloat(openingAmount) || 0,
       },
       {
@@ -81,6 +88,44 @@ export default function ShiftManagement() {
         },
       }
     );
+  };
+
+  const handleExportShifts = () => {
+    const rows = shifts.map((shift) => ({
+      Start: format(new Date(shift.start_time), "dd.MM.yyyy HH:mm"),
+      End: shift.end_time
+        ? format(new Date(shift.end_time), "dd.MM.yyyy HH:mm")
+        : "Open",
+      Terminal: shift.pos_terminals?.name || "Virtual register",
+      Status: shift.status,
+      "Total sales": (shift.total_sales || 0).toFixed(2),
+      "Cash sales": (shift.cash_sales || 0).toFixed(2),
+      "Card sales": (shift.card_sales || 0).toFixed(2),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Shift history");
+    XLSX.writeFile(workbook, "pos-shifts.xlsx");
+  };
+
+  const handlePrintShifts = () => {
+    const container = document.getElementById("shift-history");
+    if (!container) return;
+
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (!printWindow) return;
+
+    printWindow.document.write("<html><head><title>POS shifts</title>");
+    printWindow.document.write(
+      '<style>body{font-family:Inter,system-ui,-apple-system; padding:16px;} table{width:100%; border-collapse:collapse;} th,td{border:1px solid #e5e7eb; padding:8px; text-align:left;} th{background:#f3f4f6;}</style>'
+    );
+    printWindow.document.write("</head><body>");
+    printWindow.document.write(container.innerHTML);
+    printWindow.document.write("</body></html>");
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   };
 
   const handleGenerateXReport = () => {
@@ -129,9 +174,9 @@ export default function ShiftManagement() {
     );
   };
 
-  const activeTerminalName = terminals.find(
-    (t) => t.id === currentShift?.terminal_id
-  )?.name;
+  const activeTerminalName =
+    terminals.find((t) => t.id === currentShift?.terminal_id)?.name ||
+    "Virtual register";
 
   return (
     <div>
@@ -235,12 +280,20 @@ export default function ShiftManagement() {
 
         {/* Shift History */}
         <div className="module-card">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-lg font-semibold">Shift History</h3>
               <p className="text-sm text-muted-foreground">
                 Povijest smjena • Z-Reports
               </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={handlePrintShifts}>
+                <FileText className="mr-2 h-4 w-4" /> PDF / Print
+              </Button>
+              <Button variant="secondary" onClick={handleExportShifts}>
+                <ArrowDownCircle className="mr-2 h-4 w-4" /> Export Excel
+              </Button>
             </div>
           </div>
 
@@ -255,7 +308,7 @@ export default function ShiftManagement() {
               <p className="text-sm">Open a shift to start recording sales</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" id="shift-history">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -277,6 +330,7 @@ export default function ShiftManagement() {
                     const terminal = terminals.find(
                       (t) => t.id === shift.terminal_id
                     );
+                    const terminalName = terminal?.name || "Virtual register";
                     return (
                       <tr key={shift.id}>
                         <td>
@@ -285,7 +339,7 @@ export default function ShiftManagement() {
                             {format(new Date(shift.start_time), "dd.MM.yyyy")}
                           </div>
                         </td>
-                        <td>{terminal?.name || "-"}</td>
+                        <td>{terminalName}</td>
                         <td>{format(new Date(shift.start_time), "HH:mm")}</td>
                         <td>
                           {shift.end_time
@@ -353,12 +407,17 @@ export default function ShiftManagement() {
               <Label>Terminal</Label>
               <Select
                 value={selectedTerminal}
-                onValueChange={setSelectedTerminal}
+                onValueChange={(value) =>
+                  setSelectedTerminal(value === "virtual" ? "" : value)
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select terminal" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="virtual">
+                    Virtual register (no hardware)
+                  </SelectItem>
                   {terminals.map((terminal) => (
                     <SelectItem key={terminal.id} value={terminal.id}>
                       {terminal.name} ({terminal.terminal_code})
@@ -366,6 +425,11 @@ export default function ShiftManagement() {
                   ))}
                 </SelectContent>
               </Select>
+              {!hasTerminals && (
+                <p className="text-sm text-muted-foreground">
+                  Nema konfiguriranih terminala. Smjena će biti otvorena na virtualnoj blagajni.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Opening Amount (KM)</Label>
@@ -390,7 +454,7 @@ export default function ShiftManagement() {
             </Button>
             <Button
               onClick={handleOpenShift}
-              disabled={!selectedTerminal || openShiftMutation.isPending}
+              disabled={openShiftMutation.isPending}
             >
               {openShiftMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

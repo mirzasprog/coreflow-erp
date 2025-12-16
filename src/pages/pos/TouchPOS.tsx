@@ -45,6 +45,7 @@ export default function TouchPOS() {
   const createReceipt = useCreateReceipt();
   const findByBarcode = usePOSItemByBarcode();
   const { data: currentShift, isLoading: loadingShift } = useCurrentShift();
+  const shiftLocked = !currentShift;
 
   // Filter items by category (based on name patterns for demo)
   const filteredItems = useMemo(() => {
@@ -158,24 +159,25 @@ export default function TouchPOS() {
     );
   }
 
-  if (!currentShift) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center bg-background p-6 text-center">
-        <div className="module-card max-w-lg space-y-4">
-          <h2 className="text-2xl font-semibold">Shift required</h2>
-          <p className="text-muted-foreground">
-            Blagajna se ne može koristiti bez otvorene smjene. Molimo otvorite smjenu prije izdavanja fiskalnih računa.
-          </p>
-          <NavLink to="/pos/shifts">
-            <Button className="w-full">Open Shift Management</Button>
-          </NavLink>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-screen bg-background">
+      {shiftLocked && (
+        <div className="absolute left-0 right-0 top-0 z-20 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+            <div>
+              <p className="font-medium">Smjena nije otvorena</p>
+              <p className="text-amber-800">
+                POS je u načinu pregleda. Dodavanje artikala i naplata će biti omogućeni nakon otvaranja smjene.
+              </p>
+            </div>
+            <NavLink to="/pos/shifts">
+              <Button size="sm" variant="outline" className="border-amber-300 text-amber-900 hover:bg-amber-100">
+                Otvori smjenu
+              </Button>
+            </NavLink>
+          </div>
+        </div>
+      )}
       {/* Left - Categories & Products */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
@@ -345,6 +347,11 @@ export default function TouchPOS() {
               Card
             </Button>
           </div>
+          {shiftLocked && (
+            <p className="mt-2 text-xs text-amber-700">
+              Otvorite smjenu kako biste aktivirali dodavanje artikala i naplatu.
+            </p>
+          )}
         </div>
       </div>
 
