@@ -14,7 +14,14 @@ import {
   X,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { usePOSItems, usePOSItemByBarcode, useCreateReceipt, CartItem, POSItem } from "@/hooks/usePOS";
+import {
+  usePOSItems,
+  usePOSItemByBarcode,
+  useCreateReceipt,
+  CartItem,
+  POSItem,
+  useCurrentShift,
+} from "@/hooks/usePOS";
 import { PaymentModal } from "@/components/pos/PaymentModal";
 import { ReceiptModal } from "@/components/pos/ReceiptModal";
 import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
@@ -30,6 +37,7 @@ export default function ClassicPOS() {
   const { data: items = [], isLoading } = usePOSItems(searchQuery);
   const createReceipt = useCreateReceipt();
   const findByBarcode = usePOSItemByBarcode();
+  const { data: currentShift, isLoading: loadingShift } = useCurrentShift();
 
   const addToCart = (product: POSItem) => {
     setCart((prev) => {
@@ -83,9 +91,16 @@ export default function ClassicPOS() {
 
   const handlePayment = async (paymentType: "cash" | "card") => {
     try {
+      if (!currentShift) {
+        toast.error("Open a shift before issuing receipts.");
+        setShowPayment(false);
+        return;
+      }
+
       const receipt = await createReceipt.mutateAsync({
         cart,
         paymentType,
+        shiftId: currentShift.id,
       });
       setLastReceipt(receipt);
       setShowPayment(false);
@@ -95,6 +110,31 @@ export default function ClassicPOS() {
       toast.error("Failed to process payment");
     }
   };
+
+  if (loadingShift) {
+    return (
+      <div className="flex h-screen items-center justify-center text-muted-foreground">
+        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+        Loading shift status...
+      </div>
+    );
+  }
+
+  if (!currentShift) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-background p-6 text-center">
+        <div className="module-card max-w-lg space-y-4">
+          <h2 className="text-2xl font-semibold">Shift required</h2>
+          <p className="text-muted-foreground">
+            Blagajna se ne može koristiti bez otvorene smjene. Molimo otvorite smjenu prije izdavanja fiskalnih računa.
+          </p>
+          <NavLink to="/pos/shifts">
+            <Button className="w-full">Open Shift Management</Button>
+          </NavLink>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-background">
@@ -262,7 +302,7 @@ export default function ClassicPOS() {
             <Button
               variant="outline"
               className="h-12"
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || !currentShift}
               onClick={() => setShowPayment(true)}
             >
               <DollarSign className="mr-2 h-5 w-5" />
@@ -270,7 +310,7 @@ export default function ClassicPOS() {
             </Button>
             <Button
               className="h-12"
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || !currentShift}
               onClick={() => setShowPayment(true)}
             >
               <CreditCard className="mr-2 h-5 w-5" />
