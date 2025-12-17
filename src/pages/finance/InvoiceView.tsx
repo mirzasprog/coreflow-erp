@@ -164,10 +164,10 @@ export default function InvoiceView() {
                 <p className="text-sm text-muted-foreground">Due Date</p>
                 <p className="font-medium">{invoice.due_date ? format(new Date(invoice.due_date), 'dd.MM.yyyy') : '-'}</p>
               </div>
-              {invoice.warehouse_documents && (
+              {invoice.warehouse_document_id && (invoice as any).warehouse_documents && (
                 <div className="sm:col-span-2">
                   <p className="text-sm text-muted-foreground">Linked Warehouse Document</p>
-                  <p className="font-medium">{invoice.warehouse_documents.document_number}</p>
+                  <p className="font-medium">{(invoice as any).warehouse_documents?.document_number || '-'}</p>
                 </div>
               )}
               {invoice.notes && (

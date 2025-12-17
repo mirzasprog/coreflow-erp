@@ -71,13 +71,13 @@ export default function GoodsReceiptList() {
 
   return (
     <div>
-      <Header title="Goods Receipt" subtitle="Primka • Incoming goods from suppliers" />
+      <Header title="Primke" subtitle="Primka • Ulazni dokumenti od dobavljača" />
 
       <div className="p-6">
         <div className="mb-4">
           <NavLink to="/warehouse" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="mr-1 h-4 w-4" />
-            Back to Warehouse
+            Natrag na skladište
           </NavLink>
         </div>
 
@@ -117,20 +117,21 @@ export default function GoodsReceiptList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Document No.</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Warehouse</TableHead>
+                  <TableHead>Broj dokumenta</TableHead>
+                  <TableHead>Datum</TableHead>
+                  <TableHead>Narudžbenica</TableHead>
+                  <TableHead>Dobavljač</TableHead>
+                  <TableHead>Skladište</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Total Value</TableHead>
-                  <TableHead className="w-32">Actions</TableHead>
+                  <TableHead className="text-right">Ukupno</TableHead>
+                  <TableHead className="w-32">Akcije</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredDocuments?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                      No documents found
+                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                      Nema dokumenata
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -138,6 +139,15 @@ export default function GoodsReceiptList() {
                     <TableRow key={doc.id}>
                       <TableCell className="font-medium">{doc.document_number}</TableCell>
                       <TableCell>{format(new Date(doc.document_date), 'dd.MM.yyyy')}</TableCell>
+                      <TableCell>
+                        {(doc as any).purchase_orders?.order_number ? (
+                          <NavLink to={`/warehouse/purchase-orders/${doc.purchase_order_id}`} className="text-primary hover:underline">
+                            {(doc as any).purchase_orders.order_number}
+                          </NavLink>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
                       <TableCell>{doc.partners?.name || '-'}</TableCell>
                       <TableCell>{doc.locations?.name || '-'}</TableCell>
                       <TableCell>{getStatusBadge(doc.status)}</TableCell>

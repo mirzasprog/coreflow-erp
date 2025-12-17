@@ -688,6 +688,7 @@ export type Database = {
           paid_amount: number | null
           partner_id: string | null
           posted_at: string | null
+          source_receipt_id: string | null
           status: Database["public"]["Enums"]["document_status"] | null
           subtotal: number | null
           total: number | null
@@ -707,6 +708,7 @@ export type Database = {
           paid_amount?: number | null
           partner_id?: string | null
           posted_at?: string | null
+          source_receipt_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
           subtotal?: number | null
           total?: number | null
@@ -726,6 +728,7 @@ export type Database = {
           paid_amount?: number | null
           partner_id?: string | null
           posted_at?: string | null
+          source_receipt_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
           subtotal?: number | null
           total?: number | null
@@ -739,6 +742,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_source_receipt_id_fkey"
+            columns: ["source_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_documents"
             referencedColumns: ["id"]
           },
           {
@@ -1566,6 +1576,7 @@ export type Database = {
           notes: string | null
           order_id: string
           quantity: number
+          received_quantity: number | null
           total_price: number | null
           unit_price: number | null
         }
@@ -1575,6 +1586,7 @@ export type Database = {
           notes?: string | null
           order_id: string
           quantity?: number
+          received_quantity?: number | null
           total_price?: number | null
           unit_price?: number | null
         }
@@ -1584,6 +1596,7 @@ export type Database = {
           notes?: string | null
           order_id?: string
           quantity?: number
+          received_quantity?: number | null
           total_price?: number | null
           unit_price?: number | null
         }
@@ -1967,6 +1980,7 @@ export type Database = {
           notes: string | null
           partner_id: string | null
           posted_at: string | null
+          purchase_order_id: string | null
           status: Database["public"]["Enums"]["document_status"] | null
           target_location_id: string | null
           total_value: number | null
@@ -1983,6 +1997,7 @@ export type Database = {
           notes?: string | null
           partner_id?: string | null
           posted_at?: string | null
+          purchase_order_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
           target_location_id?: string | null
           total_value?: number | null
@@ -1999,6 +2014,7 @@ export type Database = {
           notes?: string | null
           partner_id?: string | null
           posted_at?: string | null
+          purchase_order_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
           target_location_id?: string | null
           total_value?: number | null
@@ -2017,6 +2033,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_documents_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
             referencedColumns: ["id"]
           },
           {

@@ -72,7 +72,7 @@ export function usePurchaseOrder(id: string | undefined) {
 
       const { data: lines, error: linesError } = await supabase
         .from('purchase_order_lines')
-        .select(`*, items(code, name)`)
+        .select(`*, items(code, name), received_quantity`)
         .eq('order_id', id!);
       
       if (linesError) throw linesError;
