@@ -12,6 +12,7 @@ import WarehouseIndex from "./pages/warehouse/WarehouseIndex";
 import GoodsReceiptList from "./pages/warehouse/GoodsReceiptList";
 import GoodsReceiptForm from "./pages/warehouse/GoodsReceiptForm";
 import GoodsReceiptFromPO from "./pages/warehouse/GoodsReceiptFromPO";
+import SelectPOForReceipt from "./pages/warehouse/SelectPOForReceipt";
 import GoodsReceiptView from "./pages/warehouse/GoodsReceiptView";
 import GoodsIssueList from "./pages/warehouse/GoodsIssueList";
 import GoodsIssueForm from "./pages/warehouse/GoodsIssueForm";
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="/warehouse" element={<WarehouseIndex />} />
               <Route path="/warehouse/receipts" element={<GoodsReceiptList />} />
               <Route path="/warehouse/receipts/new" element={<GoodsReceiptForm />} />
+              <Route path="/warehouse/receipts/select-po" element={<SelectPOForReceipt />} />
               <Route path="/warehouse/receipts/from-po/:orderId" element={<GoodsReceiptFromPO />} />
               <Route path="/warehouse/receipts/:id" element={<GoodsReceiptView />} />
               <Route path="/warehouse/receipts/:id/edit" element={<GoodsReceiptForm />} />
