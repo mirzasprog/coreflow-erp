@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,7 @@ import {
   useCreateAssetTransfer,
 } from "@/hooks/useFixedAssets";
 import { useLocations, useEmployees } from "@/hooks/useMasterData";
+import { useSafetyDeviceByAsset } from "@/hooks/useHSE";
 import {
   ArrowLeft,
   Edit,
@@ -52,6 +53,8 @@ import {
   Plus,
   ArrowRightLeft,
   ArrowRight,
+  Shield,
+  Flame,
 } from "lucide-react";
 
 export default function AssetView() {
@@ -64,6 +67,7 @@ export default function AssetView() {
   const { data: transfers } = useAssetTransfers(id);
   const { data: locations } = useLocations();
   const { data: employees } = useEmployees();
+  const { data: safetyDevice } = useSafetyDeviceByAsset(id);
 
   const createDepreciation = useCreateDepreciationRecord();
   const updateAsset = useUpdateFixedAsset();
@@ -125,8 +129,9 @@ export default function AssetView() {
       toast({ title: "Depreciation recorded successfully" });
       setShowDepreciationModal(false);
       setDepAmount("");
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unexpected error";
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
@@ -159,8 +164,9 @@ export default function AssetView() {
       toast({ title: "Asset transferred successfully" });
       setShowTransferModal(false);
       resetTransferForm();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unexpected error";
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
@@ -337,6 +343,71 @@ export default function AssetView() {
                 </p>
               </div>
             </div>
+          </div>
+
+          <div className="module-card">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Safety & Inspections</h3>
+              <Badge variant="outline" className="gap-2">
+                <Shield className="h-4 w-4 text-module-hse" />
+                HSE
+              </Badge>
+            </div>
+
+            {safetyDevice ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg border bg-muted/40 p-3">
+                  <div className="flex items-center gap-2">
+                    <Flame className="h-4 w-4 text-module-hse" />
+                    <div>
+                      <p className="font-medium">{safetyDevice.name || safetyDevice.device_code}</p>
+                      <p className="text-sm text-muted-foreground">{safetyDevice.device_type}</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline">
+                    Interval: {safetyDevice.inspection_interval_months || "—"}m
+                  </Badge>
+                </div>
+
+                <div className="rounded-lg border p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Next inspection</p>
+                      <p className="text-lg font-semibold">
+                        {safetyDevice.next_inspection_date
+                          ? format(new Date(safetyDevice.next_inspection_date), "dd.MM.yyyy")
+                          : "Not scheduled"}
+                      </p>
+                    </div>
+                    <div className="text-right text-sm">
+                      <p className="text-muted-foreground">Last:</p>
+                      <p className="font-medium">
+                        {safetyDevice.last_inspection_date
+                          ? format(new Date(safetyDevice.last_inspection_date), "dd.MM.yyyy")
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  {safetyDevice.next_inspection_date && (
+                    <p
+                      className={`mt-2 text-sm ${
+                        differenceInCalendarDays(new Date(safetyDevice.next_inspection_date), new Date()) < 0
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {differenceInCalendarDays(new Date(safetyDevice.next_inspection_date), new Date()) < 0
+                        ? "Inspection overdue"
+                        : `Due in ${differenceInCalendarDays(new Date(safetyDevice.next_inspection_date), new Date())} days`}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground">
+                No safety device linked. Enable safety tracking in asset form.
+              </div>
+            )}
           </div>
         </div>
 

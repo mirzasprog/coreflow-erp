@@ -3,10 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { addMonths, format } from "date-fns";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Form,
   FormControl,
@@ -25,6 +27,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useFixedAsset, useCreateFixedAsset, useUpdateFixedAsset } from "@/hooks/useFixedAssets";
 import { useLocations, useEmployees } from "@/hooks/useMasterData";
+import { useDeleteSafetyDevice, useSafetyDeviceByAsset, useUpsertSafetyDevice } from "@/hooks/useHSE";
 import { ArrowLeft, Save } from "lucide-react";
 
 const assetSchema = z.object({
@@ -40,6 +43,38 @@ const assetSchema = z.object({
   depreciation_method: z.string().default("linear"),
   status: z.enum(["active", "sold", "written_off"]).default("active"),
   notes: z.string().optional(),
+  is_safety_device: z.boolean().default(false),
+  device_type: z.string().optional(),
+  inspection_interval_months: z.coerce.number().optional(),
+  last_inspection_date: z.string().optional(),
+  next_inspection_date: z.string().optional(),
+  installation_date: z.string().optional(),
+  manufacturer: z.string().optional(),
+  serial_number: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.is_safety_device) {
+    if (!data.device_type) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["device_type"],
+        message: "Device type is required for safety devices",
+      });
+    }
+    if (!data.inspection_interval_months) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["inspection_interval_months"],
+        message: "Inspection interval is required",
+      });
+    }
+  }
+  if (data.current_value > data.purchase_value) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["current_value"],
+      message: "Current value cannot exceed purchase value",
+    });
+  }
 });
 
 type AssetFormData = z.infer<typeof assetSchema>;
@@ -62,10 +97,13 @@ export default function AssetForm() {
   const isEdit = !!id;
 
   const { data: asset, isLoading: assetLoading } = useFixedAsset(id);
+  const { data: safetyDevice } = useSafetyDeviceByAsset(id);
   const { data: locations } = useLocations();
   const { data: employees } = useEmployees();
   const createAsset = useCreateFixedAsset();
   const updateAsset = useUpdateFixedAsset();
+  const upsertSafetyDevice = useUpsertSafetyDevice();
+  const deleteSafetyDevice = useDeleteSafetyDevice();
 
   const form = useForm<AssetFormData>({
     resolver: zodResolver(assetSchema),
@@ -82,6 +120,14 @@ export default function AssetForm() {
       depreciation_method: "linear",
       status: "active",
       notes: "",
+      is_safety_device: false,
+      device_type: "",
+      inspection_interval_months: 12,
+      last_inspection_date: "",
+      next_inspection_date: "",
+      installation_date: "",
+      manufacturer: "",
+      serial_number: "",
     },
   });
 
@@ -100,9 +146,17 @@ export default function AssetForm() {
         depreciation_method: asset.depreciation_method || "linear",
         status: asset.status || "active",
         notes: asset.notes || "",
+        is_safety_device: !!safetyDevice,
+        device_type: safetyDevice?.device_type || "",
+        inspection_interval_months: safetyDevice?.inspection_interval_months || 12,
+        last_inspection_date: safetyDevice?.last_inspection_date || "",
+        next_inspection_date: safetyDevice?.next_inspection_date || "",
+        installation_date: safetyDevice?.installation_date || "",
+        manufacturer: safetyDevice?.manufacturer || "",
+        serial_number: safetyDevice?.serial_number || "",
       });
     }
-  }, [asset, form]);
+  }, [asset, form, safetyDevice]);
 
   const onSubmit = async (data: AssetFormData) => {
     try {
@@ -121,18 +175,45 @@ export default function AssetForm() {
         notes: data.notes || null,
       };
 
-      if (isEdit) {
-        await updateAsset.mutateAsync({ id, ...payload });
-        toast({ title: "Asset updated successfully" });
-      } else {
-        await createAsset.mutateAsync(payload);
-        toast({ title: "Asset created successfully" });
+      const savedAsset = isEdit
+        ? await updateAsset.mutateAsync({ id, ...payload })
+        : await createAsset.mutateAsync(payload);
+
+      if (data.is_safety_device && savedAsset?.id) {
+        const nextInspection =
+          data.next_inspection_date ||
+          (data.last_inspection_date && data.inspection_interval_months
+            ? format(
+                addMonths(new Date(data.last_inspection_date), data.inspection_interval_months),
+                "yyyy-MM-dd",
+              )
+            : null);
+
+        await upsertSafetyDevice.mutateAsync({
+          asset_id: savedAsset.id,
+          device_code: data.asset_code,
+          device_type: data.device_type || "Safety Device",
+          name: data.name,
+          location_id: data.location_id || null,
+          inspection_interval_months: data.inspection_interval_months || null,
+          last_inspection_date: data.last_inspection_date || null,
+          next_inspection_date: nextInspection,
+          installation_date: data.installation_date || null,
+          manufacturer: data.manufacturer || null,
+          serial_number: data.serial_number || null,
+          status: "active",
+        });
+      } else if (!data.is_safety_device && savedAsset?.id && safetyDevice?.asset_id) {
+        await deleteSafetyDevice.mutateAsync(savedAsset.id);
       }
+
+      toast({ title: isEdit ? "Asset updated successfully" : "Asset created successfully" });
       navigate("/assets");
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "An unexpected error occurred";
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     }
@@ -382,6 +463,131 @@ export default function AssetForm() {
                   </FormItem>
                 )}
               />
+
+              <div className="rounded-lg border p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Safety device & inspections</p>
+                    <p className="text-sm text-muted-foreground">
+                      Dodaj intervale pregleda za uređaje poput vatrogasnih aparata
+                    </p>
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="is_safety_device"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center space-x-2">
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                        <FormLabel className="m-0">Safety tracking</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {form.watch("is_safety_device") && (
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="device_type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Vrsta uređaja</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Fire Extinguisher" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="inspection_interval_months"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Interval pregleda (mjeseci)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="1" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="last_inspection_date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Zadnji pregled</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="next_inspection_date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sljedeći pregled</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="installation_date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Datum instalacije</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="manufacturer"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Proizvođač</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Dräger, MSA..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="serial_number"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Serijski broj</FormLabel>
+                          <FormControl>
+                            <Input placeholder="SN-12345" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => navigate("/assets")}>

@@ -1679,6 +1679,7 @@ export type Database = {
       }
       safety_devices: {
         Row: {
+          asset_id: string | null
           created_at: string | null
           device_code: string
           device_type: string
@@ -1697,6 +1698,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          asset_id?: string | null
           created_at?: string | null
           device_code: string
           device_type: string
@@ -1715,6 +1717,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          asset_id?: string | null
           created_at?: string | null
           device_code?: string
           device_type?: string
@@ -1733,6 +1736,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "safety_devices_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "safety_devices_location_id_fkey"
             columns: ["location_id"]
