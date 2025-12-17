@@ -1,7 +1,9 @@
+import { useMemo, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { NavLink } from "@/components/NavLink";
+import type { LucideIcon } from "lucide-react";
 import {
   Shield,
   AlertTriangle,
@@ -25,14 +27,98 @@ const overdueChecks = [
   { id: "2", employee: "Mike Smith", type: "Medical Exam", expiredDate: "2024-01-05", daysOverdue: 10 },
 ];
 
+type ActionStatus = "open" | "in_progress" | "completed";
+
+interface ActionItem {
+  id: string;
+  title: string;
+  owner: string;
+  dueIn: string;
+  severity: "low" | "medium" | "high";
+  status: ActionStatus;
+}
+
+const trainingCoverage = [
+  { id: "t1", name: "Fire Safety & Extinguishers", completion: 92, overdue: 1 },
+  { id: "t2", name: "Evacuation & Drills", completion: 88, overdue: 2 },
+  { id: "t3", name: "First Aid & PPE", completion: 76, overdue: 3 },
+];
+
+const readinessScores = [
+  { id: "r1", label: "Fire Safety", status: "Stable", trend: "+4%", score: 86 },
+  { id: "r2", label: "Machinery", status: "Monitor", trend: "-2%", score: 72 },
+  { id: "r3", label: "Medical", status: "Improving", trend: "+3%", score: 81 },
+];
+
+const actionItemsSeed: ActionItem[] = [
+  {
+    id: "a1",
+    title: "Zamijeni istekli aparat FE-007",
+    owner: "Marko Horvat",
+    dueIn: "3 dana",
+    severity: "high",
+    status: "open",
+  },
+  {
+    id: "a2",
+    title: "Planiraj godišnji pregled hidranta H-003",
+    owner: "Tina Vuković",
+    dueIn: "1 tjedan",
+    severity: "medium",
+    status: "in_progress",
+  },
+  {
+    id: "a3",
+    title: "Podsjeti na sanitarnu knjižicu za ugostiteljstvo",
+    owner: "Sanja Petrović",
+    dueIn: "Danas",
+    severity: "high",
+    status: "open",
+  },
+  {
+    id: "a4",
+    title: "Ažuriraj protokol za evakuaciju",
+    owner: "Ivan Kovač",
+    dueIn: "15 dana",
+    severity: "low",
+    status: "completed",
+  },
+];
+
 export default function HSEIndex() {
+  const [inspectionWindow, setInspectionWindow] = useState<"7" | "30" | "all">("30");
+  const [actionItems, setActionItems] = useState<ActionItem[]>(actionItemsSeed);
+
+  const filteredInspections = useMemo(() => {
+    const sorted = [...upcomingInspections].sort((a, b) => a.daysUntil - b.daysUntil);
+    if (inspectionWindow === "all") return sorted;
+    const limit = parseInt(inspectionWindow, 10);
+    return sorted.filter((item) => item.daysUntil <= limit);
+  }, [inspectionWindow]);
+
+  const actionCounts = useMemo(() => {
+    return actionItems.reduce(
+      (acc, item) => {
+        acc[item.status as keyof typeof acc] += 1;
+        return acc;
+      },
+      { open: 0, in_progress: 0, completed: 0 }
+    );
+  }, [actionItems]);
+
+  const updateActionItem = (id: string, status: ActionStatus) => {
+    setActionItems((items) =>
+      items.map((item) => (item.id === id ? { ...item, status } : item))
+    );
+  };
+
   return (
     <div>
       <Header title="Health, Safety & Environment" subtitle="Zaštita na radu • Occupational Safety" />
 
-      <div className="p-6">
+      <div className="p-6 space-y-6">
         {/* Stats */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Safety Devices"
             value="84"
@@ -67,7 +153,7 @@ export default function HSEIndex() {
         </div>
 
         {/* Quick Navigation */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <NavLink to="/hse/devices">
             <QuickNavCard
               icon={Flame}
@@ -102,19 +188,29 @@ export default function HSEIndex() {
           </NavLink>
         </div>
 
-        {/* Two Column Layout */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-3">
           {/* Upcoming Inspections */}
-          <div className="module-card">
+          <div className="module-card lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">Upcoming Inspections</h3>
                 <p className="text-sm text-muted-foreground">Predstojeći pregledi uređaja</p>
               </div>
-              <Button variant="outline" size="sm">View All</Button>
+              <div className="flex items-center gap-2">
+                {["7", "30", "all"].map((value) => (
+                  <Button
+                    key={value}
+                    variant={inspectionWindow === value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInspectionWindow(value as typeof inspectionWindow)}
+                  >
+                    {value === "all" ? "Sve" : `Do ${value} dana`}
+                  </Button>
+                ))}
+              </div>
             </div>
             <div className="space-y-3">
-              {upcomingInspections.map((item) => (
+              {filteredInspections.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-center justify-between rounded-lg border p-3"
@@ -131,16 +227,143 @@ export default function HSEIndex() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs font-medium">
+                      <FileCheck className="h-3 w-3 text-muted-foreground" />
+                      {item.type}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span
+                        className={
+                          item.daysUntil <= 7
+                            ? "font-medium text-warning"
+                            : "text-muted-foreground"
+                        }
+                      >
+                        {item.daysUntil} days
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {filteredInspections.length === 0 && (
+                <div className="flex h-24 items-center justify-center rounded-lg bg-muted/40 text-sm text-muted-foreground">
+                  Nema pregleda u odabranom periodu
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Compliance Snapshot */}
+          <div className="module-card">
+            <div className="mb-2 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Compliance Snapshot</h3>
+                <p className="text-sm text-muted-foreground">Pokazatelji spremnosti</p>
+              </div>
+              <div className="rounded-full bg-module-hse/10 px-3 py-1 text-xs font-semibold text-module-hse">
+                Live
+              </div>
+            </div>
+            <div className="space-y-3">
+              {readinessScores.map((item) => (
+                <div key={item.id} className="rounded-lg border bg-muted/40 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium">{item.label}</p>
                     <span
                       className={
-                        item.daysUntil <= 7
-                          ? "font-medium text-warning"
-                          : "text-muted-foreground"
+                        item.status === "Stable"
+                          ? "badge-secondary"
+                          : item.status === "Improving"
+                            ? "badge-success"
+                            : "badge-warning"
                       }
                     >
-                      {item.daysUntil} days
+                      {item.status}
                     </span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-module-hse"
+                      style={{ width: `${item.score}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">Score: {item.score}% • {item.trend}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Action & Medical */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="module-card lg:col-span-2">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Action Center</h3>
+                <p className="text-sm text-muted-foreground">Operativni zadaci za HSE</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="badge-danger">{actionCounts.open} Open</span>
+                <span className="badge-warning">{actionCounts.in_progress} In progress</span>
+                <span className="badge-success">{actionCounts.completed} Completed</span>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {actionItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-3 rounded-lg border p-3 lg:flex-row lg:items-center lg:justify-between"
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={
+                        "flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold " +
+                        (item.severity === "high"
+                          ? "bg-destructive/10 text-destructive"
+                          : item.severity === "medium"
+                            ? "bg-warning/10 text-warning"
+                            : "bg-success/10 text-success")
+                      }
+                    >
+                      {item.owner.split(" ").map((n: string) => n[0]).join("")}
+                    </div>
+                    <div>
+                      <p className="font-medium">{item.title}</p>
+                      <p className="text-sm text-muted-foreground">Nositelj: {item.owner} • Rok: {item.dueIn}</p>
+                      <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full bg-muted px-2 py-1 font-medium">Severity: {item.severity}</span>
+                        <span
+                          className={
+                            item.status === "completed"
+                              ? "badge-success"
+                              : item.status === "in_progress"
+                                ? "badge-warning"
+                                : "badge-danger"
+                          }
+                        >
+                          {item.status.replace("_", " ")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateActionItem(item.id, "in_progress")}
+                      disabled={item.status === "completed"}
+                    >
+                      Start
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateActionItem(item.id, "completed")}
+                      disabled={item.status === "completed"}
+                    >
+                      Resolve
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -186,6 +409,74 @@ export default function HSEIndex() {
             )}
           </div>
         </div>
+
+        {/* Training & compliance */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="module-card lg:col-span-2">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Training Coverage</h3>
+                <p className="text-sm text-muted-foreground">Obuka i osposobljavanje zaposlenika</p>
+              </div>
+              <Button variant="outline" size="sm">Download plan</Button>
+            </div>
+            <div className="space-y-3">
+              {trainingCoverage.map((training) => (
+                <div key={training.id} className="rounded-lg border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium">{training.name}</p>
+                      <p className="text-sm text-muted-foreground">{training.overdue} sessions overdue</p>
+                    </div>
+                    <span className="text-sm font-semibold text-module-hse">{training.completion}%</span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-module-hse"
+                      style={{ width: `${training.completion}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="module-card">
+            <div className="mb-2 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Medical Coverage</h3>
+                <p className="text-sm text-muted-foreground">Pregledi i sanitarne knjižice</p>
+              </div>
+              <div className="rounded-md bg-info/10 px-2 py-1 text-xs font-semibold text-info">Tracking</div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
+                <div>
+                  <p className="font-medium">Aktivni pregledi</p>
+                  <p className="text-sm text-muted-foreground">Planirani i u tijeku</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold">18</p>
+                  <p className="text-xs text-success">+3 this week</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
+                <p className="font-medium">Expiring soon</p>
+                <p className="text-sm text-muted-foreground">5 zaposlenika unutar 10 dana</p>
+                <div className="mt-2 flex items-center gap-2 text-xs text-warning">
+                  <Clock className="h-3 w-3" /> Hitno planirati
+                </div>
+              </div>
+              <div className="rounded-lg border border-success/30 bg-success/5 p-3">
+                <p className="font-medium">Completed this month</p>
+                <p className="text-sm text-muted-foreground">12 pregleda završeno</p>
+                <div className="mt-2 h-2 rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-success" style={{ width: "68%" }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -197,7 +488,7 @@ function QuickNavCard({
   subtitle,
   count,
 }: {
-  icon: any;
+  icon: LucideIcon;
   title: string;
   subtitle: string;
   count: string;
