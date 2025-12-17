@@ -105,9 +105,9 @@ export default function GoodsReceiptList() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={() => navigate('/warehouse/receipts/new')}>
+            <Button onClick={() => navigate('/warehouse/receipts/select-po')}>
               <Plus className="mr-2 h-4 w-4" />
-              New Receipt
+              Nova primka
             </Button>
           </div>
 
