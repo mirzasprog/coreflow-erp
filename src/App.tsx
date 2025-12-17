@@ -64,6 +64,9 @@ import DeductionTypesList from "./pages/hr/DeductionTypesList";
 import LeaveBalances from "./pages/hr/LeaveBalances";
 import HSEIndex from "./pages/hse/HSEIndex";
 import HSECalendar from "./pages/hse/HSECalendar";
+import HSEDevices from "./pages/hse/HSEDevices";
+import HSEInspections from "./pages/hse/HSEInspections";
+import HSEMedicalChecks from "./pages/hse/HSEMedicalChecks";
 import SettingsIndex from "./pages/settings/SettingsIndex";
 import PartnersList from "./pages/settings/PartnersList";
 import NotFound from "./pages/NotFound";
@@ -155,6 +158,9 @@ const App = () => (
               <Route path="/hr/payroll/reports" element={<PayrollReports />} />
               <Route path="/hr/payroll/comparison" element={<PayrollComparison />} />
               <Route path="/hse" element={<HSEIndex />} />
+              <Route path="/hse/devices" element={<HSEDevices />} />
+              <Route path="/hse/inspections" element={<HSEInspections />} />
+              <Route path="/hse/medical" element={<HSEMedicalChecks />} />
               <Route path="/hse/calendar" element={<HSECalendar />} />
               <Route path="/settings" element={<SettingsIndex />} />
               <Route path="/settings/partners" element={<PartnersList />} />

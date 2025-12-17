@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { differenceInCalendarDays, format } from "date-fns";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { NavLink } from "@/components/NavLink";
+import { useMedicalCheckStats, useSafetyDevices } from "@/hooks/useHSE";
 import type { LucideIcon } from "lucide-react";
 import {
   Shield,
@@ -15,17 +18,6 @@ import {
   Users,
   FileCheck,
 } from "lucide-react";
-
-const upcomingInspections = [
-  { id: "1", device: "Fire Extinguisher FE-001", type: "Fire Extinguisher", location: "Store 1", dueDate: "2024-01-20", daysUntil: 5 },
-  { id: "2", device: "Hydrant H-003", type: "Hydrant", location: "Warehouse", dueDate: "2024-01-25", daysUntil: 10 },
-  { id: "3", device: "Elevator EL-001", type: "Elevator", location: "Office HQ", dueDate: "2024-02-01", daysUntil: 17 },
-];
-
-const overdueChecks = [
-  { id: "1", employee: "Ana Kovač", type: "Sanitary Booklet", expiredDate: "2024-01-10", daysOverdue: 5 },
-  { id: "2", employee: "Mike Smith", type: "Medical Exam", expiredDate: "2024-01-05", daysOverdue: 10 },
-];
 
 type ActionStatus = "open" | "in_progress" | "completed";
 
@@ -86,15 +78,56 @@ const actionItemsSeed: ActionItem[] = [
 ];
 
 export default function HSEIndex() {
+  const navigate = useNavigate();
   const [inspectionWindow, setInspectionWindow] = useState<"7" | "30" | "all">("30");
   const [actionItems, setActionItems] = useState<ActionItem[]>(actionItemsSeed);
+  const { data: devices } = useSafetyDevices();
+  const { data: medicalChecks = [], stats: medicalStats } = useMedicalCheckStats();
+
+  const inspectionsFromDevices = useMemo(() => {
+    const today = new Date();
+    return (
+      devices?.map((device) => {
+        const nextInspection = device.next_inspection_date ? new Date(device.next_inspection_date) : null;
+        const daysUntil = nextInspection ? differenceInCalendarDays(nextInspection, today) : null;
+        return {
+          id: device.id,
+          device: device.name || device.device_code,
+          type: device.device_type,
+          location: device.locations?.name || "—",
+          dueDate: device.next_inspection_date,
+          daysUntil,
+        };
+      }) || []
+    );
+  }, [devices]);
 
   const filteredInspections = useMemo(() => {
-    const sorted = [...upcomingInspections].sort((a, b) => a.daysUntil - b.daysUntil);
+    const sorted = inspectionsFromDevices
+      .filter((item) => item.daysUntil !== null)
+      .sort((a, b) => (a.daysUntil || 0) - (b.daysUntil || 0));
     if (inspectionWindow === "all") return sorted;
     const limit = parseInt(inspectionWindow, 10);
-    return sorted.filter((item) => item.daysUntil <= limit);
-  }, [inspectionWindow]);
+    return sorted.filter((item) => (item.daysUntil || 0) <= limit);
+  }, [inspectionWindow, inspectionsFromDevices]);
+
+  const overdueMedical = useMemo(() => {
+    const now = new Date();
+    return medicalChecks
+      .filter((check) => check.valid_until && new Date(check.valid_until) < now)
+      .map((check) => ({
+        id: check.id,
+        employee: check.employees
+          ? `${check.employees.first_name} ${check.employees.last_name}`
+          : "—",
+        type: check.check_type === "sanitary_booklet" ? "Sanitary Booklet" : check.check_type === "periodic_medical" ? "Medical Exam" : "Other",
+        expiredDate: check.valid_until || "",
+        daysOverdue: check.valid_until
+          ? Math.abs(differenceInCalendarDays(new Date(check.valid_until), now))
+          : 0,
+      }))
+      .sort((a, b) => b.daysOverdue - a.daysOverdue);
+  }, [medicalChecks]);
 
   const actionCounts = useMemo(() => {
     return actionItems.reduce(
@@ -105,6 +138,19 @@ export default function HSEIndex() {
       { open: 0, in_progress: 0, completed: 0 }
     );
   }, [actionItems]);
+
+  const deviceStats = useMemo(() => {
+    const overdue = inspectionsFromDevices.filter((item) => (item.daysUntil || 0) < 0).length;
+    const dueSoon = inspectionsFromDevices.filter(
+      (item) => item.daysUntil !== null && item.daysUntil >= 0 && item.daysUntil <= 30,
+    ).length;
+
+    return {
+      total: inspectionsFromDevices.length,
+      overdue,
+      dueSoon,
+    };
+  }, [inspectionsFromDevices]);
 
   const updateActionItem = (id: string, status: ActionStatus) => {
     setActionItems((items) =>
@@ -121,14 +167,14 @@ export default function HSEIndex() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Safety Devices"
-            value="84"
-            change="12 due for inspection"
+            value={deviceStats.total.toString()}
+            change={`${deviceStats.dueSoon} due soon`}
             icon={Shield}
             iconColor="bg-module-hse/10 text-module-hse"
           />
           <StatCard
             title="Overdue Inspections"
-            value="3"
+            value={deviceStats.overdue.toString()}
             change="Urgent attention required"
             changeType="negative"
             icon={AlertTriangle}
@@ -136,16 +182,16 @@ export default function HSEIndex() {
           />
           <StatCard
             title="Employee Checks"
-            value="47"
-            change="2 expired, 5 expiring soon"
-            changeType="negative"
+            value={medicalStats.total.toString()}
+            change={`${medicalStats.overdue} expired, ${medicalStats.expiringSoon} expiring soon`}
+            changeType={medicalStats.overdue > 0 ? "negative" : "positive"}
             icon={HeartPulse}
             iconColor="bg-warning/10 text-warning"
           />
           <StatCard
             title="Compliance Rate"
-            value="94%"
-            change="+2% from last month"
+            value={`${medicalStats.complianceRate}%`}
+            change="Validni pregledi"
             changeType="positive"
             icon={CheckCircle}
             iconColor="bg-success/10 text-success"
@@ -159,7 +205,7 @@ export default function HSEIndex() {
               icon={Flame}
               title="Safety Devices"
               subtitle="Uređaji zaštite"
-              count="84 devices"
+              count={`${deviceStats.total} devices`}
             />
           </NavLink>
           <NavLink to="/hse/inspections">
@@ -167,7 +213,7 @@ export default function HSEIndex() {
               icon={FileCheck}
               title="Inspections"
               subtitle="Pregledi uređaja"
-              count="12 pending"
+              count={`${deviceStats.dueSoon} pending`}
             />
           </NavLink>
           <NavLink to="/hse/medical">
@@ -175,7 +221,7 @@ export default function HSEIndex() {
               icon={HeartPulse}
               title="Medical Checks"
               subtitle="Liječnički pregledi"
-              count="7 expiring"
+              count={`${medicalStats.expiringSoon} expiring`}
             />
           </NavLink>
           <NavLink to="/hse/calendar">
@@ -222,7 +268,8 @@ export default function HSEIndex() {
                     <div>
                       <p className="font-medium">{item.device}</p>
                       <p className="text-sm text-muted-foreground">
-                        {item.location} • Due: {item.dueDate}
+                        {item.location} • Due:{" "}
+                        {item.dueDate ? format(new Date(item.dueDate), "dd.MM.yyyy") : "N/A"}
                       </p>
                     </div>
                   </div>
@@ -235,12 +282,12 @@ export default function HSEIndex() {
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <span
                         className={
-                          item.daysUntil <= 7
+                          item.daysUntil !== null && item.daysUntil <= 7
                             ? "font-medium text-warning"
                             : "text-muted-foreground"
                         }
                       >
-                        {item.daysUntil} days
+                        {item.daysUntil !== null ? `${item.daysUntil} days` : "No schedule"}
                       </span>
                     </div>
                   </div>
@@ -377,16 +424,16 @@ export default function HSEIndex() {
                 <h3 className="text-lg font-semibold">Overdue Medical Checks</h3>
                 <p className="text-sm text-muted-foreground">Istekli liječnički pregledi</p>
               </div>
-              <Button variant="outline" size="sm">View All</Button>
+              <Button variant="outline" size="sm" onClick={() => navigate("/hse/medical")}>View All</Button>
             </div>
-            {overdueChecks.length === 0 ? (
+            {overdueMedical.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-muted-foreground">
                 <CheckCircle className="mr-2 h-5 w-5 text-success" />
                 All checks up to date
               </div>
             ) : (
               <div className="space-y-3">
-                {overdueChecks.map((item) => (
+                {overdueMedical.map((item) => (
                   <div
                     key={item.id}
                     className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-3"
@@ -398,11 +445,13 @@ export default function HSEIndex() {
                       <div>
                         <p className="font-medium">{item.employee}</p>
                         <p className="text-sm text-muted-foreground">
-                          {item.type} • Expired: {item.expiredDate}
+                          {item.type} • Expired: {item.expiredDate ? format(new Date(item.expiredDate), "dd.MM.yyyy") : "N/A"}
                         </p>
                       </div>
                     </div>
-                    <span className="badge-danger">{item.daysOverdue} days overdue</span>
+                    <span className="rounded-full bg-destructive/10 px-3 py-1 text-sm font-semibold text-destructive">
+                      {item.daysOverdue} days overdue
+                    </span>
                   </div>
                 ))}
               </div>
