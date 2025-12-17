@@ -36,6 +36,123 @@ async function generateGLDocumentNumber(): Promise<string> {
   return `${prefix}${String(nextNumber).padStart(6, '0')}`;
 }
 
+// Helper function to generate invoice number
+async function generateInvoiceNumber(type: 'incoming' | 'outgoing'): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = type === 'incoming' ? `UF-${year}-` : `IF-${year}-`;
+  
+  const { data } = await supabase
+    .from('invoices')
+    .select('invoice_number')
+    .like('invoice_number', `${prefix}%`)
+    .order('invoice_number', { ascending: false })
+    .limit(1);
+  
+  let nextNumber = 1;
+  if (data && data.length > 0 && data[0].invoice_number) {
+    const lastNumber = parseInt(data[0].invoice_number.replace(prefix, ''), 10);
+    if (!isNaN(lastNumber)) {
+      nextNumber = lastNumber + 1;
+    }
+  }
+  
+  return `${prefix}${String(nextNumber).padStart(5, '0')}`;
+}
+
+// Create invoice proposal from goods receipt
+async function createInvoiceProposal(receiptId: string, receipt: any): Promise<string | null> {
+  try {
+    const invoiceNumber = await generateInvoiceNumber('incoming');
+    
+    // Get receipt lines
+    const { data: lines } = await supabase
+      .from('warehouse_document_lines')
+      .select('*, items(code, name, vat_rate_id)')
+      .eq('document_id', receiptId);
+    
+    if (!lines || lines.length === 0) return null;
+
+    // Calculate totals with VAT
+    let subtotal = 0;
+    let vatAmount = 0;
+    
+    // Get default VAT rate
+    const { data: vatRates } = await supabase
+      .from('vat_rates')
+      .select('*')
+      .eq('active', true)
+      .limit(1);
+    
+    const defaultVatRate = vatRates?.[0];
+
+    const invoiceLines = lines.map(line => {
+      const lineTotal = line.total_price || (line.quantity * (line.unit_price || 0));
+      const vatRate = defaultVatRate?.rate || 17;
+      const lineVat = lineTotal * (vatRate / 100);
+      subtotal += lineTotal;
+      vatAmount += lineVat;
+      
+      return {
+        item_id: line.item_id,
+        description: line.items?.name || '',
+        quantity: line.quantity,
+        unit_price: line.unit_price || 0,
+        vat_rate_id: line.items?.vat_rate_id || defaultVatRate?.id,
+        vat_amount: lineVat,
+        total: lineTotal + lineVat
+      };
+    });
+
+    const total = subtotal + vatAmount;
+
+    // Create invoice
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .insert({
+        invoice_number: invoiceNumber,
+        invoice_type: 'incoming',
+        invoice_date: receipt.document_date,
+        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        partner_id: receipt.partner_id,
+        warehouse_document_id: receiptId,
+        source_receipt_id: receiptId,
+        status: 'draft',
+        subtotal,
+        vat_amount: vatAmount,
+        total,
+        notes: `Prijedlog fakture iz primke ${receipt.document_number}`
+      })
+      .select()
+      .single();
+    
+    if (invoiceError) {
+      console.error('Failed to create invoice proposal:', invoiceError);
+      return null;
+    }
+
+    // Create invoice lines
+    const linesWithInvoiceId = invoiceLines.map(line => ({
+      invoice_id: invoice.id,
+      ...line
+    }));
+
+    const { error: linesError } = await supabase
+      .from('invoice_lines')
+      .insert(linesWithInvoiceId);
+    
+    if (linesError) {
+      console.error('Failed to create invoice lines:', linesError);
+      await supabase.from('invoices').delete().eq('id', invoice.id);
+      return null;
+    }
+
+    return invoiceNumber;
+  } catch (error) {
+    console.error('Error creating invoice proposal:', error);
+    return null;
+  }
+}
+
 export interface WarehouseDocument {
   id: string;
   document_type: string;
@@ -44,6 +161,7 @@ export interface WarehouseDocument {
   location_id: string | null;
   target_location_id: string | null;
   partner_id: string | null;
+  purchase_order_id: string | null;
   status: 'draft' | 'posted' | 'cancelled';
   notes: string | null;
   total_value: number;
@@ -51,6 +169,7 @@ export interface WarehouseDocument {
   locations?: { name: string } | null;
   target_locations?: { name: string } | null;
   partners?: { name: string } | null;
+  purchase_orders?: { order_number: string } | null;
 }
 
 export interface DocumentLine {
@@ -76,7 +195,8 @@ export function useWarehouseDocuments(documentType: DocumentType) {
           *,
           locations!warehouse_documents_location_id_fkey(name),
           target_locations:locations!warehouse_documents_target_location_id_fkey(name),
-          partners(name)
+          partners(name),
+          purchase_orders(order_number)
         `)
         .eq('document_type', documentType)
         .order('created_at', { ascending: false });
@@ -99,7 +219,8 @@ export function useWarehouseDocument(id: string | undefined) {
           *,
           locations!warehouse_documents_location_id_fkey(name),
           target_locations:locations!warehouse_documents_target_location_id_fkey(name),
-          partners(name)
+          partners(name),
+          purchase_orders(order_number)
         `)
         .eq('id', id)
         .single();
@@ -491,6 +612,12 @@ export function usePostDocument() {
         }
       }
 
+      // Create invoice proposal for goods receipts
+      let invoiceProposalNumber: string | null = null;
+      if (documentType === 'goods_receipt') {
+        invoiceProposalNumber = await createInvoiceProposal(id, doc);
+      }
+
       // Update document status
       const { error: updateError } = await supabase
         .from('warehouse_documents')
@@ -500,13 +627,16 @@ export function usePostDocument() {
       if (updateError) throw updateError;
 
       const glValue = totalReceiptValue || totalIssueValue || totalAdjustmentValue;
-      return { id, glEntryNumber, glValue, documentType };
+      return { id, glEntryNumber, glValue, documentType, invoiceProposalNumber };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['warehouse-documents'] });
       queryClient.invalidateQueries({ queryKey: ['warehouse-document'] });
       queryClient.invalidateQueries({ queryKey: ['stock'] });
       queryClient.invalidateQueries({ queryKey: ['gl-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      
+      let message = 'Document posted successfully';
       
       if (data.glEntryNumber) {
         let valueLabel = 'value';
@@ -514,10 +644,14 @@ export function usePostDocument() {
         else if (data.documentType === 'goods_issue') valueLabel = 'COGS';
         else if (data.documentType === 'inventory') valueLabel = 'adjustment';
         
-        toast.success(`Document posted. GL Entry ${data.glEntryNumber} created (${valueLabel}: ${Math.abs(data.glValue || 0).toFixed(2)} KM).`);
-      } else {
-        toast.success('Document posted successfully');
+        message = `Dokument proknjižen. GL Entry ${data.glEntryNumber} kreiran (${valueLabel}: ${Math.abs(data.glValue || 0).toFixed(2)} KM).`;
       }
+      
+      if (data.invoiceProposalNumber) {
+        message += ` Prijedlog fakture ${data.invoiceProposalNumber} kreiran.`;
+      }
+      
+      toast.success(message);
     },
     onError: (error: Error) => {
       toast.error(`Failed to post document: ${error.message}`);

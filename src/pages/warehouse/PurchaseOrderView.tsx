@@ -270,14 +270,13 @@ export default function PurchaseOrderView() {
                 </AlertDialog>
               </>
             )}
-            {order.status === 'received' && (
+            {(order.status === 'ordered' || order.status === 'received') && (
               <Button 
-                onClick={handleConvertToGoodsReceipt}
-                disabled={convertToGoodsReceiptMutation.isPending}
+                onClick={() => navigate(`/warehouse/receipts/from-po/${id}`)}
                 className="bg-module-warehouse hover:bg-module-warehouse/90"
               >
                 <Package className="mr-2 h-4 w-4" />
-                {convertToGoodsReceiptMutation.isPending ? 'Creating...' : 'Create Goods Receipt'}
+                Kreiraj primku
               </Button>
             )}
           </div>
@@ -383,41 +382,56 @@ export default function PurchaseOrderView() {
           </Card>
         </div>
 
-        {/* Order Lines */}
+        {/* Order Lines with delivery status */}
         <Card>
           <CardHeader>
-            <CardTitle>Order Lines ({order.lines?.length || 0} items)</CardTitle>
+            <CardTitle>Stavke narudžbenice ({order.lines?.length || 0} artikala)</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Item Code</TableHead>
-                  <TableHead>Item Name</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Unit Price</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead>Šifra</TableHead>
+                  <TableHead>Naziv</TableHead>
+                  <TableHead className="text-right">Naručeno</TableHead>
+                  <TableHead className="text-right">Primljeno</TableHead>
+                  <TableHead className="text-right">Status</TableHead>
+                  <TableHead className="text-right">Cijena</TableHead>
+                  <TableHead className="text-right">Ukupno</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {order.lines?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                      No items in this order
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                      Nema stavki u narudžbenici
                     </TableCell>
                   </TableRow>
                 ) : (
-                  order.lines?.map((line) => (
-                    <TableRow key={line.id}>
-                      <TableCell className="font-medium">{line.items?.code}</TableCell>
-                      <TableCell>{line.items?.name}</TableCell>
-                      <TableCell className="text-right">{line.quantity}</TableCell>
-                      <TableCell className="text-right">€{line.unit_price.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-medium">€{line.total_price.toFixed(2)}</TableCell>
-                      <TableCell className="text-muted-foreground">{line.notes || '-'}</TableCell>
-                    </TableRow>
-                  ))
+                  order.lines?.map((line) => {
+                    const receivedQty = (line as any).received_quantity || 0;
+                    const isFullyReceived = receivedQty >= line.quantity;
+                    const isPartiallyReceived = receivedQty > 0 && receivedQty < line.quantity;
+                    return (
+                      <TableRow key={line.id}>
+                        <TableCell className="font-medium">{line.items?.code}</TableCell>
+                        <TableCell>{line.items?.name}</TableCell>
+                        <TableCell className="text-right">{line.quantity}</TableCell>
+                        <TableCell className="text-right">{receivedQty}</TableCell>
+                        <TableCell className="text-right">
+                          {isFullyReceived ? (
+                            <Badge className="bg-green-600">Primljeno</Badge>
+                          ) : isPartiallyReceived ? (
+                            <Badge variant="secondary">Djelomično</Badge>
+                          ) : (
+                            <Badge variant="outline">Čeka isporuku</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">€{line.unit_price.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-medium">€{line.total_price.toFixed(2)}</TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

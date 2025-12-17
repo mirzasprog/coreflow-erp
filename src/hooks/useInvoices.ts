@@ -46,7 +46,7 @@ export function useInvoices(invoiceType: InvoiceType) {
         .select(`
           *,
           partners(name, code),
-          warehouse_documents(document_number)
+          warehouse_documents:warehouse_document_id(document_number)
         `)
         .eq('invoice_type', invoiceType)
         .order('created_at', { ascending: false });
@@ -68,7 +68,7 @@ export function useInvoice(id: string | undefined) {
         .select(`
           *,
           partners(name, code),
-          warehouse_documents(document_number)
+          warehouse_documents:warehouse_document_id(document_number)
         `)
         .eq('id', id)
         .single();
