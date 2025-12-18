@@ -28,11 +28,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useFixedAsset, useCreateFixedAsset, useUpdateFixedAsset } from "@/hooks/useFixedAssets";
 import { useLocations, useEmployees } from "@/hooks/useMasterData";
 import { useDeleteSafetyDevice, useSafetyDeviceByAsset, useUpsertSafetyDevice } from "@/hooks/useHSE";
+import { extractErrorMessage, isUniqueConstraintError } from "@/lib/errors";
 import { ArrowLeft, Save } from "lucide-react";
 
 const assetSchema = z.object({
-  asset_code: z.string().min(1, "Asset code is required"),
-  name: z.string().min(1, "Name is required"),
+  asset_code: z.string().trim().min(1, "Asset code is required"),
+  name: z.string().trim().min(1, "Name is required"),
   category: z.string().optional(),
   location_id: z.string().optional(),
   custodian_id: z.string().optional(),
@@ -210,7 +211,13 @@ export default function AssetForm() {
       toast({ title: isEdit ? "Asset updated successfully" : "Asset created successfully" });
       navigate("/assets");
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "An unexpected error occurred";
+      console.error("Failed to save asset", error);
+
+      let message = extractErrorMessage(error, "An unexpected error occurred");
+      if (isUniqueConstraintError(error, "fixed_assets_asset_code_key")) {
+        message = "Asset code already exists. Please choose a unique code.";
+      }
+
       toast({
         title: "Error",
         description: message,
