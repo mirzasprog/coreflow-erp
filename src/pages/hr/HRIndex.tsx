@@ -5,6 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/dashboard/StatCard";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -20,16 +28,55 @@ import {
   Search,
   Building,
   DollarSign,
+  FileSpreadsheet,
+  ListFilter,
 } from "lucide-react";
 import { useState } from "react";
 import { useHREmployees, useHRStats } from "@/hooks/useHR";
 import { format } from "date-fns";
+import { exportToExcel, exportToPrintablePdf } from "@/lib/exporters";
 
 export default function HRIndex() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const { data: employees, isLoading } = useHREmployees();
   const { data: stats } = useHRStats();
+
+  const employeeExportRows = (employees || []).map((emp) => ({
+    ID: emp.employee_code,
+    Name: `${emp.first_name} ${emp.last_name}`,
+    Position: emp.position || "—",
+    Department: emp.departments?.name || "—",
+    Location: emp.locations?.name || "—",
+    "Hire Date": emp.hire_date ? format(new Date(emp.hire_date), "dd.MM.yyyy") : "—",
+    Status: emp.active ? "Active" : "Inactive",
+  }));
+
+  const exportEmployees = (type: "excel" | "pdf") => {
+    if (!employeeExportRows.length) return;
+
+    if (type === "excel") {
+      exportToExcel(employeeExportRows, "Employees", "employee-directory.xlsx");
+      return;
+    }
+
+    const rows = employeeExportRows.map((row) => [
+      row.ID,
+      row.Name,
+      row.Position,
+      row.Department,
+      row.Location,
+      row["Hire Date"],
+      row.Status,
+    ]);
+
+    exportToPrintablePdf(
+      "Employee Directory",
+      "Napredni izvještaj zaposlenika spreman za PDF/print.",
+      ["ID", "Name", "Position", "Department", "Location", "Hire Date", "Status"],
+      rows
+    );
+  };
 
   const filteredEmployees = employees?.filter(
     (emp) =>
@@ -44,6 +91,42 @@ export default function HRIndex() {
       <Header title="Human Resources" subtitle="Ljudski resursi • Employee Management" />
 
       <div className="p-6">
+        <div className="mb-6 flex flex-col gap-3 rounded-lg border bg-card/70 p-4 shadow-sm backdrop-blur-sm md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-semibold">HR module tools</p>
+            <p className="text-sm text-muted-foreground">
+              Glavne opcije dostupne u zaglavlju modula za mobitel i desktop.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <Button className="w-full sm:w-auto" onClick={() => navigate("/hr/employees/new")}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Add Employee
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <ListFilter className="mr-2 h-4 w-4" />
+                  Module menu
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>Advanced reports</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => exportEmployees("excel")}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Export to Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportEmployees("pdf")}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Export to PDF
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/hr/payroll/reports")}>Payroll reports</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
         {/* Stats */}
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -131,22 +214,41 @@ export default function HRIndex() {
 
         {/* Employees Table */}
         <div className="module-card">
-          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h3 className="text-lg font-semibold">Employee Directory</h3>
               <p className="text-sm text-muted-foreground">Imenik zaposlenika</p>
             </div>
-            <div className="flex gap-2">
-              <div className="relative">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search employees..."
-                  className="w-64 pl-9"
+                  className="w-full pl-9"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <Button onClick={() => navigate("/hr/employees/new")}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full sm:w-auto">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Reports
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Napredni izvještaji</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => exportEmployees("excel")}>
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    Excel export
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportEmployees("pdf")}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    PDF export
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button className="w-full sm:w-auto" onClick={() => navigate("/hr/employees/new")}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 Add Employee
               </Button>
