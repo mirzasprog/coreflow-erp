@@ -16,6 +16,9 @@ export type MedicalCheck = Tables<"medical_checks"> & {
   employees?: Tables<"employees"> | null;
 };
 
+type MedicalCheckUpdatePayload = TablesUpdate<"medical_checks"> & { id: string };
+type SafetyInspectionUpdatePayload = TablesUpdate<"safety_inspections"> & { id: string };
+
 export function useSafetyDevices() {
   return useQuery({
     queryKey: ["safety_devices"],
@@ -185,6 +188,31 @@ export function useCreateSafetyInspection() {
   });
 }
 
+export function useUpdateSafetyInspection() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: SafetyInspectionUpdatePayload) => {
+      const { data, error } = await supabase
+        .from("safety_inspections")
+        .update(payload)
+        .eq("id", id)
+        .select(`
+          *,
+          safety_devices(*, locations(*))
+        `)
+        .single();
+
+      if (error) throw error;
+      return data as SafetyInspection;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["safety_inspections"] });
+      queryClient.invalidateQueries({ queryKey: ["safety_devices"] });
+    },
+  });
+}
+
 export function useMedicalChecks() {
   return useQuery({
     queryKey: ["medical_checks"],
@@ -211,6 +239,30 @@ export function useCreateMedicalCheck() {
       const { data, error } = await supabase
         .from("medical_checks")
         .insert(payload)
+        .select(`
+          *,
+          employees:employee_id(*)
+        `)
+        .single();
+
+      if (error) throw error;
+      return data as MedicalCheck;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["medical_checks"] });
+    },
+  });
+}
+
+export function useUpdateMedicalCheck() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: MedicalCheckUpdatePayload) => {
+      const { data, error } = await supabase
+        .from("medical_checks")
+        .update(payload)
+        .eq("id", id)
         .select(`
           *,
           employees:employee_id(*)
