@@ -98,7 +98,7 @@ export default function HSEDevices() {
             title="Due Soon"
             value={stats.dueSoon.toString()}
             change="30 dana"
-            changeType={stats.dueSoon > 0 ? "warning" : "positive"}
+            changeType={stats.dueSoon > 0 ? "negative" : "positive"}
             icon={CalendarClock}
             iconColor="bg-warning/10 text-warning"
           />

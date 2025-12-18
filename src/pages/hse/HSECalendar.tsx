@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { differenceInCalendarDays, format, addMonths, subMonths } from "date-fns";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Flame, HeartPulse } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSafetyDevices, useMedicalChecks } from "@/hooks/useHSE";
 
 interface CalendarEvent {
   id: string;
@@ -21,16 +23,6 @@ interface CalendarEvent {
   status: "upcoming" | "overdue" | "completed";
 }
 
-const eventsSeed: CalendarEvent[] = [
-  { id: "1", date: "2024-01-15", type: "inspection", title: "Fire Extinguisher FE-001", location: "Store 1", status: "overdue" },
-  { id: "2", date: "2024-01-18", type: "medical", title: "Sanitary Booklet", employee: "Ana Kovač", status: "overdue" },
-  { id: "3", date: "2024-01-20", type: "inspection", title: "Fire Extinguisher FE-005", location: "Store 2", status: "upcoming" },
-  { id: "4", date: "2024-01-22", type: "medical", title: "Medical Exam", employee: "John Doe", status: "upcoming" },
-  { id: "5", date: "2024-01-25", type: "inspection", title: "Hydrant H-003", location: "Warehouse", status: "upcoming" },
-  { id: "6", date: "2024-01-28", type: "inspection", title: "Elevator EL-001", location: "Office HQ", status: "upcoming" },
-  { id: "7", date: "2024-02-01", type: "medical", title: "Periodic Exam", employee: "Sarah Miller", status: "upcoming" },
-];
-
 const months = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
@@ -39,12 +31,66 @@ const months = [
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function HSECalendar() {
-  const [currentMonth, setCurrentMonth] = useState(0); // January 2024
-  const [currentYear, setCurrentYear] = useState(2024);
+  const today = new Date();
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [filter, setFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<CalendarEvent["status"] | "all">("all");
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(eventsSeed);
-  const [selectedDay, setSelectedDay] = useState<number | null>(15);
+  const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate());
+
+  const { data: devices } = useSafetyDevices();
+  const { data: medicalChecks } = useMedicalChecks();
+
+  // Build calendar events from real data
+  const calendarEvents = useMemo(() => {
+    const events: CalendarEvent[] = [];
+    const now = new Date();
+
+    // Add device inspection events
+    devices?.forEach((device) => {
+      if (device.next_inspection_date) {
+        const nextDate = new Date(device.next_inspection_date);
+        const daysUntil = differenceInCalendarDays(nextDate, now);
+        
+        events.push({
+          id: `device-${device.id}`,
+          date: device.next_inspection_date,
+          type: "inspection",
+          title: device.name || device.device_code,
+          location: device.locations?.name,
+          status: daysUntil < 0 ? "overdue" : "upcoming",
+        });
+      }
+    });
+
+    // Add medical check events
+    medicalChecks?.forEach((check) => {
+      if (check.valid_until) {
+        const validUntil = new Date(check.valid_until);
+        const daysUntil = differenceInCalendarDays(validUntil, now);
+        const employeeName = check.employees 
+          ? `${check.employees.first_name} ${check.employees.last_name}`
+          : "Unknown";
+
+        const checkTypeLabel = check.check_type === "sanitary_booklet" 
+          ? "Sanitary Booklet" 
+          : check.check_type === "periodic_medical" 
+            ? "Medical Exam" 
+            : "Other Check";
+        
+        events.push({
+          id: `medical-${check.id}`,
+          date: check.valid_until,
+          type: "medical",
+          title: checkTypeLabel,
+          employee: employeeName,
+          status: daysUntil < 0 ? "overdue" : "upcoming",
+        });
+      }
+    });
+
+    return events;
+  }, [devices, medicalChecks]);
 
   const getDaysInMonth = (month: number, year: number) => {
     return new Date(year, month + 1, 0).getDate();
@@ -52,7 +98,7 @@ export default function HSECalendar() {
 
   const getFirstDayOfMonth = (month: number, year: number) => {
     const day = new Date(year, month, 1).getDay();
-    return day === 0 ? 6 : day - 1; // Adjust for Monday start
+    return day === 0 ? 6 : day - 1;
   };
 
   const daysInMonth = getDaysInMonth(currentMonth, currentYear);
@@ -100,14 +146,12 @@ export default function HSECalendar() {
 
   const selectedDateEvents = selectedDay ? getEventsForDay(selectedDay) : [];
 
-  const handleComplete = (id: string) => {
-    setCalendarEvents((items) =>
-      items.map((item) => (item.id === id ? { ...item, status: "completed" } : item))
-    );
-  };
-
   const handleSelectDay = (day: number) => {
     setSelectedDay(day);
+  };
+
+  const isToday = (day: number) => {
+    return day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
   };
 
   return (
@@ -141,7 +185,7 @@ export default function HSECalendar() {
                   <SelectItem value="medical">Medical Checks</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as CalendarEvent["status"] | "all")}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -175,21 +219,22 @@ export default function HSECalendar() {
               {Array.from({ length: daysInMonth }).map((_, i) => {
                 const day = i + 1;
                 const dayEvents = getEventsForDay(day);
-                const isToday = day === 15 && currentMonth === 0 && currentYear === 2024; // Mock today
+                const todayHighlight = isToday(day);
 
                 return (
                   <div
                     key={day}
                     className={cn(
-                      "min-h-[100px] bg-card p-1 transition-colors hover:bg-muted/50",
-                      isToday && "bg-primary/5"
+                      "min-h-[100px] bg-card p-1 transition-colors hover:bg-muted/50 cursor-pointer",
+                      todayHighlight && "bg-primary/5",
+                      selectedDay === day && "ring-2 ring-primary ring-inset"
                     )}
                     onClick={() => handleSelectDay(day)}
                   >
                     <span
                       className={cn(
                         "flex h-6 w-6 items-center justify-center rounded-full text-sm",
-                        isToday && "bg-primary text-primary-foreground"
+                        todayHighlight && "bg-primary text-primary-foreground"
                       )}
                     >
                       {day}
@@ -250,9 +295,9 @@ export default function HSECalendar() {
                 <div className="text-xl">{calendarSummary.completed}</div>
               </div>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
               {monthEvents.length === 0 ? (
-                <p className="text-center text-muted-foreground">No events this month</p>
+                <p className="text-center text-muted-foreground py-8">No events this month</p>
               ) : (
                 monthEvents.map((event) => (
                   <div
@@ -282,7 +327,7 @@ export default function HSECalendar() {
                         </p>
                         <div className="mt-1 flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">
-                            {event.date}
+                            {format(new Date(event.date), "dd.MM.yyyy")}
                           </span>
                           {event.status === "overdue" && (
                             <span className="badge-danger">Overdue</span>
@@ -293,16 +338,6 @@ export default function HSECalendar() {
                         </div>
                       </div>
                     </div>
-                    {event.status !== "completed" && (
-                      <div className="mt-3 flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleComplete(event.id)}>
-                          Mark completed
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleSelectDay(parseInt(event.date.split("-")[2], 10))}>
-                          View in calendar
-                        </Button>
-                      </div>
-                    )}
                   </div>
                 ))
               )}
@@ -351,7 +386,7 @@ export default function HSECalendar() {
                         <div className="mt-1 flex flex-wrap gap-2 text-xs">
                           <span className="rounded-full bg-muted px-2 py-1">{event.type}</span>
                           <span className="rounded-full bg-muted px-2 py-1">Status: {event.status}</span>
-                          <span className="rounded-full bg-muted px-2 py-1">Datum: {event.date}</span>
+                          <span className="rounded-full bg-muted px-2 py-1">Datum: {format(new Date(event.date), "dd.MM.yyyy")}</span>
                         </div>
                       </div>
                     </div>
