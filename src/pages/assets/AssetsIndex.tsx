@@ -13,6 +13,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   HardDrive,
   Car,
   Laptop,
@@ -22,9 +30,13 @@ import {
   TrendingDown,
   Building,
   Wrench,
+  FileSpreadsheet,
+  FileText,
+  ListFilter,
 } from "lucide-react";
 import { useState } from "react";
 import { useFixedAssets, useAssetStats } from "@/hooks/useFixedAssets";
+import { exportToExcel, exportToPrintablePdf } from "@/lib/exporters";
 
 const categoryIcons: Record<string, any> = {
   "IT Equipment": Laptop,
@@ -40,6 +52,55 @@ export default function AssetsIndex() {
   const { data: assets, isLoading } = useFixedAssets();
   const { data: stats } = useAssetStats();
 
+  const assetExportRows = (assets || []).map((asset) => ({
+    "Asset ID": asset.asset_code,
+    Name: asset.name,
+    Category: asset.category || "—",
+    Location: asset.locations?.name || "—",
+    Custodian: asset.employees
+      ? `${asset.employees.first_name} ${asset.employees.last_name}`
+      : "—",
+    "Purchase Value": Number(asset.purchase_value || 0),
+    "Current Value": Number(asset.current_value || 0),
+    Status: asset.status,
+  }));
+
+  const exportAssets = (type: "excel" | "pdf") => {
+    if (!assetExportRows.length) return;
+
+    if (type === "excel") {
+      exportToExcel(assetExportRows, "Assets", "asset-registry.xlsx");
+      return;
+    }
+
+    const rows = assetExportRows.map((row) => [
+      row["Asset ID"],
+      row.Name,
+      row.Category,
+      row.Location,
+      row.Custodian,
+      `€${Number(row["Purchase Value"]).toLocaleString()}`,
+      `€${Number(row["Current Value"]).toLocaleString()}`,
+      row.Status,
+    ]);
+
+    exportToPrintablePdf(
+      "Asset Registry",
+      "Napredni izvještaj koji možete spremiti kao PDF",
+      [
+        "Asset ID",
+        "Name",
+        "Category",
+        "Location",
+        "Custodian",
+        "Purchase Value",
+        "Current Value",
+        "Status",
+      ],
+      rows
+    );
+  };
+
   const filteredAssets = assets?.filter(
     (asset) =>
       asset.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -52,6 +113,42 @@ export default function AssetsIndex() {
       <Header title="Fixed Assets" subtitle="Osnovna sredstva • Asset Management" />
 
       <div className="p-6">
+        <div className="mb-6 flex flex-col gap-3 rounded-lg border bg-card/70 p-4 shadow-sm backdrop-blur-sm md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-semibold">Asset module tools</p>
+            <p className="text-sm text-muted-foreground">
+              Brzi pristup dodavanju imovine i naprednim izvještajima.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <Button className="w-full sm:w-auto" onClick={() => navigate("/assets/new")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Asset
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <ListFilter className="mr-2 h-4 w-4" />
+                  Module menu
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>Advanced reports</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => exportAssets("excel")}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Export to Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportAssets("pdf")}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Export to PDF
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/assets")}>Asset overview</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
         {/* Stats */}
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -86,22 +183,41 @@ export default function AssetsIndex() {
 
         {/* Asset Registry */}
         <div className="module-card">
-          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h3 className="text-lg font-semibold">Asset Registry</h3>
               <p className="text-sm text-muted-foreground">Registar osnovnih sredstava</p>
             </div>
-            <div className="flex gap-2">
-              <div className="relative">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search assets..."
-                  className="w-64 pl-9"
+                  className="w-full pl-9"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <Button onClick={() => navigate("/assets/new")}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full sm:w-auto">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Reports
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Napredni izvještaji</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => exportAssets("excel")}>
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    Excel export
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportAssets("pdf")}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    PDF export
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button className="w-full sm:w-auto" onClick={() => navigate("/assets/new")}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Asset
               </Button>
