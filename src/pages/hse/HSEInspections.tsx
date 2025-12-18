@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { format } from "date-fns";
 import { Header } from "@/components/layout/Header";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -22,14 +22,17 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useCreateSafetyInspection, useSafetyDevices, useSafetyInspections } from "@/hooks/useHSE";
+import { useHSEUpload } from "@/hooks/useHSEUpload";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardCheck, ShieldCheck, AlertTriangle } from "lucide-react";
+import { ClipboardCheck, ShieldCheck, AlertTriangle, Upload, FileText, X } from "lucide-react";
 
 export default function HSEInspections() {
   const { data: inspections, isLoading } = useSafetyInspections();
   const { data: devices } = useSafetyDevices();
   const createInspection = useCreateSafetyInspection();
+  const { uploadFile, uploading } = useHSEUpload();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [deviceId, setDeviceId] = useState<string>("");
   const [inspectionDate, setInspectionDate] = useState<string>("");
@@ -37,6 +40,7 @@ export default function HSEInspections() {
   const [inspectorName, setInspectorName] = useState<string>("");
   const [inspectorCompany, setInspectorCompany] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const stats = useMemo(() => {
     const total = inspections?.length || 0;
@@ -44,6 +48,13 @@ export default function HSEInspections() {
     const failed = total - passed;
     return { total, passed, failed };
   }, [inspections]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
 
   const handleCreate = async () => {
     if (!deviceId || !inspectionDate) {
@@ -56,6 +67,12 @@ export default function HSEInspections() {
     }
 
     try {
+      let attachmentUrl: string | null = null;
+
+      if (selectedFile) {
+        attachmentUrl = await uploadFile(selectedFile, "inspections");
+      }
+
       await createInspection.mutateAsync({
         device_id: deviceId,
         inspection_date: inspectionDate,
@@ -64,6 +81,7 @@ export default function HSEInspections() {
         inspector_name: inspectorName || null,
         inspector_company: inspectorCompany || null,
         notes: notes || null,
+        attachment_url: attachmentUrl,
       });
 
       toast({ title: "Pregled spremljen" });
@@ -72,6 +90,8 @@ export default function HSEInspections() {
       setInspectorName("");
       setInspectorCompany("");
       setNotes("");
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unexpected error";
       toast({
@@ -136,6 +156,7 @@ export default function HSEInspections() {
                       <TableHead>Inspektor</TableHead>
                       <TableHead>Rezultat</TableHead>
                       <TableHead>Bilješke</TableHead>
+                      <TableHead>Dokument</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -162,6 +183,21 @@ export default function HSEInspections() {
                         </TableCell>
                         <TableCell className="max-w-xs text-sm text-muted-foreground">
                           {inspection.notes || "—"}
+                        </TableCell>
+                        <TableCell>
+                          {inspection.attachment_url ? (
+                            <a
+                              href={inspection.attachment_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-primary hover:underline"
+                            >
+                              <FileText className="h-4 w-4" />
+                              Certifikat
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -221,8 +257,40 @@ export default function HSEInspections() {
               onChange={(e) => setNotes(e.target.value)}
             />
 
-            <Button onClick={handleCreate} disabled={createInspection.isPending}>
-              Spremi pregled
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">Certifikat / Potvrda</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  onChange={handleFileChange}
+                  className="flex-1"
+                />
+                {selectedFile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {selectedFile && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Upload className="h-3 w-3" />
+                  {selectedFile.name}
+                </p>
+              )}
+            </div>
+
+            <Button onClick={handleCreate} disabled={createInspection.isPending || uploading} className="w-full">
+              {uploading ? "Uploading..." : "Spremi pregled"}
             </Button>
           </div>
         </div>
