@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { format, addMonths } from "date-fns";
 import { differenceInCalendarDays } from "date-fns";
 import { Header } from "@/components/layout/Header";
@@ -22,8 +22,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { HeartPulse, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { HeartPulse, AlertTriangle, CheckCircle, Clock, Upload, FileText, X } from "lucide-react";
 import { useMedicalCheckStats, useCreateMedicalCheck } from "@/hooks/useHSE";
+import { useHSEUpload } from "@/hooks/useHSEUpload";
 import { useHREmployees } from "@/hooks/useHR";
 import { useToast } from "@/hooks/use-toast";
 
@@ -39,7 +40,9 @@ export default function HSEMedicalChecks() {
   const { data: checks, stats, isLoading } = useMedicalCheckStats();
   const { data: employees } = useHREmployees();
   const createMedicalCheck = useCreateMedicalCheck();
+  const { uploadFile, uploading } = useHSEUpload();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
@@ -51,6 +54,14 @@ export default function HSEMedicalChecks() {
   const [validUntil, setValidUntil] = useState<string>("");
   const [result, setResult] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
 
   const enrichedChecks = useMemo(() => {
     const today = new Date();
@@ -103,6 +114,12 @@ export default function HSEMedicalChecks() {
     }
 
     try {
+      let attachmentUrl: string | null = null;
+
+      if (selectedFile) {
+        attachmentUrl = await uploadFile(selectedFile, "medical-checks");
+      }
+
       await createMedicalCheck.mutateAsync({
         employee_id: employeeId,
         check_type: checkType as "sanitary_booklet" | "periodic_medical" | "other",
@@ -110,6 +127,7 @@ export default function HSEMedicalChecks() {
         valid_until: validUntil || null,
         result: result || null,
         notes: notes || null,
+        attachment_url: attachmentUrl,
       });
 
       toast({ title: "Pregled spremljen" });
@@ -118,6 +136,8 @@ export default function HSEMedicalChecks() {
       setValidUntil("");
       setResult("");
       setNotes("");
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unexpected error";
       toast({
@@ -224,6 +244,7 @@ export default function HSEMedicalChecks() {
                       <TableHead>Datum pregleda</TableHead>
                       <TableHead>Vrijedi do</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Dokument</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -245,6 +266,21 @@ export default function HSEMedicalChecks() {
                         </TableCell>
                         <TableCell>
                           {renderStatus(check.status, check.daysRemaining)}
+                        </TableCell>
+                        <TableCell>
+                          {check.attachment_url ? (
+                            <a
+                              href={check.attachment_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-primary hover:underline"
+                            >
+                              <FileText className="h-4 w-4" />
+                              Dokument
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -315,8 +351,40 @@ export default function HSEMedicalChecks() {
               onChange={(e) => setNotes(e.target.value)}
             />
 
-            <Button onClick={handleCreate} disabled={createMedicalCheck.isPending} className="w-full">
-              Spremi pregled
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">Potvrda / Nalaz</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  onChange={handleFileChange}
+                  className="flex-1"
+                />
+                {selectedFile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {selectedFile && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Upload className="h-3 w-3" />
+                  {selectedFile.name}
+                </p>
+              )}
+            </div>
+
+            <Button onClick={handleCreate} disabled={createMedicalCheck.isPending || uploading} className="w-full">
+              {uploading ? "Uploading..." : "Spremi pregled"}
             </Button>
           </div>
         </div>
