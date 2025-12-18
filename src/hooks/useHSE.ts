@@ -25,7 +25,7 @@ export function useSafetyDevices() {
         .select(`
           *,
           locations(*),
-          fixed_assets:asset_id(*)
+          fixed_assets(*)
         `)
         .order("device_code");
 
@@ -45,7 +45,7 @@ export function useSafetyDeviceByAsset(assetId?: string) {
         .select(`
           *,
           locations(*),
-          fixed_assets:asset_id(*)
+          fixed_assets(*)
         `)
         .eq("asset_id", assetId)
         .maybeSingle();
@@ -61,10 +61,10 @@ export function useUpsertSafetyDevice() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: TablesInsert<"safety_devices"> | TablesUpdate<"safety_devices">) => {
+    mutationFn: async (payload: TablesInsert<"safety_devices">) => {
       const { data, error } = await supabase
         .from("safety_devices")
-        .upsert(payload, { onConflict: "asset_id" })
+        .upsert([payload], { onConflict: "asset_id" })
         .select()
         .single();
 
@@ -74,6 +74,30 @@ export function useUpsertSafetyDevice() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["safety_devices"] });
       queryClient.invalidateQueries({ queryKey: ["safety_devices", "asset", data.asset_id] });
+    },
+  });
+}
+
+export function useCreateSafetyDevice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: TablesInsert<"safety_devices">) => {
+      const { data, error } = await supabase
+        .from("safety_devices")
+        .insert(payload)
+        .select(`
+          *,
+          locations(*),
+          fixed_assets(*)
+        `)
+        .single();
+
+      if (error) throw error;
+      return data as SafetyDevice;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["safety_devices"] });
     },
   });
 }
@@ -121,6 +145,7 @@ export function useCreateSafetyInspection() {
 
   return useMutation({
     mutationFn: async (payload: TablesInsert<"safety_inspections">) => {
+      // Insert the inspection
       const { data, error } = await supabase
         .from("safety_inspections")
         .insert(payload)
@@ -128,6 +153,29 @@ export function useCreateSafetyInspection() {
         .single();
 
       if (error) throw error;
+
+      // Update the device's last and next inspection dates
+      if (data && payload.device_id) {
+        const device = await supabase
+          .from("safety_devices")
+          .select("inspection_interval_months")
+          .eq("id", payload.device_id)
+          .single();
+
+        const intervalMonths = device.data?.inspection_interval_months || 12;
+        const lastDate = new Date(payload.inspection_date);
+        const nextDate = new Date(lastDate);
+        nextDate.setMonth(nextDate.getMonth() + intervalMonths);
+
+        await supabase
+          .from("safety_devices")
+          .update({
+            last_inspection_date: payload.inspection_date,
+            next_inspection_date: nextDate.toISOString().split("T")[0],
+          })
+          .eq("id", payload.device_id);
+      }
+
       return data as SafetyInspection;
     },
     onSuccess: () => {
@@ -151,6 +199,29 @@ export function useMedicalChecks() {
 
       if (error) throw error;
       return data as MedicalCheck[];
+    },
+  });
+}
+
+export function useCreateMedicalCheck() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: TablesInsert<"medical_checks">) => {
+      const { data, error } = await supabase
+        .from("medical_checks")
+        .insert(payload)
+        .select(`
+          *,
+          employees:employee_id(*)
+        `)
+        .single();
+
+      if (error) throw error;
+      return data as MedicalCheck;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["medical_checks"] });
     },
   });
 }
