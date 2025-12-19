@@ -185,9 +185,12 @@ export default function AssetForm() {
               )
             : null);
 
+        // Generate unique device_code: SD-{asset_code}-{timestamp}
+        const uniqueDeviceCode = `SD-${data.asset_code}-${Date.now().toString(36)}`;
+
         await upsertSafetyDevice.mutateAsync({
           asset_id: savedAsset.id,
-          device_code: data.asset_code,
+          device_code: safetyDevice?.device_code || uniqueDeviceCode,
           device_type: data.device_type || "Safety Device",
           name: data.name,
           location_id: data.location_id || null,
