@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useFixedAsset, useCreateFixedAsset, useUpdateFixedAsset } from "@/hooks/useFixedAssets";
+import { useFixedAsset, useCreateFixedAsset, useUpdateFixedAsset, useNextAssetCode } from "@/hooks/useFixedAssets";
 import { useLocations, useEmployees } from "@/hooks/useMasterData";
 import { useDeleteSafetyDevice, useSafetyDeviceByAsset, useUpsertSafetyDevice } from "@/hooks/useHSE";
 import { useAssetCategories } from "@/hooks/useAssetCategories";
@@ -96,6 +96,7 @@ export default function AssetForm() {
   const { data: employees } = useEmployees();
   const { data: assetCategories } = useAssetCategories();
   const { data: deviceTypes } = useSafetyDeviceTypes();
+  const { data: nextAssetCode } = useNextAssetCode();
   const createAsset = useCreateFixedAsset();
   const updateAsset = useUpdateFixedAsset();
   const upsertSafetyDevice = useUpsertSafetyDevice();
@@ -126,6 +127,13 @@ export default function AssetForm() {
       serial_number: "",
     },
   });
+
+  // Auto-fill asset code for new assets
+  useEffect(() => {
+    if (!isEdit && nextAssetCode && !form.getValues("asset_code")) {
+      form.setValue("asset_code", nextAssetCode);
+    }
+  }, [nextAssetCode, isEdit, form]);
 
   useEffect(() => {
     if (asset) {
