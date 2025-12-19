@@ -157,6 +157,22 @@ export function useAssetStats() {
   });
 }
 
+export function useNextAssetCode() {
+  return useQuery({
+    queryKey: ["next_asset_code"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("fixed_assets")
+        .select("*", { count: "exact", head: true });
+
+      if (error) throw error;
+      
+      const nextNumber = (count || 0) + 1;
+      return `FA-${nextNumber.toString().padStart(5, "0")}`;
+    },
+  });
+}
+
 export type AssetTransfer = {
   id: string;
   asset_id: string;
