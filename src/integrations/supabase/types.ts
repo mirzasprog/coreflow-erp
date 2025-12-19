@@ -90,6 +90,33 @@ export type Database = {
           },
         ]
       }
+      asset_categories: {
+        Row: {
+          active: boolean | null
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          active?: boolean | null
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          active?: boolean | null
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       asset_transfers: {
         Row: {
           asset_id: string
@@ -1676,6 +1703,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      safety_device_types: {
+        Row: {
+          active: boolean | null
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          inspection_interval_months: number | null
+          name: string
+        }
+        Insert: {
+          active?: boolean | null
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          inspection_interval_months?: number | null
+          name: string
+        }
+        Update: {
+          active?: boolean | null
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          inspection_interval_months?: number | null
+          name?: string
+        }
+        Relationships: []
       }
       safety_devices: {
         Row: {

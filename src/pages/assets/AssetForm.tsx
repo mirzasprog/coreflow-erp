@@ -28,6 +28,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useFixedAsset, useCreateFixedAsset, useUpdateFixedAsset } from "@/hooks/useFixedAssets";
 import { useLocations, useEmployees } from "@/hooks/useMasterData";
 import { useDeleteSafetyDevice, useSafetyDeviceByAsset, useUpsertSafetyDevice } from "@/hooks/useHSE";
+import { useAssetCategories } from "@/hooks/useAssetCategories";
+import { useSafetyDeviceTypes } from "@/hooks/useSafetyDeviceTypes";
 import { extractErrorMessage, isUniqueConstraintError } from "@/lib/errors";
 import { ArrowLeft, Save } from "lucide-react";
 
@@ -80,16 +82,7 @@ const assetSchema = z.object({
 
 type AssetFormData = z.infer<typeof assetSchema>;
 
-const CATEGORIES = [
-  "IT Equipment",
-  "Vehicles",
-  "Furniture",
-  "Machinery",
-  "Office Equipment",
-  "Buildings",
-  "Land",
-  "Other",
-];
+// Categories now loaded from database via useAssetCategories hook
 
 export default function AssetForm() {
   const { id } = useParams();
@@ -101,6 +94,8 @@ export default function AssetForm() {
   const { data: safetyDevice } = useSafetyDeviceByAsset(id);
   const { data: locations } = useLocations();
   const { data: employees } = useEmployees();
+  const { data: assetCategories } = useAssetCategories();
+  const { data: deviceTypes } = useSafetyDeviceTypes();
   const createAsset = useCreateFixedAsset();
   const updateAsset = useUpdateFixedAsset();
   const upsertSafetyDevice = useUpsertSafetyDevice();
@@ -293,9 +288,9 @@ export default function AssetForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {CATEGORIES.map((cat) => (
-                            <SelectItem key={cat} value={cat}>
-                              {cat}
+                          {assetCategories?.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.name}>
+                              {cat.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -500,10 +495,21 @@ export default function AssetForm() {
                       name="device_type"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Vrsta uređaja</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Fire Extinguisher" {...field} />
-                          </FormControl>
+                          <FormLabel>Vrsta uređaja *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Odaberi vrstu uređaja" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {deviceTypes?.map((type) => (
+                                <SelectItem key={type.id} value={type.name}>
+                                  {type.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
