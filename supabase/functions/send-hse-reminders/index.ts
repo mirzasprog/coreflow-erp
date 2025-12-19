@@ -14,6 +14,33 @@ interface ReminderPayload {
   inspectionIds?: string[];
 }
 
+interface Employee {
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}
+
+interface SafetyDevice {
+  name: string | null;
+  device_code: string;
+  next_inspection_date: string | null;
+}
+
+interface MedicalCheck {
+  id: string;
+  check_date: string;
+  valid_until: string | null;
+  check_type: string;
+  employees: Employee | null;
+}
+
+interface SafetyInspection {
+  id: string;
+  inspection_date: string;
+  result: string | null;
+  safety_devices: SafetyDevice | null;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -41,21 +68,37 @@ const handler = async (req: Request): Promise<Response> => {
 
     const now = new Date();
 
-    const { data: medicalChecks } = medicalCheckIds.length
+    const { data: medicalChecksRaw } = medicalCheckIds.length
       ? await supabase
           .from("medical_checks")
-          .select(`id, check_date, valid_until, check_type, employees:employee_id(first_name, last_name, email)`)
+          .select(`id, check_date, valid_until, check_type, employees!medical_checks_employee_id_fkey(first_name, last_name, email)`)
           .in("id", medicalCheckIds)
       : { data: [] };
 
-    const { data: inspections } = inspectionIds.length
+    const { data: inspectionsRaw } = inspectionIds.length
       ? await supabase
           .from("safety_inspections")
-          .select(`id, inspection_date, result, safety_devices(name, device_code, next_inspection_date)`)
+          .select(`id, inspection_date, result, safety_devices!safety_inspections_device_id_fkey(name, device_code, next_inspection_date)`)
           .in("id", inspectionIds)
       : { data: [] };
 
-    medicalChecks?.forEach((check) => {
+    // Type cast and handle the joined data
+    const medicalChecks: MedicalCheck[] = (medicalChecksRaw || []).map((check: Record<string, unknown>) => ({
+      id: check.id as string,
+      check_date: check.check_date as string,
+      valid_until: check.valid_until as string | null,
+      check_type: check.check_type as string,
+      employees: check.employees as Employee | null,
+    }));
+
+    const inspections: SafetyInspection[] = (inspectionsRaw || []).map((insp: Record<string, unknown>) => ({
+      id: insp.id as string,
+      inspection_date: insp.inspection_date as string,
+      result: insp.result as string | null,
+      safety_devices: insp.safety_devices as SafetyDevice | null,
+    }));
+
+    medicalChecks.forEach((check) => {
       if (check.employees?.email) recipientSet.add(check.employees.email);
     });
 
@@ -66,7 +109,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const medicalItems = (medicalChecks || []).map((check) => {
+    const medicalItems = medicalChecks.map((check) => {
       const validUntil = check.valid_until ? new Date(check.valid_until) : null;
       const daysRemaining = validUntil ? Math.ceil((validUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
       const status = daysRemaining === null ? "Bez datuma" : daysRemaining < 0 ? "Isteklo" : `Istječe za ${daysRemaining} dana`;
@@ -74,7 +117,7 @@ const handler = async (req: Request): Promise<Response> => {
       return `<li><strong>${employeeName}</strong> • ${check.check_type} • vrijedi do ${check.valid_until || "-"} (${status})</li>`;
     });
 
-    const inspectionItems = (inspections || []).map((inspection) => {
+    const inspectionItems = inspections.map((inspection) => {
       const nextDate = inspection.safety_devices?.next_inspection_date
         ? new Date(inspection.safety_devices.next_inspection_date)
         : null;
