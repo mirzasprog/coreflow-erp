@@ -183,8 +183,7 @@ export default function PurchaseOrderView() {
     if (!order) return;
     updateStatusMutation.mutate({
       orderId: id!,
-      newStatus,
-      locationId: order.location_id
+      newStatus
     });
   };
 
@@ -373,7 +372,7 @@ export default function PurchaseOrderView() {
                   <SelectContent>
                     <SelectItem value="draft">Draft</SelectItem>
                     <SelectItem value="ordered">Ordered (Send to Supplier)</SelectItem>
-                    <SelectItem value="received">Received (Update Stock)</SelectItem>
+                    <SelectItem value="received">Received</SelectItem>
                   </SelectContent>
                 </Select>
                 {updateStatusMutation.isPending && (
@@ -386,7 +385,7 @@ export default function PurchaseOrderView() {
                 <p className="text-xs font-medium mb-1">Status Actions:</p>
                 <ul className="text-xs text-muted-foreground space-y-1">
                   <li>• <strong>Ordered:</strong> Sends email to supplier</li>
-                  <li>• <strong>Received:</strong> Updates inventory stock</li>
+                  <li>• <strong>Received:</strong> Status is auto-updated when all receipts are completed</li>
                 </ul>
               </div>
             </CardContent>

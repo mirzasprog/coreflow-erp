@@ -195,52 +195,12 @@ async function sendOrderEmail(orderId: string): Promise<{ success: boolean; mess
   }
 }
 
-// Update stock when order is received
-async function updateStockForReceivedOrder(orderId: string, locationId: string): Promise<void> {
-  // Get order lines
-  const { data: lines, error: linesError } = await supabase
-    .from('purchase_order_lines')
-    .select('item_id, quantity')
-    .eq('order_id', orderId);
-  
-  if (linesError) throw linesError;
-  
-  // Update stock for each item
-  for (const line of lines || []) {
-    // Check if stock record exists
-    const { data: existingStock } = await supabase
-      .from('stock')
-      .select('id, quantity')
-      .eq('item_id', line.item_id)
-      .eq('location_id', locationId)
-      .maybeSingle();
-    
-    if (existingStock) {
-      // Update existing stock
-      const newQuantity = (existingStock.quantity || 0) + line.quantity;
-      await supabase
-        .from('stock')
-        .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
-        .eq('id', existingStock.id);
-    } else {
-      // Create new stock record
-      await supabase
-        .from('stock')
-        .insert({
-          item_id: line.item_id,
-          location_id: locationId,
-          quantity: line.quantity
-        });
-    }
-  }
-}
-
 export function useUpdatePurchaseOrderStatus() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ orderId, newStatus, locationId }: { orderId: string; newStatus: string; locationId: string | null }) => {
+    mutationFn: async ({ orderId, newStatus }: { orderId: string; newStatus: string }) => {
       // Update order status
       const { error } = await supabase
         .from('purchase_orders')
@@ -256,19 +216,12 @@ export function useUpdatePurchaseOrderStatus() {
         emailResult = await sendOrderEmail(orderId);
       }
       
-      // If status is 'received', update stock
-      if (newStatus === 'received' && locationId) {
-        await updateStockForReceivedOrder(orderId, locationId);
-      }
-
       return { newStatus, emailResult };
     },
     onSuccess: ({ newStatus, emailResult }) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-order'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-orders-list'] });
-      queryClient.invalidateQueries({ queryKey: ['stock'] });
-      queryClient.invalidateQueries({ queryKey: ['stock-report'] });
       
       if (newStatus === 'ordered') {
         if (emailResult?.success) {
@@ -285,7 +238,7 @@ export function useUpdatePurchaseOrderStatus() {
       } else if (newStatus === 'received') {
         toast({
           title: 'Order Received',
-          description: 'Status updated to Received. Inventory has been updated automatically.'
+          description: 'Status updated to Received.'
         });
       } else {
         toast({

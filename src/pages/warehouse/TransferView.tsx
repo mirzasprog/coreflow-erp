@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Edit, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit, CheckCircle, XCircle, Loader2, Link2 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useWarehouseDocument, usePostDocument, useCancelDocument } from '@/hooks/useWarehouseDocuments';
 import { format } from 'date-fns';
@@ -148,6 +148,18 @@ export default function TransferView() {
                   <span className="font-bold">€{document.total_value.toFixed(2)}</span>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Link2 className="h-4 w-4" />
+                Povezani dokumenti
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Još nema povezanih dokumenata.</p>
             </CardContent>
           </Card>
         </div>

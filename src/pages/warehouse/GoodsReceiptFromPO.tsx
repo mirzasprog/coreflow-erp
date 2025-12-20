@@ -153,6 +153,26 @@ export default function GoodsReceiptFromPO() {
         }
       }
 
+      if (orderId) {
+        const { data: updatedLines, error: updatedLinesError } = await supabase
+          .from('purchase_order_lines')
+          .select('quantity, received_quantity')
+          .eq('order_id', orderId);
+
+        if (updatedLinesError) throw updatedLinesError;
+
+        const isFullyReceived = (updatedLines || []).every((line: any) => (
+          (line.received_quantity || 0) >= line.quantity
+        ));
+
+        if (isFullyReceived) {
+          await supabase
+            .from('purchase_orders')
+            .update({ status: 'received', updated_at: new Date().toISOString() })
+            .eq('id', orderId);
+        }
+      }
+
       if (shouldPost && result?.id) {
         await postDocument.mutateAsync({ id: result.id, documentType: 'goods_receipt' });
       }
