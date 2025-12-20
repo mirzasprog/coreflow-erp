@@ -32,6 +32,20 @@ import {
   DocumentLine
 } from '@/hooks/useWarehouseDocuments';
 import { toast } from 'sonner';
+import {
+  isLotTracked,
+  parseWmsLineMeta,
+  serializeWmsLineMeta,
+  warehouseBinLocations,
+} from '@/lib/warehouseWms';
+
+type WmsDocumentLine = DocumentLine & {
+  lotNumber?: string;
+  expiryDate?: string;
+  productionDate?: string;
+  binLocation?: string;
+  binZone?: string;
+};
 
 export default function GoodsReceiptForm() {
   const navigate = useNavigate();
@@ -55,11 +69,15 @@ export default function GoodsReceiptForm() {
     notes: ''
   });
 
-  const [lines, setLines] = useState<DocumentLine[]>([]);
-  const [newLine, setNewLine] = useState<Partial<DocumentLine>>({
+  const [lines, setLines] = useState<WmsDocumentLine[]>([]);
+  const [newLine, setNewLine] = useState<Partial<WmsDocumentLine>>({
     item_id: '',
     quantity: 0,
-    unit_price: 0
+    unit_price: 0,
+    lotNumber: '',
+    expiryDate: '',
+    productionDate: '',
+    binLocation: ''
   });
 
   useEffect(() => {
@@ -71,7 +89,18 @@ export default function GoodsReceiptForm() {
         partner_id: existingDoc.partner_id || '',
         notes: existingDoc.notes || ''
       });
-      setLines(existingDoc.lines || []);
+      const wmsLines = (existingDoc.lines || []).map((line) => {
+        const meta = parseWmsLineMeta(line.notes);
+        return {
+          ...line,
+          lotNumber: meta?.lotNumber,
+          expiryDate: meta?.expiryDate,
+          productionDate: meta?.productionDate,
+          binLocation: meta?.binLocation,
+          binZone: meta?.binZone
+        };
+      });
+      setLines(wmsLines);
     } else if (!isEdit) {
       // Generate document number for new documents
       setFormData(prev => ({
@@ -86,19 +115,60 @@ export default function GoodsReceiptForm() {
       toast.error('Please select an item and enter a valid quantity');
       return;
     }
+    if (!newLine.binLocation) {
+      toast.error('Please select a physical bin location');
+      return;
+    }
+
+    const lotTracked = isLotTracked(newLine.item_id);
+    if (lotTracked) {
+      if (!newLine.lotNumber || !newLine.expiryDate) {
+        toast.error('LOT number and expiry date are required for LOT-controlled items');
+        return;
+      }
+      const duplicateLot = lines.some(
+        (line) => line.item_id === newLine.item_id && line.lotNumber === newLine.lotNumber
+      );
+      if (duplicateLot) {
+        toast.error('LOT number must be unique per item');
+        return;
+      }
+    }
 
     const item = items?.find(i => i.id === newLine.item_id);
     const totalPrice = (newLine.quantity || 0) * (newLine.unit_price || 0);
+    const selectedBin = warehouseBinLocations.find((bin) => bin.code === newLine.binLocation);
+    const meta = {
+      lotNumber: newLine.lotNumber || undefined,
+      expiryDate: newLine.expiryDate || undefined,
+      productionDate: newLine.productionDate || undefined,
+      binLocation: newLine.binLocation || undefined,
+      binZone: selectedBin?.zone
+    };
 
     setLines([...lines, {
       item_id: newLine.item_id,
       quantity: newLine.quantity || 0,
       unit_price: newLine.unit_price || 0,
       total_price: totalPrice,
-      items: item ? { code: item.code, name: item.name } : null
+      items: item ? { code: item.code, name: item.name } : null,
+      lotNumber: meta.lotNumber,
+      expiryDate: meta.expiryDate,
+      productionDate: meta.productionDate,
+      binLocation: meta.binLocation,
+      binZone: meta.binZone,
+      notes: serializeWmsLineMeta(meta)
     }]);
 
-    setNewLine({ item_id: '', quantity: 0, unit_price: 0 });
+    setNewLine({
+      item_id: '',
+      quantity: 0,
+      unit_price: 0,
+      lotNumber: '',
+      expiryDate: '',
+      productionDate: '',
+      binLocation: ''
+    });
   };
 
   const removeLine = (index: number) => {
@@ -116,6 +186,19 @@ export default function GoodsReceiptForm() {
     }
     if (lines.length === 0) {
       toast.error('Please add at least one item');
+      return;
+    }
+    const hasMissingLotData = lines.some((line) => {
+      if (!isLotTracked(line.item_id)) return false;
+      return !line.lotNumber || !line.expiryDate;
+    });
+    if (hasMissingLotData) {
+      toast.error('LOT-controlled items must include LOT number and expiry date');
+      return;
+    }
+    const hasMissingBinLocation = lines.some((line) => !line.binLocation);
+    if (hasMissingBinLocation) {
+      toast.error('Every receipt line must include a bin location');
       return;
     }
 
@@ -157,6 +240,7 @@ export default function GoodsReceiptForm() {
   }
 
   const isPosted = existingDoc?.status === 'posted';
+  const lotTracked = isLotTracked(newLine.item_id);
 
   return (
     <div>
@@ -292,7 +376,10 @@ export default function GoodsReceiptForm() {
                     setNewLine({ 
                       ...newLine, 
                       item_id: value,
-                      unit_price: item?.purchase_price || 0
+                      unit_price: item?.purchase_price || 0,
+                      lotNumber: '',
+                      expiryDate: '',
+                      productionDate: ''
                     });
                   }}
                 >
@@ -321,6 +408,43 @@ export default function GoodsReceiptForm() {
                   value={newLine.unit_price || ''}
                   onChange={(e) => setNewLine({ ...newLine, unit_price: parseFloat(e.target.value) || 0 })}
                 />
+                <Select
+                  value={newLine.binLocation || undefined}
+                  onValueChange={(value) => setNewLine({ ...newLine, binLocation: value })}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Bin location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouseBinLocations.map((bin) => (
+                      <SelectItem key={bin.id} value={bin.code}>
+                        {bin.code} • {bin.zone}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {lotTracked && (
+                  <>
+                    <Input
+                      placeholder="LOT"
+                      className="w-32"
+                      value={newLine.lotNumber || ''}
+                      onChange={(e) => setNewLine({ ...newLine, lotNumber: e.target.value })}
+                    />
+                    <Input
+                      type="date"
+                      className="w-40"
+                      value={newLine.expiryDate || ''}
+                      onChange={(e) => setNewLine({ ...newLine, expiryDate: e.target.value })}
+                    />
+                    <Input
+                      type="date"
+                      className="w-40"
+                      value={newLine.productionDate || ''}
+                      onChange={(e) => setNewLine({ ...newLine, productionDate: e.target.value })}
+                    />
+                  </>
+                )}
                 <Button onClick={addLine}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add
@@ -333,6 +457,9 @@ export default function GoodsReceiptForm() {
                 <TableRow>
                   <TableHead>Item Code</TableHead>
                   <TableHead>Item Name</TableHead>
+                  <TableHead>LOT</TableHead>
+                  <TableHead>Expiry</TableHead>
+                  <TableHead>Bin</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
                   <TableHead className="text-right">Unit Price</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -342,7 +469,7 @@ export default function GoodsReceiptForm() {
               <TableBody>
                 {lines.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isPosted ? 5 : 6} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={isPosted ? 8 : 9} className="py-8 text-center text-muted-foreground">
                       No items added
                     </TableCell>
                   </TableRow>
@@ -351,6 +478,9 @@ export default function GoodsReceiptForm() {
                     <TableRow key={index}>
                       <TableCell className="font-medium">{line.items?.code || '-'}</TableCell>
                       <TableCell>{line.items?.name || '-'}</TableCell>
+                      <TableCell>{line.lotNumber || '-'}</TableCell>
+                      <TableCell>{line.expiryDate || '-'}</TableCell>
+                      <TableCell>{line.binLocation || '-'}</TableCell>
                       <TableCell className="text-right">{line.quantity}</TableCell>
                       <TableCell className="text-right">€{line.unit_price.toFixed(2)}</TableCell>
                       <TableCell className="text-right">€{line.total_price.toFixed(2)}</TableCell>

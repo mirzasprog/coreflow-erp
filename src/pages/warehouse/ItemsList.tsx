@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -33,6 +34,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { usePartners } from '@/hooks/useMasterData';
 import { useToast } from '@/hooks/use-toast';
+import { getLotTrackingMap, setLotTracking } from '@/lib/warehouseWms';
 
 interface Item {
   id: string;
@@ -53,6 +55,7 @@ interface Item {
   units_of_measure?: { name: string; code: string } | null;
   vat_rates?: { name: string; rate: number } | null;
   item_categories?: { name: string } | null;
+  lot_tracking?: boolean;
 }
 
 function useItemsList() {
@@ -128,6 +131,7 @@ export default function ItemsList() {
   const { data: units } = useUnits();
   const { data: vatRates } = useVatRates();
   const { data: categories } = useCategories();
+  const [lotTrackingMap, setLotTrackingMap] = useState(() => getLotTrackingMap());
   
   const [search, setSearch] = useState('');
   const [editItem, setEditItem] = useState<Item | null>(null);
@@ -145,7 +149,8 @@ export default function ItemsList() {
     unit_id: '',
     vat_rate_id: '',
     category_id: '',
-    active: true
+    active: true,
+    lot_tracking: false
   });
 
   const filteredItems = items?.filter(item => 
@@ -169,7 +174,8 @@ export default function ItemsList() {
       unit_id: item.unit_id || '',
       vat_rate_id: item.vat_rate_id || '',
       category_id: item.category_id || '',
-      active: item.active ?? true
+      active: item.active ?? true,
+      lot_tracking: lotTrackingMap[item.id] ?? false
     });
     setIsDialogOpen(true);
   };
@@ -189,7 +195,8 @@ export default function ItemsList() {
       unit_id: '',
       vat_rate_id: '',
       category_id: '',
-      active: true
+      active: true,
+      lot_tracking: false
     });
     setIsDialogOpen(true);
   };
@@ -219,6 +226,7 @@ export default function ItemsList() {
           .update(data)
           .eq('id', editItem.id);
         if (error) throw error;
+        return { id: editItem.id };
       } else {
         // Create new item and get the ID
         const { data: newItem, error } = await supabase
@@ -251,9 +259,10 @@ export default function ItemsList() {
           
           if (stockError) throw stockError;
         }
+        return { id: newItem.id };
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['items-list'] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
       queryClient.invalidateQueries({ queryKey: ['stock-report'] });
@@ -262,6 +271,10 @@ export default function ItemsList() {
         title: editItem ? 'Item Updated' : 'Item Created',
         description: `Item "${formData.name}" has been ${editItem ? 'updated' : 'created'} successfully`
       });
+      if (result?.id) {
+        setLotTracking(result.id, formData.lot_tracking);
+        setLotTrackingMap(getLotTrackingMap());
+      }
       setIsDialogOpen(false);
     },
     onError: (error: Error) => {
@@ -322,15 +335,16 @@ export default function ItemsList() {
                     <TableHead>Preferred Supplier</TableHead>
                     <TableHead className="text-right">Purchase Price</TableHead>
                     <TableHead className="text-right">Selling Price</TableHead>
-                    <TableHead className="text-right">Min/Max Stock</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                  <TableHead className="text-right">Min/Max Stock</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>LOT Tracking</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                   {filteredItems?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+                      <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
                         No items found
                       </TableCell>
                     </TableRow>
@@ -359,6 +373,11 @@ export default function ItemsList() {
                         <TableCell>
                           <Badge variant={item.active ? 'default' : 'secondary'}>
                             {item.active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={lotTrackingMap[item.id] ? 'default' : 'secondary'}>
+                            {lotTrackingMap[item.id] ? 'Enabled' : 'Disabled'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -562,6 +581,20 @@ export default function ItemsList() {
                     <SelectItem value="false">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <Label htmlFor="lot_tracking" className="font-medium">LOT Tracking</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Require LOT and expiry details on receipts and issues
+                  </p>
+                </div>
+                <Switch
+                  id="lot_tracking"
+                  checked={formData.lot_tracking}
+                  onCheckedChange={(checked) => setFormData({ ...formData, lot_tracking: checked })}
+                />
               </div>
 
               <div className="flex justify-end gap-2 pt-4">

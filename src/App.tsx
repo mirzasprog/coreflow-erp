@@ -29,6 +29,8 @@ import PurchaseOrderList from "./pages/warehouse/PurchaseOrderList";
 import PurchaseOrderView from "./pages/warehouse/PurchaseOrderView";
 import PurchaseOrderForm from "./pages/warehouse/PurchaseOrderForm";
 import SupplierPriceComparison from "./pages/warehouse/SupplierPriceComparison";
+import WarehouseLocations from "./pages/warehouse/WarehouseLocations";
+import PickingOrders from "./pages/warehouse/PickingOrders";
 import FinanceIndex from "./pages/finance/FinanceIndex";
 import OutgoingInvoiceList from "./pages/finance/OutgoingInvoiceList";
 import IncomingInvoiceList from "./pages/finance/IncomingInvoiceList";
@@ -116,6 +118,8 @@ const App = () => (
               <Route path="/warehouse/purchase-orders/:id/edit" element={<PurchaseOrderForm />} />
               <Route path="/warehouse/items" element={<ItemsList />} />
               <Route path="/warehouse/price-comparison" element={<SupplierPriceComparison />} />
+              <Route path="/warehouse/locations" element={<WarehouseLocations />} />
+              <Route path="/warehouse/picking" element={<PickingOrders />} />
               <Route path="/finance" element={<FinanceIndex />} />
               <Route path="/finance/invoices/outgoing" element={<OutgoingInvoiceList />} />
               <Route path="/finance/invoices/outgoing/new" element={<InvoiceForm />} />
