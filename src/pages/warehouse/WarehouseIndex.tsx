@@ -8,8 +8,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Package, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, ClipboardList, BarChart3, ShoppingCart, Box, Scale } from "lucide-react";
+import { Plus, Search, Package, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, ClipboardList, BarChart3, ShoppingCart, Box, Scale, MapPin, ListChecks } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { Badge } from "@/components/ui/badge";
+import { getExpiryStatus, lotDashboardEntries, wmsStats } from "@/lib/warehouseWms";
 
 const stockItems = [
   { id: "1", code: "ART-001", name: "Office Chair Ergonomic", category: "Furniture", warehouse: "Main Warehouse", qty: 45, minQty: 10, unit: "pcs", value: 125.00 },
@@ -26,6 +28,8 @@ const documentTypes = [
   { icon: ClipboardList, label: "Inventory", labelAlt: "Inventura", href: "/warehouse/inventory", count: 2 },
   { icon: ShoppingCart, label: "Purchase Orders", labelAlt: "Narudžbenice", href: "/warehouse/purchase-orders", count: null },
   { icon: Box, label: "Items", labelAlt: "Artikli", href: "/warehouse/items", count: null },
+  { icon: MapPin, label: "Locations", labelAlt: "Lokacije", href: "/warehouse/locations", count: null },
+  { icon: ListChecks, label: "Picking", labelAlt: "Komisioniranje", href: "/warehouse/picking", count: null },
   { icon: Scale, label: "Price Comparison", labelAlt: "Usporedba cijena", href: "/warehouse/price-comparison", count: null },
   { icon: BarChart3, label: "Stock Report", labelAlt: "Izvještaj o zalihama", href: "/warehouse/stock-report", count: null },
 ];
@@ -55,6 +59,16 @@ export default function WarehouseIndex() {
                 </div>
               </div>
             </NavLink>
+          ))}
+        </div>
+
+        <div className="mb-6 grid gap-4 lg:grid-cols-4">
+          {wmsStats.map((stat) => (
+            <div key={stat.label} className="rounded-lg border bg-card p-4">
+              <p className="text-xs uppercase text-muted-foreground">{stat.label}</p>
+              <p className="text-2xl font-semibold">{stat.value}</p>
+              <p className="text-xs text-muted-foreground">{stat.helper}</p>
+            </div>
           ))}
         </div>
 
@@ -125,6 +139,74 @@ export default function WarehouseIndex() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <div className="module-card">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">LOT Status</h3>
+                <p className="text-sm text-muted-foreground">Praćenje isteka</p>
+              </div>
+              <Badge variant="secondary">Auto review</Badge>
+            </div>
+            <div className="space-y-3">
+              {lotDashboardEntries.map((entry) => {
+                const status = getExpiryStatus(entry.expiryDate);
+                const badgeClass =
+                  status === "expired"
+                    ? "bg-red-100 text-red-700"
+                    : status === "expiring"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : "bg-emerald-100 text-emerald-700";
+                const statusLabel =
+                  status === "expired" ? "Expired" : status === "expiring" ? "Expiring soon" : "OK";
+                return (
+                  <div key={entry.id} className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {entry.itemCode} • {entry.itemName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        LOT {entry.lotNumber} · {entry.location} · {entry.quantity} pcs
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">{entry.expiryDate}</p>
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${badgeClass}`}>
+                        {statusLabel}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="module-card">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold">WMS Checklist</h3>
+              <p className="text-sm text-muted-foreground">Operativni podsjetnik</p>
+            </div>
+            <ul className="space-y-3 text-sm">
+              <li className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-module-warehouse" />
+                Potvrdi LOT i rok trajanja prije izlaza robe.
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-module-warehouse" />
+                Prati FIFO putanju u komisioniranju.
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-module-warehouse" />
+                Ispis lokacijskih naljepnica dostupan za svaku zonu.
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-module-warehouse" />
+                Prati produktivnost komisionara kroz WMS statistiku.
+              </li>
+            </ul>
           </div>
         </div>
       </div>

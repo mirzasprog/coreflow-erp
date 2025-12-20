@@ -197,6 +197,9 @@ export default function GoodsIssueView() {
                 <TableRow>
                   <TableHead>Item Code</TableHead>
                   <TableHead>Item Name</TableHead>
+                  <TableHead>LOT</TableHead>
+                  <TableHead>Expiry</TableHead>
+                  <TableHead>Bin</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
                   <TableHead className="text-right">Unit Price</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -205,20 +208,26 @@ export default function GoodsIssueView() {
               <TableBody>
                 {document.lines?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                       No items
                     </TableCell>
                   </TableRow>
                 ) : (
-                  document.lines?.map((line, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{line.items?.code || '-'}</TableCell>
-                      <TableCell>{line.items?.name || '-'}</TableCell>
-                      <TableCell className="text-right">{line.quantity}</TableCell>
-                      <TableCell className="text-right">€{line.unit_price.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">€{line.total_price.toFixed(2)}</TableCell>
-                    </TableRow>
-                  ))
+                  document.lines?.map((line, index) => {
+                    const meta = parseWmsLineMeta(line.notes);
+                    return (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{line.items?.code || '-'}</TableCell>
+                        <TableCell>{line.items?.name || '-'}</TableCell>
+                        <TableCell>{meta?.lotNumber || '-'}</TableCell>
+                        <TableCell>{meta?.expiryDate || '-'}</TableCell>
+                        <TableCell>{meta?.binLocation || '-'}</TableCell>
+                        <TableCell className="text-right">{line.quantity}</TableCell>
+                        <TableCell className="text-right">€{line.unit_price.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">€{line.total_price.toFixed(2)}</TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
