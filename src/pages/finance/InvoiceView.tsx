@@ -26,6 +26,7 @@ import { NavLink } from '@/components/NavLink';
 import { useInvoice, usePostInvoice, useCancelInvoice, useRecordPayment } from '@/hooks/useInvoices';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 
 export default function InvoiceView() {
   const { id } = useParams();
@@ -84,6 +85,14 @@ export default function InvoiceView() {
   const editUrl = `/finance/invoices/${invoiceType}/${id}/edit`;
   const title = isOutgoing ? 'Outgoing Invoice' : 'Incoming Invoice';
   const remainingAmount = invoice.total - (invoice.paid_amount || 0);
+  const linkedReceipt = (invoice as any).source_receipt;
+  const receiptStatusLabel = linkedReceipt
+    ? invoice.subtotal >= linkedReceipt.total_value
+      ? 'Prihvaćeno'
+      : 'Djelomično'
+    : null;
+  const receiptStatusClass =
+    receiptStatusLabel === 'Prihvaćeno' ? 'bg-green-600' : 'bg-amber-500';
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -164,7 +173,25 @@ export default function InvoiceView() {
                 <p className="text-sm text-muted-foreground">Due Date</p>
                 <p className="font-medium">{invoice.due_date ? format(new Date(invoice.due_date), 'dd.MM.yyyy') : '-'}</p>
               </div>
-              {invoice.warehouse_document_id && (invoice as any).warehouse_documents && (
+              {linkedReceipt && (
+                <div className="sm:col-span-2">
+                  <p className="text-sm text-muted-foreground">Linked Receipt</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <NavLink
+                      to={`/warehouse/receipts/${invoice.source_receipt_id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {linkedReceipt.document_number || '-'}
+                    </NavLink>
+                    {receiptStatusLabel && (
+                      <Badge className={receiptStatusClass}>
+                        {receiptStatusLabel}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+              {!linkedReceipt && invoice.warehouse_document_id && (invoice as any).warehouse_documents && (
                 <div className="sm:col-span-2">
                   <p className="text-sm text-muted-foreground">Linked Warehouse Document</p>
                   <p className="font-medium">{(invoice as any).warehouse_documents?.document_number || '-'}</p>

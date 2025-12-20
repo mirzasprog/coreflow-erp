@@ -11,6 +11,7 @@ export interface Invoice {
   invoice_date: string;
   due_date: string | null;
   partner_id: string | null;
+  source_receipt_id: string | null;
   status: 'draft' | 'posted' | 'cancelled';
   subtotal: number;
   vat_amount: number;
@@ -21,6 +22,7 @@ export interface Invoice {
   created_at: string;
   partners?: { name: string; code: string } | null;
   warehouse_documents?: { document_number: string } | null;
+  source_receipt?: { document_number: string; status: string; total_value: number } | null;
 }
 
 export interface InvoiceLine {
@@ -46,7 +48,8 @@ export function useInvoices(invoiceType: InvoiceType) {
         .select(`
           *,
           partners(name, code),
-          warehouse_documents:warehouse_document_id(document_number)
+          warehouse_documents:warehouse_document_id(document_number),
+          source_receipt:source_receipt_id(document_number, status, total_value)
         `)
         .eq('invoice_type', invoiceType)
         .order('created_at', { ascending: false });
@@ -68,7 +71,8 @@ export function useInvoice(id: string | undefined) {
         .select(`
           *,
           partners(name, code),
-          warehouse_documents:warehouse_document_id(document_number)
+          warehouse_documents:warehouse_document_id(document_number),
+          source_receipt:source_receipt_id(document_number, status, total_value)
         `)
         .eq('id', id)
         .single();
@@ -212,6 +216,7 @@ async function generateGLDocumentNumber(): Promise<string> {
 const GL_ACCOUNTS = {
   ACCOUNTS_RECEIVABLE: '1200', // Potraživanja od kupaca
   ACCOUNTS_PAYABLE: '2200',    // Obveze prema dobavljačima
+  GRNI: '2210',                // Roba primljena nefakturisana / Goods Received Not Invoiced
   SALES_REVENUE: '7000',       // Prihodi od prodaje
   PURCHASE_EXPENSE: '4000',    // Troškovi nabave
   VAT_OUTPUT: '2400',          // PDV - izlazni
@@ -257,6 +262,7 @@ export function usePostInvoice() {
       // Determine accounts based on invoice type
       const receivableAccount = findAccount(GL_ACCOUNTS.ACCOUNTS_RECEIVABLE);
       const payableAccount = findAccount(GL_ACCOUNTS.ACCOUNTS_PAYABLE);
+      const grniAccount = findAccount(GL_ACCOUNTS.GRNI);
       const revenueAccount = findAccount(GL_ACCOUNTS.SALES_REVENUE);
       const expenseAccount = findAccount(GL_ACCOUNTS.PURCHASE_EXPENSE);
       const vatOutputAccount = findAccount(GL_ACCOUNTS.VAT_OUTPUT);
@@ -276,6 +282,7 @@ export function usePostInvoice() {
       const subtotal = invoice.subtotal || 0;
       const vatAmount = invoice.vat_amount || 0;
       const total = invoice.total || 0;
+      const useGrniClearing = !isOutgoing && !!invoice.source_receipt_id;
 
       if (isOutgoing) {
         // Sales invoice
@@ -324,15 +331,17 @@ export function usePostInvoice() {
         // Purchase invoice
         const apAccount = payableAccount || accounts[0];
         const expAccount = expenseAccount || accounts[0];
+        const clearingAccount = useGrniClearing ? (grniAccount || expAccount) : expAccount;
+        const clearingLabel = useGrniClearing ? 'GRNI Clearing' : 'Expense';
         const vatInAccount = vatInputAccount || accounts[0];
 
-        // Debit: Expense (subtotal)
+        // Debit: Expense or GRNI clearing (subtotal)
         if (subtotal > 0) {
           glLines.push({
-            account_id: expAccount.id,
+            account_id: clearingAccount.id,
             debit: subtotal,
             credit: 0,
-            description: `Invoice ${invoice.invoice_number} - Expense`,
+            description: `Invoice ${invoice.invoice_number} - ${clearingLabel}`,
             partner_id: partnerId
           });
         }
