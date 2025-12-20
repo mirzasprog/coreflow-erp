@@ -18,9 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Eye, Edit, Trash2, ArrowLeft } from 'lucide-react';
-import { useWarehouseDocuments, useDeleteDocument } from '@/hooks/useWarehouseDocuments';
+import { getWarehouseStatusLabel, getWarehouseStatusTone, useWarehouseDocuments, useDeleteDocument } from '@/hooks/useWarehouseDocuments';
 import { format } from 'date-fns';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -33,6 +32,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 export default function GoodsIssueList() {
   const navigate = useNavigate();
@@ -49,19 +57,6 @@ export default function GoodsIssueList() {
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return <Badge variant="secondary">Draft</Badge>;
-      case 'posted':
-        return <Badge variant="default" className="bg-green-600">Posted</Badge>;
-      case 'cancelled':
-        return <Badge variant="destructive">Cancelled</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
-
   const handleDelete = async () => {
     if (deleteId) {
       await deleteDocument.mutateAsync(deleteId);
@@ -75,10 +70,25 @@ export default function GoodsIssueList() {
 
       <div className="p-6">
         <div className="mb-4">
-          <NavLink to="/warehouse" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back to Warehouse
-          </NavLink>
+          <div className="flex items-center justify-between">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <NavLink to="/warehouse">Warehouse</NavLink>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Goods Issue</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <NavLink to="/warehouse" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="mr-1 h-4 w-4" />
+              Back to Warehouse
+            </NavLink>
+          </div>
         </div>
 
         <div className="module-card">
@@ -140,7 +150,12 @@ export default function GoodsIssueList() {
                       <TableCell>{format(new Date(doc.document_date), 'dd.MM.yyyy')}</TableCell>
                       <TableCell>{doc.partners?.name || '-'}</TableCell>
                       <TableCell>{doc.locations?.name || '-'}</TableCell>
-                      <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          tone={getWarehouseStatusTone(doc.status)}
+                          label={getWarehouseStatusLabel(doc.status)}
+                        />
+                      </TableCell>
                       <TableCell className="text-right">€{doc.total_value.toFixed(2)}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
