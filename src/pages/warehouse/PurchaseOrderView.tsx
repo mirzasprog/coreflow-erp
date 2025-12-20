@@ -19,13 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Clock, ShoppingCart, CheckCircle, Pencil, Trash2, Package, Mail, Printer } from 'lucide-react';
+import { ArrowLeft, Clock, ShoppingCart, CheckCircle, Pencil, Trash2, Package, Mail, Printer, FileText, Link2 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { usePurchaseOrder, useUpdatePurchaseOrderStatus, useConvertToGoodsReceipt } from '@/hooks/usePurchaseOrders';
+import { usePurchaseOrder, useUpdatePurchaseOrderStatus, useConvertToGoodsReceipt, usePurchaseOrderRelatedDocuments } from '@/hooks/usePurchaseOrders';
 import { PurchaseOrderPDF } from '@/components/warehouse/PurchaseOrderPDF';
 import {
   AlertDialog,
@@ -51,6 +51,7 @@ export default function PurchaseOrderView() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: order, isLoading } = usePurchaseOrder(id);
+  const { data: relatedDocuments } = usePurchaseOrderRelatedDocuments(id);
   const updateStatusMutation = useUpdatePurchaseOrderStatus();
   const convertToGoodsReceiptMutation = useConvertToGoodsReceipt();
   const printRef = useRef<HTMLDivElement>(null);
@@ -224,6 +225,16 @@ export default function PurchaseOrderView() {
 
   const config = statusConfig[order.status] || statusConfig.draft;
   const StatusIcon = config.icon;
+  const receiptList = relatedDocuments?.receipts || [];
+  const invoiceList = relatedDocuments?.invoices || [];
+
+  const getWarehouseStatusLabel = (status: string | null) => {
+    if (!status) return 'Nepoznato';
+    if (status === 'draft') return 'Nacrt';
+    if (status === 'posted') return 'Proknjiženo';
+    if (status === 'cancelled') return 'Stornirano';
+    return status;
+  };
 
   return (
     <div>
@@ -381,6 +392,57 @@ export default function PurchaseOrderView() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Povezani dokumenti
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Centralized related documents reduce module hopping while keeping PO context visible. */}
+            {receiptList.length === 0 && invoiceList.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Još nema povezanih dokumenata.</p>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                {receiptList.map((receipt) => (
+                  <NavLink
+                    key={receipt.id}
+                    to={`/warehouse/receipts/${receipt.id}`}
+                    className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                  >
+                    <Package className="h-5 w-5 text-module-warehouse" />
+                    <div>
+                      <p className="text-sm font-medium">Primka</p>
+                      <p className="text-xs text-muted-foreground">{receipt.document_number}</p>
+                    </div>
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      {getWarehouseStatusLabel(receipt.status)}
+                    </Badge>
+                  </NavLink>
+                ))}
+
+                {invoiceList.map((invoice) => (
+                  <NavLink
+                    key={invoice.id}
+                    to={`/finance/invoices/incoming/${invoice.id}`}
+                    className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                  >
+                    <FileText className="h-5 w-5 text-module-finance" />
+                    <div>
+                      <p className="text-sm font-medium">Ulazna faktura</p>
+                      <p className="text-xs text-muted-foreground">{invoice.invoice_number}</p>
+                    </div>
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      {getWarehouseStatusLabel(invoice.status)}
+                    </Badge>
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Order Lines with delivery status */}
         <Card>

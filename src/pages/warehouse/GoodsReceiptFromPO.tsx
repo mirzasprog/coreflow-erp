@@ -143,7 +143,9 @@ export default function GoodsReceiptFromPO() {
       for (const line of filteredLines) {
         const poLine = order?.lines?.find(l => l.item_id === line.item_id);
         if (poLine) {
-          const newReceivedQty = (poLine as any).received_quantity || 0 + line.receiving_quantity;
+          // Keep received quantities additive and avoid operator precedence issues.
+          const previouslyReceived = (poLine as any).received_quantity || 0;
+          const newReceivedQty = previouslyReceived + line.receiving_quantity;
           await supabase
             .from('purchase_order_lines')
             .update({ received_quantity: newReceivedQty })

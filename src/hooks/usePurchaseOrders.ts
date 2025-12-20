@@ -41,6 +41,22 @@ interface LowStockItem {
   preferred_supplier_id: string | null;
 }
 
+export interface RelatedGoodsReceipt {
+  id: string;
+  document_number: string;
+  document_date: string;
+  status: string | null;
+  total_value: number | null;
+}
+
+export interface RelatedInvoice {
+  id: string;
+  invoice_number: string;
+  status: string | null;
+  total: number | null;
+  source_receipt_id: string | null;
+}
+
 export function usePurchaseOrders() {
   return useQuery({
     queryKey: ['purchase-orders'],
@@ -52,6 +68,44 @@ export function usePurchaseOrders() {
       
       if (error) throw error;
       return data as unknown as PurchaseOrder[];
+    }
+  });
+}
+
+export function usePurchaseOrderRelatedDocuments(orderId: string | undefined) {
+  return useQuery({
+    queryKey: ['purchase-order-related-documents', orderId],
+    enabled: !!orderId,
+    queryFn: async () => {
+      if (!orderId) return { receipts: [], invoices: [] };
+
+      // Centralized related-document lookup keeps PO → GR → Invoice navigation consistent.
+      const { data: receipts, error: receiptsError } = await supabase
+        .from('warehouse_documents')
+        .select('id, document_number, document_date, status, total_value')
+        .eq('document_type', 'goods_receipt')
+        .eq('purchase_order_id', orderId)
+        .order('document_date', { ascending: false });
+
+      if (receiptsError) throw receiptsError;
+
+      const receiptIds = (receipts || []).map((receipt) => receipt.id);
+      if (receiptIds.length === 0) {
+        return { receipts: receipts as RelatedGoodsReceipt[], invoices: [] };
+      }
+
+      const { data: invoices, error: invoicesError } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, status, total, source_receipt_id')
+        .in('source_receipt_id', receiptIds)
+        .order('invoice_date', { ascending: false });
+
+      if (invoicesError) throw invoicesError;
+
+      return {
+        receipts: (receipts || []) as RelatedGoodsReceipt[],
+        invoices: (invoices || []) as RelatedInvoice[],
+      };
     }
   });
 }
