@@ -166,6 +166,7 @@ export default function POSIndex() {
                     <th className="text-right">VAT</th>
                     <th className="text-right">Total</th>
                     <th>Payment</th>
+                    <th>Fiscalization</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -196,6 +197,17 @@ export default function POSIndex() {
                           ) : (
                             <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
                               Cash
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          {receipt.fiscalized ? (
+                            <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                              Fiskalizirano
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                              Nefiskalizirano
                             </span>
                           )}
                         </td>
