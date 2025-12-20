@@ -14,7 +14,16 @@ import {
   Clock,
   DollarSign,
   TrendingUp,
+  ArrowUpFromLine,
 } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 export default function POSIndex() {
   const { data: receipts = [], isLoading } = useTodayReceipts();
@@ -36,6 +45,37 @@ export default function POSIndex() {
       <Header title="Point of Sale" subtitle="Blagajna • Cash Register System" />
 
       <div className="p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <NavLink to="/">Home</NavLink>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Point of Sale</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+
+        <div className="mb-6 module-card">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Quick Actions</h3>
+              <p className="text-sm text-muted-foreground">Brzi prelaz na skladišne tokove</p>
+            </div>
+            <NavLink to="/warehouse/issues/new">
+              <Button variant="outline">
+                <ArrowUpFromLine className="mr-2 h-4 w-4" />
+                Create Issue from POS
+              </Button>
+            </NavLink>
+          </div>
+        </div>
+
         {/* POS Mode Selection */}
         <div className="mb-6 grid gap-4 sm:grid-cols-2">
           <NavLink to="/pos/classic">

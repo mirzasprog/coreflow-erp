@@ -4,7 +4,6 @@ import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -25,6 +24,15 @@ import { NavLink } from '@/components/NavLink';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface PurchaseOrder {
   id: string;
@@ -56,11 +64,11 @@ function usePurchaseOrdersList() {
   });
 }
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ElementType }> = {
-  draft: { label: 'Draft', variant: 'secondary', icon: Clock },
-  ordered: { label: 'Ordered', variant: 'default', icon: ShoppingCart },
-  received: { label: 'Received', variant: 'outline', icon: CheckCircle },
-};
+const statusConfig = {
+  draft: { label: 'Draft', tone: 'draft' },
+  ordered: { label: 'Approved', tone: 'approved' },
+  received: { label: 'Posted', tone: 'posted' },
+} as const;
 
 export default function PurchaseOrderList() {
   const navigate = useNavigate();
@@ -85,12 +93,8 @@ export default function PurchaseOrderList() {
 
   const getStatusBadge = (status: string) => {
     const config = statusConfig[status] || statusConfig.draft;
-    const Icon = config.icon;
     return (
-      <Badge variant={config.variant} className="gap-1">
-        <Icon className="h-3 w-3" />
-        {config.label}
-      </Badge>
+      <StatusBadge tone={config.tone} label={config.label} />
     );
   };
 
@@ -100,10 +104,25 @@ export default function PurchaseOrderList() {
 
       <div className="p-6">
         <div className="mb-4">
-          <NavLink to="/warehouse" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back to Warehouse
-          </NavLink>
+          <div className="flex items-center justify-between">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <NavLink to="/warehouse">Warehouse</NavLink>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Purchase Orders</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <NavLink to="/warehouse" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="mr-1 h-4 w-4" />
+              Back to Warehouse
+            </NavLink>
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -175,8 +194,8 @@ export default function PurchaseOrderList() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="ordered">Ordered</SelectItem>
-                    <SelectItem value="received">Received</SelectItem>
+                    <SelectItem value="ordered">Approved</SelectItem>
+                    <SelectItem value="received">Posted</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button onClick={() => navigate('/warehouse/purchase-orders/new')}>

@@ -1,7 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -11,13 +10,27 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Edit, CheckCircle, Loader2, FileText, ShoppingCart, Link2 } from 'lucide-react';
+import { ArrowLeft, Edit, CheckCircle, Loader2, FileText, ShoppingCart, Link2, Wand2 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
-import { useWarehouseDocument, usePostDocument } from '@/hooks/useWarehouseDocuments';
+import {
+  getWarehouseStatusLabel,
+  getWarehouseStatusTone,
+  useGenerateInvoiceProposal,
+  useWarehouseDocument,
+  usePostDocument,
+} from '@/hooks/useWarehouseDocuments';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { parseWmsLineMeta } from '@/lib/warehouseWms';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 function useLinkedInvoice(receiptId: string | undefined) {
   return useQuery({
@@ -43,19 +56,7 @@ export default function GoodsReceiptView() {
   const { data: document, isLoading } = useWarehouseDocument(id);
   const { data: linkedInvoice } = useLinkedInvoice(id);
   const postDocument = usePostDocument();
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return <Badge variant="secondary">Nacrt</Badge>;
-      case 'posted':
-        return <Badge variant="default" className="bg-green-600">Proknjiženo</Badge>;
-      case 'cancelled':
-        return <Badge variant="destructive">Stornirano</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
+  const generateInvoice = useGenerateInvoiceProposal();
 
   const handlePost = async () => {
     if (id) {
@@ -84,6 +85,24 @@ export default function GoodsReceiptView() {
 
   const isDraft = document.status === 'draft';
   const purchaseOrder = (document as any).purchase_orders;
+  const statusTone = getWarehouseStatusTone(document.status);
+  const statusLabel = getWarehouseStatusLabel(document.status);
+  const getInvoiceStatusTone = (status: string | null) => {
+    if (!status) return 'draft';
+    if (status === 'draft') return 'draft';
+    if (status === 'posted') return 'posted';
+    if (status === 'paid') return 'closed';
+    if (status === 'cancelled') return 'closed';
+    return 'approved';
+  };
+  const getInvoiceStatusLabel = (status: string | null) => {
+    if (!status) return 'Nacrt';
+    if (status === 'draft') return 'Nacrt';
+    if (status === 'posted') return 'Proknjiženo';
+    if (status === 'paid') return 'Zatvoreno';
+    if (status === 'cancelled') return 'Zatvoreno';
+    return status;
+  };
 
   return (
     <div>
@@ -94,6 +113,25 @@ export default function GoodsReceiptView() {
 
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <NavLink to="/warehouse">Skladište</NavLink>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <NavLink to="/warehouse/receipts">Primke</NavLink>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{document.document_number}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
           <NavLink to="/warehouse/receipts" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="mr-1 h-4 w-4" />
             Natrag na primke
@@ -117,7 +155,7 @@ export default function GoodsReceiptView() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Podaci dokumenta</CardTitle>
-                {getStatusBadge(document.status)}
+                <StatusBadge tone={statusTone} label={statusLabel} />
               </div>
             </CardHeader>
             <CardContent>
@@ -174,6 +212,28 @@ export default function GoodsReceiptView() {
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button
+                  className="w-full justify-start"
+                  variant="outline"
+                  onClick={() => generateInvoice.mutate({ receiptId: document.id })}
+                  disabled={!!linkedInvoice || generateInvoice.isPending}
+                >
+                  <Wand2 className="mr-2 h-4 w-4" />
+                  Generiši fakturu iz primke
+                </Button>
+                {linkedInvoice && (
+                  <p className="text-xs text-muted-foreground">
+                    Faktura je već povezana sa primkom.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Linked Documents */}
             <Card>
               <CardHeader>
@@ -209,9 +269,11 @@ export default function GoodsReceiptView() {
                           <p className="font-medium text-sm">Ulazna faktura</p>
                           <p className="text-xs text-muted-foreground">{linkedInvoice.invoice_number}</p>
                         </div>
-                        <Badge variant="secondary" className="ml-auto text-xs">
-                          {linkedInvoice.status === 'draft' ? 'Nacrt' : linkedInvoice.status === 'posted' ? 'Proknjiženo' : linkedInvoice.status}
-                        </Badge>
+                        <StatusBadge
+                          tone={getInvoiceStatusTone(linkedInvoice.status)}
+                          label={getInvoiceStatusLabel(linkedInvoice.status)}
+                          className="ml-auto text-xs"
+                        />
                       </NavLink>
                     )}
                   </>
