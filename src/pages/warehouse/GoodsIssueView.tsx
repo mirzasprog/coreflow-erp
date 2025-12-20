@@ -1,7 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -13,8 +12,23 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Edit, CheckCircle, XCircle, Loader2, Link2 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
-import { useWarehouseDocument, usePostDocument, useCancelDocument } from '@/hooks/useWarehouseDocuments';
+import {
+  getWarehouseStatusLabel,
+  getWarehouseStatusTone,
+  useWarehouseDocument,
+  usePostDocument,
+  useCancelDocument,
+} from '@/hooks/useWarehouseDocuments';
 import { format } from 'date-fns';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 export default function GoodsIssueView() {
   const navigate = useNavigate();
@@ -39,18 +53,8 @@ export default function GoodsIssueView() {
     );
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return <Badge variant="secondary" className="text-lg px-3 py-1">Draft</Badge>;
-      case 'posted':
-        return <Badge variant="default" className="bg-green-600 text-lg px-3 py-1">Posted</Badge>;
-      case 'cancelled':
-        return <Badge variant="destructive" className="text-lg px-3 py-1">Cancelled</Badge>;
-      default:
-        return <Badge className="text-lg px-3 py-1">{status}</Badge>;
-    }
-  };
+  const statusTone = getWarehouseStatusTone(document.status);
+  const statusLabel = getWarehouseStatusLabel(document.status);
 
   const handlePost = async () => {
     await postDocument.mutateAsync({ id: id!, documentType: 'goods_issue' });
@@ -69,6 +73,25 @@ export default function GoodsIssueView() {
 
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <NavLink to="/warehouse">Warehouse</NavLink>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <NavLink to="/warehouse/issues">Goods Issue</NavLink>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{document.document_number}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
           <NavLink to="/warehouse/issues" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="mr-1 h-4 w-4" />
             Back to Issues
@@ -99,7 +122,7 @@ export default function GoodsIssueView() {
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Document Details</CardTitle>
-              {getStatusBadge(document.status)}
+              <StatusBadge tone={statusTone} label={statusLabel} className="text-lg px-3 py-1" />
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <div>

@@ -172,6 +172,34 @@ export interface WarehouseDocument {
   purchase_orders?: { order_number: string } | null;
 }
 
+export type WarehouseStatusTone = 'draft' | 'approved' | 'posted' | 'closed';
+
+export const getWarehouseStatusTone = (status: WarehouseDocument['status'] | string): WarehouseStatusTone => {
+  switch (status) {
+    case 'draft':
+      return 'draft';
+    case 'posted':
+      return 'posted';
+    case 'cancelled':
+      return 'closed';
+    default:
+      return 'draft';
+  }
+};
+
+export const getWarehouseStatusLabel = (status: WarehouseDocument['status'] | string) => {
+  switch (status) {
+    case 'draft':
+      return 'Nacrt';
+    case 'posted':
+      return 'Proknjiženo';
+    case 'cancelled':
+      return 'Zatvoreno';
+    default:
+      return status;
+  }
+};
+
 export interface DocumentLine {
   id?: string;
   document_id?: string;
@@ -656,6 +684,35 @@ export function usePostDocument() {
     onError: (error: Error) => {
       toast.error(`Failed to post document: ${error.message}`);
     }
+  });
+}
+
+export function useGenerateInvoiceProposal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ receiptId }: { receiptId: string }) => {
+      const { data: receipt, error } = await supabase
+        .from('warehouse_documents')
+        .select('*')
+        .eq('id', receiptId)
+        .single();
+
+      if (error) throw error;
+
+      const invoiceNumber = await createInvoiceProposal(receiptId, receipt);
+      if (!invoiceNumber) throw new Error('Failed to create invoice proposal');
+
+      return invoiceNumber;
+    },
+    onSuccess: (invoiceNumber) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['linked-invoice'] });
+      toast.success(`Prijedlog fakture ${invoiceNumber} kreiran.`);
+    },
+    onError: (error: Error) => {
+      toast.error(`Neuspješno kreiranje fakture: ${error.message}`);
+    },
   });
 }
 

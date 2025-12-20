@@ -28,6 +28,15 @@ import { useToast } from '@/hooks/use-toast';
 import { usePurchaseOrder, useUpdatePurchaseOrderStatus, useConvertToGoodsReceipt, usePurchaseOrderRelatedDocuments } from '@/hooks/usePurchaseOrders';
 import { PurchaseOrderPDF } from '@/components/warehouse/PurchaseOrderPDF';
 import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { StatusBadge } from '@/components/ui/status-badge';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -39,10 +48,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ElementType; color: string }> = {
-  draft: { label: 'Draft', variant: 'secondary', icon: Clock, color: 'text-muted-foreground' },
-  ordered: { label: 'Ordered', variant: 'default', icon: ShoppingCart, color: 'text-blue-600' },
-  received: { label: 'Received', variant: 'outline', icon: CheckCircle, color: 'text-green-600' },
+const statusConfig: Record<
+  string,
+  { label: string; tone: 'draft' | 'approved' | 'posted' | 'closed'; icon: React.ElementType; color: string }
+> = {
+  draft: { label: 'Draft', tone: 'draft', icon: Clock, color: 'text-muted-foreground' },
+  ordered: { label: 'Approved', tone: 'approved', icon: ShoppingCart, color: 'text-blue-600' },
+  received: { label: 'Posted', tone: 'posted', icon: CheckCircle, color: 'text-green-600' },
 };
 
 export default function PurchaseOrderView() {
@@ -227,12 +239,22 @@ export default function PurchaseOrderView() {
   const receiptList = relatedDocuments?.receipts || [];
   const invoiceList = relatedDocuments?.invoices || [];
 
-  const getWarehouseStatusLabel = (status: string | null) => {
+  const getRelatedStatusLabel = (status: string | null) => {
     if (!status) return 'Nepoznato';
     if (status === 'draft') return 'Nacrt';
     if (status === 'posted') return 'Proknjiženo';
-    if (status === 'cancelled') return 'Stornirano';
+    if (status === 'paid') return 'Zatvoreno';
+    if (status === 'cancelled') return 'Zatvoreno';
     return status;
+  };
+
+  const getRelatedStatusTone = (status: string | null) => {
+    if (!status) return 'draft';
+    if (status === 'draft') return 'draft';
+    if (status === 'posted') return 'posted';
+    if (status === 'paid') return 'closed';
+    if (status === 'cancelled') return 'closed';
+    return 'approved';
   };
 
   return (
@@ -241,6 +263,25 @@ export default function PurchaseOrderView() {
 
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between print-hidden">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <NavLink to="/warehouse">Warehouse</NavLink>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <NavLink to="/warehouse/purchase-orders">Purchase Orders</NavLink>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{order.order_number}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
           <NavLink to="/warehouse/purchase-orders" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="mr-1 h-4 w-4" />
             Back to Purchase Orders
@@ -279,15 +320,6 @@ export default function PurchaseOrderView() {
                   </AlertDialogContent>
                 </AlertDialog>
               </>
-            )}
-            {(order.status === 'ordered' || order.status === 'received') && (
-              <Button 
-                onClick={() => navigate(`/warehouse/receipts/from-po/${id}`)}
-                className="bg-module-warehouse hover:bg-module-warehouse/90"
-              >
-                <Package className="mr-2 h-4 w-4" />
-                Kreiraj primku
-              </Button>
             )}
           </div>
         </div>
@@ -344,52 +376,73 @@ export default function PurchaseOrderView() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4 flex items-center gap-3">
-                <div className={`rounded-full bg-muted p-3 ${config.color}`}>
-                  <StatusIcon className="h-6 w-6" />
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4 flex items-center gap-3">
+                  <div className={`rounded-full bg-muted p-3 ${config.color}`}>
+                    <StatusIcon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <StatusBadge tone={config.tone} label={config.label} className="text-base px-3 py-1" />
+                  </div>
                 </div>
-                <div>
-                  <Badge variant={config.variant} className="text-base px-3 py-1">
-                    {config.label}
-                  </Badge>
+                <div className="mt-4">
+                  <p className="mb-2 text-sm text-muted-foreground">Change Status</p>
+                  <Select 
+                    value={order.status} 
+                    onValueChange={handleStatusChange}
+                    disabled={updateStatusMutation.isPending}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="ordered">Ordered (Send to Supplier)</SelectItem>
+                      <SelectItem value="received">Received</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {updateStatusMutation.isPending && (
+                    <p className="mt-2 text-xs text-muted-foreground">Processing...</p>
+                  )}
                 </div>
-              </div>
-              <div className="mt-4">
-                <p className="mb-2 text-sm text-muted-foreground">Change Status</p>
-                <Select 
-                  value={order.status} 
-                  onValueChange={handleStatusChange}
-                  disabled={updateStatusMutation.isPending}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="ordered">Ordered (Send to Supplier)</SelectItem>
-                    <SelectItem value="received">Received</SelectItem>
-                  </SelectContent>
-                </Select>
-                {updateStatusMutation.isPending && (
-                  <p className="mt-2 text-xs text-muted-foreground">Processing...</p>
-                )}
-              </div>
 
-              {/* Status Action Info */}
-              <div className="mt-4 rounded-lg border bg-muted/30 p-3">
-                <p className="text-xs font-medium mb-1">Status Actions:</p>
-                <ul className="text-xs text-muted-foreground space-y-1">
-                  <li>• <strong>Ordered:</strong> Sends email to supplier</li>
-                  <li>• <strong>Received:</strong> Status is auto-updated when all receipts are completed</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+                {/* Status Action Info */}
+                <div className="mt-4 rounded-lg border bg-muted/30 p-3">
+                  <p className="text-xs font-medium mb-1">Status Actions:</p>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    <li>• <strong>Ordered:</strong> Sends email to supplier</li>
+                    <li>• <strong>Received:</strong> Status is auto-updated when all receipts are completed</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {(order.status === 'ordered' || order.status === 'received') ? (
+                  <Button 
+                    onClick={() => navigate(`/warehouse/receipts/from-po/${id}`)}
+                    className="w-full justify-start bg-module-warehouse hover:bg-module-warehouse/90"
+                  >
+                    <Package className="mr-2 h-4 w-4" />
+                    Kreiraj primku
+                  </Button>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Kreiranje primke je dostupno nakon odobrenja narudžbenice.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <Card className="mb-6">
@@ -416,9 +469,11 @@ export default function PurchaseOrderView() {
                       <p className="text-sm font-medium">Primka</p>
                       <p className="text-xs text-muted-foreground">{receipt.document_number}</p>
                     </div>
-                    <Badge variant="secondary" className="ml-auto text-xs">
-                      {getWarehouseStatusLabel(receipt.status)}
-                    </Badge>
+                    <StatusBadge
+                      tone={getRelatedStatusTone(receipt.status)}
+                      label={getRelatedStatusLabel(receipt.status)}
+                      className="ml-auto text-xs"
+                    />
                   </NavLink>
                 ))}
 
@@ -433,9 +488,11 @@ export default function PurchaseOrderView() {
                       <p className="text-sm font-medium">Ulazna faktura</p>
                       <p className="text-xs text-muted-foreground">{invoice.invoice_number}</p>
                     </div>
-                    <Badge variant="secondary" className="ml-auto text-xs">
-                      {getWarehouseStatusLabel(invoice.status)}
-                    </Badge>
+                    <StatusBadge
+                      tone={getRelatedStatusTone(invoice.status)}
+                      label={getRelatedStatusLabel(invoice.status)}
+                      className="ml-auto text-xs"
+                    />
                   </NavLink>
                 ))}
               </div>
