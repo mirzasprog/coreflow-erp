@@ -40,7 +40,7 @@ import {
   useCreateAssetTransfer,
 } from "@/hooks/useFixedAssets";
 import { useLocations, useEmployees } from "@/hooks/useMasterData";
-import { useSafetyDeviceByAsset } from "@/hooks/useHSE";
+import { useHSERelatedDocuments } from "@/hooks/useHSE";
 import {
   ArrowLeft,
   Edit,
@@ -55,6 +55,9 @@ import {
   ArrowRight,
   Shield,
   Flame,
+  Link2,
+  ClipboardCheck,
+  FileText,
 } from "lucide-react";
 
 export default function AssetView() {
@@ -67,7 +70,9 @@ export default function AssetView() {
   const { data: transfers } = useAssetTransfers(id);
   const { data: locations } = useLocations();
   const { data: employees } = useEmployees();
-  const { data: safetyDevice } = useSafetyDeviceByAsset(id);
+  const { data: hseRelated, isLoading: isHseRelatedLoading } = useHSERelatedDocuments(id);
+  const safetyDevice = hseRelated?.device || null;
+  const relatedInspections = hseRelated?.inspections || [];
 
   const createDepreciation = useCreateDepreciationRecord();
   const updateAsset = useUpdateFixedAsset();
@@ -407,6 +412,86 @@ export default function AssetView() {
               <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground">
                 No safety device linked. Enable safety tracking in asset form.
               </div>
+            )}
+          </div>
+
+          <div className="module-card">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Related documents</h3>
+              <Badge variant="outline" className="gap-2">
+                <Link2 className="h-4 w-4 text-module-hse" />
+                HSE
+              </Badge>
+            </div>
+
+            {isHseRelatedLoading ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">Loading related documents...</div>
+            ) : safetyDevice || relatedInspections.length ? (
+              <div className="space-y-3">
+                {safetyDevice && (
+                  <div className="flex items-center gap-3 rounded-lg border p-3">
+                    <Flame className="h-4 w-4 text-module-hse" />
+                    <div>
+                      <p className="text-sm font-medium">Safety device</p>
+                      <p className="text-xs text-muted-foreground">
+                        {safetyDevice.name || safetyDevice.device_code}
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      {safetyDevice.device_type || "Device"}
+                    </Badge>
+                  </div>
+                )}
+
+                {relatedInspections.length > 0 ? (
+                  <div className="space-y-2">
+                    {relatedInspections.slice(0, 3).map((inspection) => (
+                      <div key={inspection.id} className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
+                        <ClipboardCheck className="h-4 w-4 text-module-hse" />
+                        <div className="min-w-[160px]">
+                          <p className="text-sm font-medium">
+                            {inspection.inspection_date
+                              ? format(new Date(inspection.inspection_date), "dd.MM.yyyy")
+                              : "Inspection"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {inspection.inspector_name || "Inspection record"}
+                          </p>
+                        </div>
+                        <div className="ml-auto flex items-center gap-2">
+                          {inspection.attachment_url && (
+                            <a
+                              href={inspection.attachment_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1 text-xs text-primary"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              Attachment
+                            </a>
+                          )}
+                          {inspection.passed === false ? (
+                            <Badge className="bg-destructive/20 text-destructive">Failed</Badge>
+                          ) : inspection.passed === true ? (
+                            <Badge className="bg-success/20 text-success">Passed</Badge>
+                          ) : (
+                            <Badge variant="outline">Pending</Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {relatedInspections.length > 3 && (
+                      <Button variant="outline" size="sm" onClick={() => navigate("/hse/inspections")}>
+                        View all inspections
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No inspections recorded yet.</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No related documents yet.</p>
             )}
           </div>
         </div>
