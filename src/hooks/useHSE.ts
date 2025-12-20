@@ -12,6 +12,11 @@ export type SafetyInspection = Tables<"safety_inspections"> & {
   safety_devices?: SafetyDevice | null;
 };
 
+export type HSERelatedDocuments = {
+  device: SafetyDevice | null;
+  inspections: SafetyInspection[];
+};
+
 export type MedicalCheck = Tables<"medical_checks"> & {
   employees?: Tables<"employees"> | null;
 };
@@ -57,6 +62,41 @@ export function useSafetyDeviceByAsset(assetId?: string) {
       return data as SafetyDevice | null;
     },
     enabled: !!assetId,
+  });
+}
+
+export function useHSERelatedDocuments(assetId?: string) {
+  return useQuery({
+    queryKey: ["hse-related-documents", assetId],
+    enabled: !!assetId,
+    queryFn: async () => {
+      if (!assetId) return { device: null, inspections: [] };
+      const { data: device, error: deviceError } = await supabase
+        .from("safety_devices")
+        .select(`
+          *,
+          locations(*),
+          fixed_assets(*)
+        `)
+        .eq("asset_id", assetId)
+        .maybeSingle();
+
+      if (deviceError) throw deviceError;
+      if (!device) return { device: null, inspections: [] };
+
+      const { data: inspections, error: inspectionsError } = await supabase
+        .from("safety_inspections")
+        .select("*")
+        .eq("device_id", device.id)
+        .order("inspection_date", { ascending: false });
+
+      if (inspectionsError) throw inspectionsError;
+
+      return {
+        device: device as SafetyDevice,
+        inspections: (inspections || []) as SafetyInspection[],
+      };
+    },
   });
 }
 
