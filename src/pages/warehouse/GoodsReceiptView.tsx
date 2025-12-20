@@ -174,45 +174,49 @@ export default function GoodsReceiptView() {
             </Card>
 
             {/* Linked Documents */}
-            {(purchaseOrder || linkedInvoice) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Link2 className="h-4 w-4" />
-                    Povezani dokumenti
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {purchaseOrder && (
-                    <NavLink 
-                      to={`/warehouse/purchase-orders/${document.purchase_order_id}`}
-                      className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                    >
-                      <ShoppingCart className="h-5 w-5 text-module-warehouse" />
-                      <div>
-                        <p className="font-medium text-sm">Narudžbenica</p>
-                        <p className="text-xs text-muted-foreground">{purchaseOrder.order_number}</p>
-                      </div>
-                    </NavLink>
-                  )}
-                  {linkedInvoice && (
-                    <NavLink 
-                      to={`/finance/invoices/incoming/${linkedInvoice.id}`}
-                      className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                    >
-                      <FileText className="h-5 w-5 text-module-finance" />
-                      <div>
-                        <p className="font-medium text-sm">Ulazna faktura</p>
-                        <p className="text-xs text-muted-foreground">{linkedInvoice.invoice_number}</p>
-                      </div>
-                      <Badge variant="secondary" className="ml-auto text-xs">
-                        {linkedInvoice.status === 'draft' ? 'Nacrt' : linkedInvoice.status === 'posted' ? 'Proknjiženo' : linkedInvoice.status}
-                      </Badge>
-                    </NavLink>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Link2 className="h-4 w-4" />
+                  Povezani dokumenti
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!purchaseOrder && !linkedInvoice ? (
+                  <p className="text-sm text-muted-foreground">Još nema povezanih dokumenata.</p>
+                ) : (
+                  <>
+                    {purchaseOrder && (
+                      <NavLink 
+                        to={`/warehouse/purchase-orders/${document.purchase_order_id}`}
+                        className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                      >
+                        <ShoppingCart className="h-5 w-5 text-module-warehouse" />
+                        <div>
+                          <p className="font-medium text-sm">Narudžbenica</p>
+                          <p className="text-xs text-muted-foreground">{purchaseOrder.order_number}</p>
+                        </div>
+                      </NavLink>
+                    )}
+                    {linkedInvoice && (
+                      <NavLink 
+                        to={`/finance/invoices/incoming/${linkedInvoice.id}`}
+                        className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                      >
+                        <FileText className="h-5 w-5 text-module-finance" />
+                        <div>
+                          <p className="font-medium text-sm">Ulazna faktura</p>
+                          <p className="text-xs text-muted-foreground">{linkedInvoice.invoice_number}</p>
+                        </div>
+                        <Badge variant="secondary" className="ml-auto text-xs">
+                          {linkedInvoice.status === 'draft' ? 'Nacrt' : linkedInvoice.status === 'posted' ? 'Proknjiženo' : linkedInvoice.status}
+                        </Badge>
+                      </NavLink>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
 
