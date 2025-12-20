@@ -187,6 +187,102 @@ async function generateReceiptNumber(): Promise<string> {
   return `R-${datePrefix}-${sequence.toString().padStart(4, "0")}`;
 }
 
+async function updateStock(itemId: string, locationId: string | null, quantityChange: number) {
+  if (!locationId) return;
+
+  const { data: existing } = await supabase
+    .from("stock")
+    .select("id, quantity")
+    .eq("item_id", itemId)
+    .eq("location_id", locationId)
+    .maybeSingle();
+
+  if (existing) {
+    const newQty = (existing.quantity || 0) + quantityChange;
+    const { error } = await supabase
+      .from("stock")
+      .update({ quantity: newQty, updated_at: new Date().toISOString() })
+      .eq("id", existing.id);
+
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from("stock")
+      .insert({ item_id: itemId, location_id: locationId, quantity: quantityChange });
+
+    if (error) throw error;
+  }
+}
+
+async function createPOSGoodsIssue({
+  receiptNumber,
+  receiptDate,
+  cart,
+  shift,
+  userId,
+}: {
+  receiptNumber: string;
+  receiptDate: string;
+  cart: CartItem[];
+  shift: POSShift;
+  userId: string | null;
+}) {
+  if (!shift.terminal_id) return;
+
+  const { data: terminal, error: terminalError } = await supabase
+    .from("pos_terminals")
+    .select("id, location_id")
+    .eq("id", shift.terminal_id)
+    .maybeSingle();
+
+  if (terminalError) throw terminalError;
+  if (!terminal?.location_id) return;
+
+  const documentNumber = `IZ-POS-${receiptNumber}`;
+  const documentDate = receiptDate.split("T")[0];
+  const totalValue = cart.reduce(
+    (sum, item) =>
+      sum + item.selling_price * item.qty * (1 - item.discount_percent / 100),
+    0
+  );
+
+  const { data: document, error: documentError } = await supabase
+    .from("warehouse_documents")
+    .insert({
+      document_type: "goods_issue",
+      document_number: documentNumber,
+      document_date: documentDate,
+      location_id: terminal.location_id,
+      notes: `Auto goods issue for POS receipt ${receiptNumber}`,
+      status: "posted",
+      posted_at: new Date().toISOString(),
+      total_value: totalValue,
+      created_by: userId,
+    })
+    .select()
+    .single();
+
+  if (documentError) throw documentError;
+
+  const lines = cart.map((item) => ({
+    document_id: document.id,
+    item_id: item.id,
+    quantity: item.qty,
+    unit_price: item.selling_price,
+    total_price: item.selling_price * item.qty * (1 - item.discount_percent / 100),
+  }));
+
+  const { error: linesError } = await supabase
+    .from("warehouse_document_lines")
+    .insert(lines);
+
+  if (linesError) throw linesError;
+
+  for (const line of lines) {
+    await updateStock(line.item_id, terminal.location_id, -line.quantity);
+  }
+}
+
 // Create a new receipt/sale
 export function useCreateReceipt() {
   const queryClient = useQueryClient();
@@ -248,6 +344,8 @@ export function useCreateReceipt() {
           discount_amount: discountAmount,
           total: total,
           shift_id: shiftId || null,
+          terminal_id: shift.terminal_id,
+          cashier_id: shift.cashier_id || user?.id || null,
         })
         .select()
         .single();
@@ -276,6 +374,14 @@ export function useCreateReceipt() {
         .insert(lines);
 
       if (linesError) throw linesError;
+
+      await createPOSGoodsIssue({
+        receiptNumber,
+        receiptDate: receipt.receipt_date,
+        cart,
+        shift,
+        userId: user?.id || null,
+      });
 
       // Update shift totals if shift is active
       if (shiftId) {
@@ -315,6 +421,8 @@ export function useCreateReceipt() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pos-receipts"] });
       queryClient.invalidateQueries({ queryKey: ["pos-shifts"] });
+      queryClient.invalidateQueries({ queryKey: ["warehouse-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["stock"] });
     },
   });
 }
