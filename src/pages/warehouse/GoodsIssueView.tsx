@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Edit, CheckCircle, XCircle, Loader2, Link2 } from 'lucide-react';
+import { ArrowLeft, Edit, CheckCircle, XCircle, Loader2, Link2, ClipboardList } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
   getWarehouseStatusLabel,
@@ -20,6 +20,7 @@ import {
   useCancelDocument,
 } from '@/hooks/useWarehouseDocuments';
 import { parseWmsLineMeta } from '@/lib/warehouseWms';
+import { useCreatePickingFromIssue, usePickingOrders } from '@/hooks/usePickingOrders';
 import { format } from 'date-fns';
 import {
   Breadcrumb,
@@ -37,6 +38,11 @@ export default function GoodsIssueView() {
   const { data: document, isLoading } = useWarehouseDocument(id);
   const postDocument = usePostDocument();
   const cancelDocument = useCancelDocument();
+  const createPicking = useCreatePickingFromIssue();
+  const { data: pickingOrders } = usePickingOrders();
+
+  // Check if picking order already exists for this issue
+  const existingPicking = pickingOrders?.find(po => po.source_document_id === id);
 
   if (isLoading) {
     return (
@@ -177,13 +183,58 @@ export default function GoodsIssueView() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {document.status === 'draft' && !existingPicking && (
+                <Button
+                  className="w-full justify-start"
+                  variant="outline"
+                  onClick={() => createPicking.mutate(id!)}
+                  disabled={createPicking.isPending}
+                >
+                  <ClipboardList className="mr-2 h-4 w-4" />
+                  Kreiraj picking nalog
+                </Button>
+              )}
+              {existingPicking && (
+                <NavLink to="/warehouse/picking" className="block">
+                  <Button className="w-full justify-start" variant="outline">
+                    <ClipboardList className="mr-2 h-4 w-4" />
+                    Pregledaj picking ({existingPicking.picking_number})
+                  </Button>
+                </NavLink>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Link2 className="h-4 w-4" />
                 Povezani dokumenti
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Još nema povezanih dokumenata.</p>
+              {existingPicking ? (
+                <NavLink
+                  to="/warehouse/picking"
+                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                >
+                  <ClipboardList className="h-5 w-5 text-module-warehouse" />
+                  <div>
+                    <p className="font-medium text-sm">Picking nalog</p>
+                    <p className="text-xs text-muted-foreground">{existingPicking.picking_number}</p>
+                  </div>
+                  <StatusBadge
+                    tone={existingPicking.status === 'completed' ? 'closed' : existingPicking.status === 'in_progress' ? 'approved' : 'draft'}
+                    label={existingPicking.status === 'completed' ? 'Završen' : existingPicking.status === 'in_progress' ? 'U tijeku' : 'Otvoren'}
+                    className="ml-auto text-xs"
+                  />
+                </NavLink>
+              ) : (
+                <p className="text-sm text-muted-foreground">Još nema povezanih dokumenata.</p>
+              )}
             </CardContent>
           </Card>
         </div>

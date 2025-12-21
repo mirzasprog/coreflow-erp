@@ -1195,6 +1195,140 @@ export type Database = {
           },
         ]
       }
+      picking_order_lines: {
+        Row: {
+          bin_location: string | null
+          expiry_date: string | null
+          id: string
+          item_id: string
+          lot_number: string | null
+          notes: string | null
+          picked: boolean | null
+          picked_at: string | null
+          picked_quantity: number | null
+          picking_order_id: string
+          required_quantity: number
+          zone: string | null
+        }
+        Insert: {
+          bin_location?: string | null
+          expiry_date?: string | null
+          id?: string
+          item_id: string
+          lot_number?: string | null
+          notes?: string | null
+          picked?: boolean | null
+          picked_at?: string | null
+          picked_quantity?: number | null
+          picking_order_id: string
+          required_quantity?: number
+          zone?: string | null
+        }
+        Update: {
+          bin_location?: string | null
+          expiry_date?: string | null
+          id?: string
+          item_id?: string
+          lot_number?: string | null
+          notes?: string | null
+          picked?: boolean | null
+          picked_at?: string | null
+          picked_quantity?: number | null
+          picking_order_id?: string
+          required_quantity?: number
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "picking_order_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_order_lines_picking_order_id_fkey"
+            columns: ["picking_order_id"]
+            isOneToOne: false
+            referencedRelation: "picking_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      picking_orders: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          location_id: string | null
+          notes: string | null
+          partner_id: string | null
+          picker_id: string | null
+          picking_number: string
+          source_document_id: string | null
+          source_document_type: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          picker_id?: string | null
+          picking_number: string
+          source_document_id?: string | null
+          source_document_type?: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          picker_id?: string | null
+          picking_number?: string
+          source_document_id?: string | null
+          source_document_type?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "picking_orders_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_orders_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_orders_picker_id_fkey"
+            columns: ["picker_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_orders_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_fiscalization_config: {
         Row: {
           active: boolean | null
