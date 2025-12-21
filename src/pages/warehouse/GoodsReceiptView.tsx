@@ -19,6 +19,7 @@ import {
   useWarehouseDocument,
   usePostDocument,
 } from '@/hooks/useWarehouseDocuments';
+import { parseWmsLineMeta } from '@/lib/warehouseWms';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';

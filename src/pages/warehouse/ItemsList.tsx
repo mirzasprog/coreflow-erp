@@ -34,7 +34,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { usePartners } from '@/hooks/useMasterData';
 import { useToast } from '@/hooks/use-toast';
-import { getLotTrackingMap, setLotTracking } from '@/lib/warehouseWms';
+
 
 interface Item {
   id: string;
@@ -55,7 +55,8 @@ interface Item {
   units_of_measure?: { name: string; code: string } | null;
   vat_rates?: { name: string; rate: number } | null;
   item_categories?: { name: string } | null;
-  lot_tracking?: boolean;
+  lot_tracking?: boolean | null;
+  require_lot_on_receipt?: boolean | null;
 }
 
 function useItemsList() {
@@ -131,7 +132,6 @@ export default function ItemsList() {
   const { data: units } = useUnits();
   const { data: vatRates } = useVatRates();
   const { data: categories } = useCategories();
-  const [lotTrackingMap, setLotTrackingMap] = useState(() => getLotTrackingMap());
   
   const [search, setSearch] = useState('');
   const [editItem, setEditItem] = useState<Item | null>(null);
@@ -150,7 +150,8 @@ export default function ItemsList() {
     vat_rate_id: '',
     category_id: '',
     active: true,
-    lot_tracking: false
+    lot_tracking: false,
+    require_lot_on_receipt: false
   });
 
   const filteredItems = items?.filter(item => 
@@ -175,7 +176,8 @@ export default function ItemsList() {
       vat_rate_id: item.vat_rate_id || '',
       category_id: item.category_id || '',
       active: item.active ?? true,
-      lot_tracking: lotTrackingMap[item.id] ?? false
+      lot_tracking: item.lot_tracking ?? false,
+      require_lot_on_receipt: item.require_lot_on_receipt ?? false
     });
     setIsDialogOpen(true);
   };
@@ -196,7 +198,8 @@ export default function ItemsList() {
       vat_rate_id: '',
       category_id: '',
       active: true,
-      lot_tracking: false
+      lot_tracking: false,
+      require_lot_on_receipt: false
     });
     setIsDialogOpen(true);
   };
@@ -217,6 +220,8 @@ export default function ItemsList() {
         vat_rate_id: formData.vat_rate_id || null,
         category_id: formData.category_id || null,
         active: formData.active,
+        lot_tracking: formData.lot_tracking,
+        require_lot_on_receipt: formData.require_lot_on_receipt,
         updated_at: new Date().toISOString()
       };
 
@@ -262,7 +267,7 @@ export default function ItemsList() {
         return { id: newItem.id };
       }
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items-list'] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
       queryClient.invalidateQueries({ queryKey: ['stock-report'] });
@@ -271,10 +276,6 @@ export default function ItemsList() {
         title: editItem ? 'Item Updated' : 'Item Created',
         description: `Item "${formData.name}" has been ${editItem ? 'updated' : 'created'} successfully`
       });
-      if (result?.id) {
-        setLotTracking(result.id, formData.lot_tracking);
-        setLotTrackingMap(getLotTrackingMap());
-      }
       setIsDialogOpen(false);
     },
     onError: (error: Error) => {
@@ -376,8 +377,8 @@ export default function ItemsList() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={lotTrackingMap[item.id] ? 'default' : 'secondary'}>
-                            {lotTrackingMap[item.id] ? 'Enabled' : 'Disabled'}
+                          <Badge variant={item.lot_tracking ? 'default' : 'secondary'}>
+                            {item.lot_tracking ? 'Enabled' : 'Disabled'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -587,13 +588,27 @@ export default function ItemsList() {
                 <div>
                   <Label htmlFor="lot_tracking" className="font-medium">LOT Tracking</Label>
                   <p className="text-xs text-muted-foreground">
-                    Require LOT and expiry details on receipts and issues
+                    Enable LOT and expiry tracking for this item
                   </p>
                 </div>
                 <Switch
                   id="lot_tracking"
                   checked={formData.lot_tracking}
                   onCheckedChange={(checked) => setFormData({ ...formData, lot_tracking: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div>
+                  <Label htmlFor="require_lot_on_receipt" className="font-medium text-amber-900">Require LOT on Receipt</Label>
+                  <p className="text-xs text-amber-700">
+                    Item cannot be received without LOT number and expiry date
+                  </p>
+                </div>
+                <Switch
+                  id="require_lot_on_receipt"
+                  checked={formData.require_lot_on_receipt}
+                  onCheckedChange={(checked) => setFormData({ ...formData, require_lot_on_receipt: checked, lot_tracking: checked ? true : formData.lot_tracking })}
                 />
               </div>
 
