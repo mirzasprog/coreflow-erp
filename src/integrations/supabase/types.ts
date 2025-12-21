@@ -828,11 +828,13 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          lot_tracking: boolean | null
           max_stock: number | null
           min_stock: number | null
           name: string
           preferred_supplier_id: string | null
           purchase_price: number | null
+          require_lot_on_receipt: boolean | null
           selling_price: number | null
           unit_id: string | null
           updated_at: string | null
@@ -846,11 +848,13 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          lot_tracking?: boolean | null
           max_stock?: number | null
           min_stock?: number | null
           name: string
           preferred_supplier_id?: string | null
           purchase_price?: number | null
+          require_lot_on_receipt?: boolean | null
           selling_price?: number | null
           unit_id?: string | null
           updated_at?: string | null
@@ -864,11 +868,13 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          lot_tracking?: boolean | null
           max_stock?: number | null
           min_stock?: number | null
           name?: string
           preferred_supplier_id?: string | null
           purchase_price?: number | null
+          require_lot_on_receipt?: boolean | null
           selling_price?: number | null
           unit_id?: string | null
           updated_at?: string | null

@@ -33,7 +33,6 @@ import {
 } from '@/hooks/useWarehouseDocuments';
 import { toast } from 'sonner';
 import {
-  isLotTracked,
   parseWmsLineMeta,
   serializeWmsLineMeta,
   warehouseBinLocations,
@@ -120,12 +119,18 @@ export default function GoodsReceiptForm() {
       return;
     }
 
-    const lotTracked = isLotTracked(newLine.item_id);
-    if (lotTracked) {
+    const item = items?.find(i => i.id === newLine.item_id);
+    const lotTracked = item?.lot_tracking || item?.require_lot_on_receipt;
+    const requiresLot = item?.require_lot_on_receipt;
+
+    if (requiresLot) {
       if (!newLine.lotNumber || !newLine.expiryDate) {
-        toast.error('LOT number and expiry date are required for LOT-controlled items');
+        toast.error('LOT broj i rok trajanja su obavezni za ovaj artikal');
         return;
       }
+    }
+
+    if (lotTracked && newLine.lotNumber) {
       const duplicateLot = lines.some(
         (line) => line.item_id === newLine.item_id && line.lotNumber === newLine.lotNumber
       );
@@ -134,8 +139,6 @@ export default function GoodsReceiptForm() {
         return;
       }
     }
-
-    const item = items?.find(i => i.id === newLine.item_id);
     const totalPrice = (newLine.quantity || 0) * (newLine.unit_price || 0);
     const selectedBin = warehouseBinLocations.find((bin) => bin.code === newLine.binLocation);
     const meta = {
@@ -189,11 +192,12 @@ export default function GoodsReceiptForm() {
       return;
     }
     const hasMissingLotData = lines.some((line) => {
-      if (!isLotTracked(line.item_id)) return false;
+      const item = items?.find(i => i.id === line.item_id);
+      if (!item?.require_lot_on_receipt) return false;
       return !line.lotNumber || !line.expiryDate;
     });
     if (hasMissingLotData) {
-      toast.error('LOT-controlled items must include LOT number and expiry date');
+      toast.error('Artikli koji zahtijevaju LOT moraju imati LOT broj i rok trajanja');
       return;
     }
     const hasMissingBinLocation = lines.some((line) => !line.binLocation);
@@ -240,7 +244,8 @@ export default function GoodsReceiptForm() {
   }
 
   const isPosted = existingDoc?.status === 'posted';
-  const lotTracked = isLotTracked(newLine.item_id);
+  const selectedItem = items?.find(i => i.id === newLine.item_id);
+  const lotTracked = selectedItem?.lot_tracking || selectedItem?.require_lot_on_receipt;
 
   return (
     <div>
