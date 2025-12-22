@@ -234,6 +234,39 @@ export type Database = {
         }
         Relationships: []
       }
+      company_documents: {
+        Row: {
+          active: boolean | null
+          category: string
+          content: string
+          created_at: string
+          id: string
+          keywords: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          category: string
+          content: string
+          created_at?: string
+          id?: string
+          keywords?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          keywords?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contracts: {
         Row: {
           annual_leave_days: number | null
@@ -2031,6 +2064,66 @@ export type Database = {
           },
           {
             foreignKeyName: "stock_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_lots: {
+        Row: {
+          bin_location: string | null
+          bin_zone: string | null
+          created_at: string
+          expiry_date: string | null
+          id: string
+          item_id: string
+          location_id: string
+          lot_number: string
+          production_date: string | null
+          quantity: number
+          reserved_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          bin_location?: string | null
+          bin_zone?: string | null
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          item_id: string
+          location_id: string
+          lot_number: string
+          production_date?: string | null
+          quantity?: number
+          reserved_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          bin_location?: string | null
+          bin_zone?: string | null
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          item_id?: string
+          location_id?: string
+          lot_number?: string
+          production_date?: string | null
+          quantity?: number
+          reserved_quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_lots_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lots_location_id_fkey"
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"

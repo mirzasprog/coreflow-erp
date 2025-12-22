@@ -80,6 +80,28 @@ function useItemsList() {
   });
 }
 
+async function generateNextItemCode(): Promise<string> {
+  const { data } = await supabase
+    .from('items')
+    .select('code')
+    .like('code', 'ART-%')
+    .order('code', { ascending: false })
+    .limit(100);
+
+  let maxNum = 0;
+  if (data && data.length > 0) {
+    for (const item of data) {
+      const match = item.code.match(/^ART-(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  }
+  
+  return `ART-${String(maxNum + 1).padStart(5, '0')}`;
+}
+
 function useUnits() {
   return useQuery({
     queryKey: ['units'],
@@ -182,10 +204,11 @@ export default function ItemsList() {
     setIsDialogOpen(true);
   };
 
-  const openNewDialog = () => {
+  const openNewDialog = async () => {
     setEditItem(null);
+    const nextCode = await generateNextItemCode();
     setFormData({
-      code: '',
+      code: nextCode,
       name: '',
       description: '',
       barcode: '',

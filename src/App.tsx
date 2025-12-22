@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ManagementChatbot } from "@/components/chatbot/ManagementChatbot";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import WarehouseIndex from "./pages/warehouse/WarehouseIndex";
@@ -172,6 +173,7 @@ const App = () => (
             
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <ManagementChatbot />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
