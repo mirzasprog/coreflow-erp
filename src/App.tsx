@@ -72,6 +72,7 @@ import HSEInspections from "./pages/hse/HSEInspections";
 import HSEMedicalChecks from "./pages/hse/HSEMedicalChecks";
 import SettingsIndex from "./pages/settings/SettingsIndex";
 import PartnersList from "./pages/settings/PartnersList";
+import CompanyDocuments from "./pages/settings/CompanyDocuments";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -169,6 +170,7 @@ const App = () => (
               <Route path="/hse/calendar" element={<HSECalendar />} />
               <Route path="/settings" element={<SettingsIndex />} />
               <Route path="/settings/partners" element={<PartnersList />} />
+              <Route path="/settings/documents" element={<CompanyDocuments />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

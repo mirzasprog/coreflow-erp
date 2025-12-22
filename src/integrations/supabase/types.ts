@@ -240,8 +240,11 @@ export type Database = {
           category: string
           content: string
           created_at: string
+          file_type: string | null
+          file_url: string | null
           id: string
           keywords: string[] | null
+          original_filename: string | null
           title: string
           updated_at: string
         }
@@ -250,8 +253,11 @@ export type Database = {
           category: string
           content: string
           created_at?: string
+          file_type?: string | null
+          file_url?: string | null
           id?: string
           keywords?: string[] | null
+          original_filename?: string | null
           title: string
           updated_at?: string
         }
@@ -260,8 +266,11 @@ export type Database = {
           category?: string
           content?: string
           created_at?: string
+          file_type?: string | null
+          file_url?: string | null
           id?: string
           keywords?: string[] | null
+          original_filename?: string | null
           title?: string
           updated_at?: string
         }
