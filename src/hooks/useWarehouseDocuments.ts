@@ -271,6 +271,101 @@ export function useWarehouseDocument(id: string | undefined) {
   });
 }
 
+// Helper to generate picking number
+async function generatePickingNumber(): Promise<string> {
+  const today = new Date();
+  const datePrefix = today.toISOString().slice(0, 10).replace(/-/g, '');
+  
+  const { data } = await supabase
+    .from('picking_orders')
+    .select('picking_number')
+    .like('picking_number', `PO-${datePrefix}%`)
+    .order('picking_number', { ascending: false })
+    .limit(1);
+
+  let sequence = 1;
+  if (data && data.length > 0) {
+    const lastNum = data[0].picking_number;
+    const lastSeq = parseInt(lastNum.split('-').pop() || '0', 10);
+    sequence = lastSeq + 1;
+  }
+
+  return `PO-${datePrefix}-${sequence.toString().padStart(4, '0')}`;
+}
+
+// Helper to auto-create picking order for goods issue
+async function createPickingOrderForIssue(docId: string, doc: any, lines: DocumentLine[]) {
+  try {
+    const pickingNumber = await generatePickingNumber();
+
+    const { data: pickingOrder, error: pickingError } = await supabase
+      .from('picking_orders')
+      .insert({
+        picking_number: pickingNumber,
+        source_document_id: docId,
+        source_document_type: 'goods_issue',
+        location_id: doc.location_id,
+        partner_id: doc.partner_id,
+        status: 'open',
+        notes: `Picking za izdatnicu ${doc.document_number}`
+      })
+      .select()
+      .single();
+
+    if (pickingError) {
+      console.error('Failed to create picking order:', pickingError);
+      return null;
+    }
+
+    // Create picking order lines
+    const pickingLines = lines.map((line: any) => {
+      let lotNumber = null;
+      let expiryDate = null;
+      let binLocation = null;
+      let zone = null;
+      
+      if (line.notes) {
+        try {
+          const parsed = JSON.parse(line.notes);
+          if (parsed?.wms) {
+            lotNumber = parsed.wms.lotNumber || null;
+            expiryDate = parsed.wms.expiryDate || null;
+            binLocation = parsed.wms.binLocation || null;
+            zone = parsed.wms.binZone || null;
+          }
+        } catch {}
+      }
+
+      return {
+        picking_order_id: pickingOrder.id,
+        item_id: line.item_id,
+        required_quantity: line.quantity,
+        picked_quantity: 0,
+        lot_number: lotNumber,
+        expiry_date: expiryDate,
+        bin_location: binLocation,
+        zone: zone,
+        picked: false
+      };
+    });
+
+    if (pickingLines.length > 0) {
+      const { error: linesError } = await supabase
+        .from('picking_order_lines')
+        .insert(pickingLines);
+      
+      if (linesError) {
+        console.error('Failed to create picking order lines:', linesError);
+      }
+    }
+
+    return pickingOrder;
+  } catch (error) {
+    console.error('Error creating picking order:', error);
+    return null;
+  }
+}
+
 export function useCreateDocument() {
   const queryClient = useQueryClient();
   
@@ -303,11 +398,22 @@ export function useCreateDocument() {
         if (linesError) throw linesError;
       }
 
+      // Auto-create picking order for goods issues
+      if (document.document_type === 'goods_issue') {
+        await createPickingOrderForIssue(doc.id, doc, lines);
+      }
+
       return doc;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['warehouse-documents', variables.document.document_type] });
-      toast.success('Document created successfully');
+      queryClient.invalidateQueries({ queryKey: ['picking-orders'] });
+      
+      if (variables.document.document_type === 'goods_issue') {
+        toast.success('Izdatnica kreirana s picking nalogom');
+      } else {
+        toast.success('Document created successfully');
+      }
     },
     onError: (error: Error) => {
       toast.error(`Failed to create document: ${error.message}`);
