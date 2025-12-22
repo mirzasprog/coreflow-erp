@@ -10,6 +10,7 @@ import {
   Palette,
   Key,
   Truck,
+  FileText,
 } from "lucide-react";
 
 const settingsSections = [
@@ -17,6 +18,7 @@ const settingsSections = [
     title: "Master Data",
     items: [
       { icon: Truck, label: "Business Partners", description: "Manage suppliers and customers", href: "/settings/partners" },
+      { icon: FileText, label: "Pravilnici i Procedure", description: "Interni dokumenti za AI asistenta", href: "/settings/documents" },
       { icon: Building, label: "Company Settings", description: "Manage company information and locations", href: null },
     ],
   },
