@@ -273,6 +273,7 @@ export default function ItemsList() {
         if (locError) throw locError;
 
         // Create stock records for each location with initial quantity 0
+        // Use upsert to avoid duplicate key constraint violations
         if (locations && locations.length > 0) {
           const stockRecords = locations.map(loc => ({
             item_id: newItem.id,
@@ -283,7 +284,10 @@ export default function ItemsList() {
 
           const { error: stockError } = await supabase
             .from('stock')
-            .insert(stockRecords);
+            .upsert(stockRecords, { 
+              onConflict: 'item_id,location_id',
+              ignoreDuplicates: true 
+            });
           
           if (stockError) throw stockError;
         }
