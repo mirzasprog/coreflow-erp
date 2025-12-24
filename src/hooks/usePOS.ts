@@ -227,16 +227,52 @@ async function createPOSGoodsIssue({
   shift: POSShift;
   userId: string | null;
 }) {
-  if (!shift.terminal_id) return;
+  // Try to get location from terminal, or fall back to first store location
+  let locationId: string | null = null;
 
-  const { data: terminal, error: terminalError } = await supabase
-    .from("pos_terminals")
-    .select("id, location_id")
-    .eq("id", shift.terminal_id)
-    .maybeSingle();
+  if (shift.terminal_id) {
+    const { data: terminal, error: terminalError } = await supabase
+      .from("pos_terminals")
+      .select("id, location_id")
+      .eq("id", shift.terminal_id)
+      .maybeSingle();
 
-  if (terminalError) throw terminalError;
-  if (!terminal?.location_id) return;
+    if (terminalError) {
+      console.error("Error fetching terminal:", terminalError);
+    }
+    locationId = terminal?.location_id || null;
+  }
+
+  // Fallback: get first store location if no terminal location
+  if (!locationId) {
+    const { data: storeLocation } = await supabase
+      .from("locations")
+      .select("id")
+      .eq("type", "store")
+      .eq("active", true)
+      .limit(1)
+      .maybeSingle();
+
+    locationId = storeLocation?.id || null;
+  }
+
+  // If still no location, try any warehouse location
+  if (!locationId) {
+    const { data: warehouseLocation } = await supabase
+      .from("locations")
+      .select("id")
+      .eq("active", true)
+      .limit(1)
+      .maybeSingle();
+
+    locationId = warehouseLocation?.id || null;
+  }
+
+  // If no location found at all, skip goods issue creation (but don't fail the receipt)
+  if (!locationId) {
+    console.warn("No location found for POS goods issue - skipping stock update");
+    return;
+  }
 
   const documentNumber = `IZ-POS-${receiptNumber}`;
   const documentDate = receiptDate.split("T")[0];
@@ -252,7 +288,7 @@ async function createPOSGoodsIssue({
       document_type: "goods_issue",
       document_number: documentNumber,
       document_date: documentDate,
-      location_id: terminal.location_id,
+      location_id: locationId,
       notes: `Auto goods issue for POS receipt ${receiptNumber}`,
       status: "posted",
       posted_at: new Date().toISOString(),
@@ -279,7 +315,7 @@ async function createPOSGoodsIssue({
   if (linesError) throw linesError;
 
   for (const line of lines) {
-    await updateStock(line.item_id, terminal.location_id, -line.quantity);
+    await updateStock(line.item_id, locationId, -line.quantity);
   }
 }
 
