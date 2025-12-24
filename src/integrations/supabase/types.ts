@@ -276,6 +276,50 @@ export type Database = {
         }
         Relationships: []
       }
+      competitor_prices: {
+        Row: {
+          competitor_name: string
+          created_at: string
+          id: string
+          item_id: string
+          location: string | null
+          notes: string | null
+          observed_date: string
+          price: number
+          source: string | null
+        }
+        Insert: {
+          competitor_name: string
+          created_at?: string
+          id?: string
+          item_id: string
+          location?: string | null
+          notes?: string | null
+          observed_date?: string
+          price: number
+          source?: string | null
+        }
+        Update: {
+          competitor_name?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          location?: string | null
+          notes?: string | null
+          observed_date?: string
+          price?: number
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_prices_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           annual_leave_days: number | null
@@ -1041,6 +1085,33 @@ export type Database = {
           },
         ]
       }
+      module_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          module_name: string
+          settings: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          module_name: string
+          settings?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          module_name?: string
+          settings?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       partners: {
         Row: {
           active: boolean | null
@@ -1774,6 +1845,336 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_changes_history: {
+        Row: {
+          change_reason: string | null
+          change_type: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          item_id: string
+          new_price: number
+          old_price: number | null
+          price_list_id: string | null
+        }
+        Insert: {
+          change_reason?: string | null
+          change_type: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          item_id: string
+          new_price: number
+          old_price?: number | null
+          price_list_id?: string | null
+        }
+        Update: {
+          change_reason?: string | null
+          change_type?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          new_price?: number
+          old_price?: number | null
+          price_list_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_changes_history_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_changes_history_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_list_items: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          margin_percent: number | null
+          max_price: number | null
+          min_price: number | null
+          price_list_id: string
+          selling_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          margin_percent?: number | null
+          max_price?: number | null
+          min_price?: number | null
+          price_list_id: string
+          selling_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          margin_percent?: number | null
+          max_price?: number | null
+          min_price?: number | null
+          price_list_id?: string
+          selling_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_list_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_list_items_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_list_locations: {
+        Row: {
+          created_at: string
+          id: string
+          location_id: string
+          price_list_id: string
+          priority: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location_id: string
+          price_list_id: string
+          priority?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location_id?: string
+          price_list_id?: string
+          priority?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_list_locations_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_list_locations_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "price_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_lists: {
+        Row: {
+          active: boolean | null
+          code: string
+          created_at: string
+          created_by: string | null
+          currency: string | null
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          code: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
+      promo_activities: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_amount: number | null
+          discount_percent: number | null
+          end_date: string
+          id: string
+          is_holiday_promo: boolean | null
+          is_weekend_only: boolean | null
+          name: string
+          promo_type: string
+          season: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          end_date: string
+          id?: string
+          is_holiday_promo?: boolean | null
+          is_weekend_only?: boolean | null
+          name: string
+          promo_type?: string
+          season?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          end_date?: string
+          id?: string
+          is_holiday_promo?: boolean | null
+          is_weekend_only?: boolean | null
+          name?: string
+          promo_type?: string
+          season?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      promo_activity_locations: {
+        Row: {
+          created_at: string
+          id: string
+          location_id: string
+          promo_activity_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location_id: string
+          promo_activity_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location_id?: string
+          promo_activity_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_activity_locations_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_activity_locations_promo_activity_id_fkey"
+            columns: ["promo_activity_id"]
+            isOneToOne: false
+            referencedRelation: "promo_activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_items: {
+        Row: {
+          ai_suggested_price: number | null
+          ai_suggestion_reason: string | null
+          created_at: string
+          id: string
+          item_id: string
+          original_price: number
+          promo_activity_id: string
+          promo_price: number
+          updated_at: string
+        }
+        Insert: {
+          ai_suggested_price?: number | null
+          ai_suggestion_reason?: string | null
+          created_at?: string
+          id?: string
+          item_id: string
+          original_price: number
+          promo_activity_id: string
+          promo_price: number
+          updated_at?: string
+        }
+        Update: {
+          ai_suggested_price?: number | null
+          ai_suggestion_reason?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          original_price?: number
+          promo_activity_id?: string
+          promo_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_items_promo_activity_id_fkey"
+            columns: ["promo_activity_id"]
+            isOneToOne: false
+            referencedRelation: "promo_activities"
             referencedColumns: ["id"]
           },
         ]
