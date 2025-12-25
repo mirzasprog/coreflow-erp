@@ -397,12 +397,15 @@ export default function PromoActivitiesPage() {
 
               <div>
                 <Label>Godišnje doba</Label>
-                <Select value={formData.season} onValueChange={(v) => setFormData({ ...formData, season: v })}>
+                <Select 
+                  value={formData.season || "none"} 
+                  onValueChange={(v) => setFormData({ ...formData, season: v === "none" ? "" : v })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Nije definirano" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nije definirano</SelectItem>
+                    <SelectItem value="none">Nije definirano</SelectItem>
                     {seasons.map(s => (
                       <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                     ))}
