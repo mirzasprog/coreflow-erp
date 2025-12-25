@@ -73,6 +73,13 @@ import HSEMedicalChecks from "./pages/hse/HSEMedicalChecks";
 import SettingsIndex from "./pages/settings/SettingsIndex";
 import PartnersList from "./pages/settings/PartnersList";
 import CompanyDocuments from "./pages/settings/CompanyDocuments";
+import PricingIndex from "./pages/pricing/PricingIndex";
+import PriceListsPage from "./pages/pricing/PriceListsPage";
+import PriceListDetailPage from "./pages/pricing/PriceListDetailPage";
+import PromoActivitiesPage from "./pages/pricing/PromoActivitiesPage";
+import PromoDetailPage from "./pages/pricing/PromoDetailPage";
+import PriceHistoryPage from "./pages/pricing/PriceHistoryPage";
+import CompetitorPricesPage from "./pages/pricing/CompetitorPricesPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -168,6 +175,13 @@ const App = () => (
               <Route path="/hse/inspections" element={<HSEInspections />} />
               <Route path="/hse/medical" element={<HSEMedicalChecks />} />
               <Route path="/hse/calendar" element={<HSECalendar />} />
+              <Route path="/pricing" element={<PricingIndex />} />
+              <Route path="/pricing/price-lists" element={<PriceListsPage />} />
+              <Route path="/pricing/price-lists/:id" element={<PriceListDetailPage />} />
+              <Route path="/pricing/promos" element={<PromoActivitiesPage />} />
+              <Route path="/pricing/promos/:id" element={<PromoDetailPage />} />
+              <Route path="/pricing/history" element={<PriceHistoryPage />} />
+              <Route path="/pricing/competitors" element={<CompetitorPricesPage />} />
               <Route path="/settings" element={<SettingsIndex />} />
               <Route path="/settings/partners" element={<PartnersList />} />
               <Route path="/settings/documents" element={<CompanyDocuments />} />

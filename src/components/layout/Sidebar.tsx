@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Building2,
+  Tags,
   PanelsTopLeft,
   LineChart,
 } from "lucide-react";
@@ -58,6 +59,7 @@ const sections: SidebarSection[] = [
     items: [
       { icon: DollarSign, label: "Finance", labelAlt: "Financije", href: "/finance", color: "text-module-finance" },
       { icon: HardDrive, label: "Fixed Assets", labelAlt: "Osnovna sredstva", href: "/assets", color: "text-module-assets" },
+      { icon: Tags, label: "Pricing", labelAlt: "Upravljanje cijenama", href: "/pricing", color: "text-module-pricing" },
     ],
   },
   {
