@@ -88,6 +88,7 @@ export default function PromoActivitiesPage() {
     is_weekend_only: false,
     is_holiday_promo: false,
     season: '',
+    status: 'draft',
     location_ids: [] as string[]
   });
 
@@ -114,6 +115,7 @@ export default function PromoActivitiesPage() {
       is_weekend_only: false,
       is_holiday_promo: false,
       season: '',
+      status: 'draft',
       location_ids: []
     });
     setIsDialogOpen(true);
@@ -133,6 +135,7 @@ export default function PromoActivitiesPage() {
       is_weekend_only: promo.is_weekend_only || false,
       is_holiday_promo: promo.is_holiday_promo || false,
       season: promo.season || '',
+      status: promo.status || 'draft',
       location_ids: promo.promo_activity_locations?.map((pl: any) => pl.location_id) || []
     });
     setIsDialogOpen(true);
@@ -153,7 +156,8 @@ export default function PromoActivitiesPage() {
         ...formData,
         discount_percent: formData.discount_percent ? parseFloat(formData.discount_percent) : undefined,
         discount_amount: formData.discount_amount ? parseFloat(formData.discount_amount) : undefined,
-        season: formData.season || undefined
+        season: formData.season || undefined,
+        status: editingPromo ? formData.status : 'draft'
       };
 
       if (editingPromo) {
@@ -320,6 +324,7 @@ export default function PromoActivitiesPage() {
                   <Input
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    disabled={!!editingPromo}
                   />
                 </div>
                 <div>
@@ -336,6 +341,23 @@ export default function PromoActivitiesPage() {
                   </Select>
                 </div>
               </div>
+
+              {editingPromo && (
+                <div>
+                  <Label>Status</Label>
+                  <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Priprema</SelectItem>
+                      <SelectItem value="active">Aktivna</SelectItem>
+                      <SelectItem value="completed">Završena</SelectItem>
+                      <SelectItem value="cancelled">Otkazana</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div>
                 <Label>Naziv *</Label>
