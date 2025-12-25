@@ -58,7 +58,7 @@ export default function PricingIndex() {
       title: 'Cjenici',
       description: 'Upravljanje cjenicima i dodjeljivanje lokacijama',
       icon: ListOrdered,
-      href: '/pricing/lists',
+      href: '/pricing/price-lists',
       count: activePriceLists,
       countLabel: 'aktivnih',
       color: 'text-blue-500'

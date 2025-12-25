@@ -10,10 +10,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NavLink } from 'react-router-dom';
-import { ArrowLeft, Plus, Sparkles, CheckCircle, AlertTriangle, XCircle, Loader2 } from 'lucide-react';
-import { usePromoActivity, useAddPromoItem, analyzePriceWithAI } from '@/hooks/usePriceManagement';
+import { ArrowLeft, Plus, Sparkles, CheckCircle, AlertTriangle, XCircle, Loader2, Calendar, MapPin, Tag, Percent } from 'lucide-react';
+import { usePromoActivity, useAddPromoItem, useUpdatePromoActivity, analyzePriceWithAI } from '@/hooks/usePriceManagement';
 import { useItems } from '@/hooks/useMasterData';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+
+const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  active: 'default',
+  draft: 'secondary',
+  completed: 'outline',
+  cancelled: 'destructive'
+};
+
+const statusLabels: Record<string, string> = {
+  active: 'Aktivna',
+  draft: 'Priprema',
+  completed: 'Završena',
+  cancelled: 'Otkazana'
+};
 
 export default function PromoDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +36,7 @@ export default function PromoDetailPage() {
   const { data: promo, isLoading } = usePromoActivity(id);
   const { data: allItems } = useItems();
   const addPromoItem = useAddPromoItem();
+  const updatePromo = useUpdatePromoActivity();
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState('');
@@ -77,9 +93,21 @@ export default function PromoDetailPage() {
     }
   };
 
+  const handleStatusChange = async (newStatus: string) => {
+    if (!id) return;
+    try {
+      await updatePromo.mutateAsync({ id, status: newStatus });
+      toast({ title: 'Uspješno', description: 'Status promocije ažuriran' });
+    } catch (error: any) {
+      toast({ title: 'Greška', description: error.message, variant: 'destructive' });
+    }
+  };
+
   if (isLoading || !promo) {
     return <div className="flex items-center justify-center p-12"><div className="text-muted-foreground">Učitavanje...</div></div>;
   }
+
+  const promoLocations = promo.promo_activity_locations || [];
 
   return (
     <div>
@@ -89,37 +117,127 @@ export default function PromoDetailPage() {
           <ArrowLeft className="mr-1 h-4 w-4" /> Nazad
         </NavLink>
 
+        {/* Promo Info Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Detalji Promocije
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Select value={promo.status} onValueChange={handleStatusChange}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Priprema</SelectItem>
+                    <SelectItem value="active">Aktivna</SelectItem>
+                    <SelectItem value="completed">Završena</SelectItem>
+                    <SelectItem value="cancelled">Otkazana</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Badge variant={statusColors[promo.status] || 'secondary'}>
+                  {statusLabels[promo.status] || promo.status}
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="flex items-center gap-3">
+                <Calendar className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="text-sm text-muted-foreground">Period</div>
+                  <div className="font-medium">
+                    {format(new Date(promo.start_date), 'dd.MM.yyyy')} - {format(new Date(promo.end_date), 'dd.MM.yyyy')}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Percent className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="text-sm text-muted-foreground">Popust</div>
+                  <div className="font-medium">
+                    {promo.discount_percent && `${promo.discount_percent}%`}
+                    {promo.discount_percent && promo.discount_amount && ' / '}
+                    {promo.discount_amount && `${promo.discount_amount} KM`}
+                    {!promo.discount_percent && !promo.discount_amount && 'Nije definiran'}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <MapPin className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="text-sm text-muted-foreground">Lokacije</div>
+                  <div className="font-medium">
+                    {promoLocations.length > 0 
+                      ? promoLocations.map((pl: any) => pl.locations?.name).filter(Boolean).join(', ')
+                      : 'Sve lokacije'
+                    }
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Tag className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="text-sm text-muted-foreground">Dodatno</div>
+                  <div className="flex gap-1">
+                    {promo.is_weekend_only && <Badge variant="outline">Vikend</Badge>}
+                    {promo.is_holiday_promo && <Badge variant="outline">Praznik</Badge>}
+                    {promo.season && <Badge variant="outline">{promo.season}</Badge>}
+                    {!promo.is_weekend_only && !promo.is_holiday_promo && !promo.season && <span className="text-muted-foreground">-</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {promo.description && (
+              <div className="mt-4 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">Opis</div>
+                <div>{promo.description}</div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Promo Items Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Artikli u Promociji ({promo.promo_items?.length || 0})</CardTitle>
             <Button onClick={() => setIsAddDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />Dodaj Artikal</Button>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Artikal</TableHead>
-                  <TableHead className="text-right">Originalna</TableHead>
-                  <TableHead className="text-right">Promo cijena</TableHead>
-                  <TableHead className="text-right">Popust</TableHead>
-                  <TableHead>AI Sugestija</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {promo.promo_items?.map((pi: any) => {
-                  const discount = pi.original_price > 0 ? ((pi.original_price - pi.promo_price) / pi.original_price * 100) : 0;
-                  return (
-                    <TableRow key={pi.id}>
-                      <TableCell>{pi.items?.code} - {pi.items?.name}</TableCell>
-                      <TableCell className="text-right text-muted-foreground">{pi.original_price.toFixed(2)} KM</TableCell>
-                      <TableCell className="text-right font-medium">{pi.promo_price.toFixed(2)} KM</TableCell>
-                      <TableCell className="text-right"><Badge variant="secondary">-{discount.toFixed(0)}%</Badge></TableCell>
-                      <TableCell>{pi.ai_suggestion_reason || '-'}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            {promo.promo_items?.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                Nema artikala u promociji. Dodajte artikle klikom na "Dodaj Artikal".
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Artikal</TableHead>
+                    <TableHead className="text-right">Originalna</TableHead>
+                    <TableHead className="text-right">Promo cijena</TableHead>
+                    <TableHead className="text-right">Popust</TableHead>
+                    <TableHead>AI Sugestija</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {promo.promo_items?.map((pi: any) => {
+                    const discount = pi.original_price > 0 ? ((pi.original_price - pi.promo_price) / pi.original_price * 100) : 0;
+                    return (
+                      <TableRow key={pi.id}>
+                        <TableCell>{pi.items?.code} - {pi.items?.name}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{pi.original_price.toFixed(2)} KM</TableCell>
+                        <TableCell className="text-right font-medium">{pi.promo_price.toFixed(2)} KM</TableCell>
+                        <TableCell className="text-right"><Badge variant="secondary">-{discount.toFixed(0)}%</Badge></TableCell>
+                        <TableCell>{pi.ai_suggestion_reason || '-'}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 
