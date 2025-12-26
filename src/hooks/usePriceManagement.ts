@@ -251,37 +251,18 @@ export function usePromoActivities() {
       if (error) throw error;
       
       // Auto-transition statuses based on dates
+      // NOTE: Draft promos do NOT auto-activate - user must manually activate them
+      // Only active promos auto-transition to completed when end_date passes
       if (data) {
         for (const promo of data) {
           let newStatus: string | null = null;
           
-          // Draft -> Active when start_date arrives
-          if (promo.status === 'draft' && promo.start_date <= today && promo.end_date >= today) {
-            newStatus = 'active';
-          }
           // Active -> Completed when end_date passes
-          else if (promo.status === 'active' && promo.end_date < today) {
+          if (promo.status === 'active' && promo.end_date < today) {
             newStatus = 'completed';
           }
           
           if (newStatus) {
-            // If becoming active, apply promo prices
-            if (newStatus === 'active') {
-              const { data: promoItems } = await supabase
-                .from('promo_items')
-                .select('item_id, promo_price')
-                .eq('promo_activity_id', promo.id);
-              
-              if (promoItems && promoItems.length > 0) {
-                for (const pi of promoItems) {
-                  await supabase
-                    .from('items')
-                    .update({ selling_price: pi.promo_price })
-                    .eq('id', pi.item_id);
-                }
-              }
-            }
-            
             // If becoming completed, restore original prices
             if (newStatus === 'completed') {
               const { data: promoItems } = await supabase
