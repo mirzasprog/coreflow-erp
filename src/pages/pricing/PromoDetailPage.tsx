@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { NavLink } from 'react-router-dom';
-import { ArrowLeft, Plus, Sparkles, CheckCircle, AlertTriangle, XCircle, Loader2, Calendar, MapPin, Tag, Percent } from 'lucide-react';
+import { ArrowLeft, Plus, Sparkles, CheckCircle, AlertTriangle, XCircle, Loader2, Calendar, MapPin, Tag, Percent, Lock } from 'lucide-react';
 import { usePromoActivity, useAddPromoItem, useUpdatePromoActivity, analyzePriceWithAI } from '@/hooks/usePriceManagement';
 import { useItems } from '@/hooks/useMasterData';
 import { useToast } from '@/hooks/use-toast';
@@ -95,6 +95,17 @@ export default function PromoDetailPage() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!id) return;
+    if (promo?.status !== 'draft' && newStatus !== promo?.status) {
+      // Can only change status from draft, or cancel active promo
+      if (promo?.status === 'active' && newStatus !== 'cancelled') {
+        toast({ title: 'Greška', description: 'Aktivna promocija se može samo otkazati', variant: 'destructive' });
+        return;
+      }
+      if (promo?.status === 'completed' || promo?.status === 'cancelled') {
+        toast({ title: 'Greška', description: 'Završena ili otkazana promocija se ne može mijenjati', variant: 'destructive' });
+        return;
+      }
+    }
     try {
       await updatePromo.mutateAsync({ id, status: newStatus });
       toast({ title: 'Uspješno', description: 'Status promocije ažuriran' });
@@ -102,6 +113,8 @@ export default function PromoDetailPage() {
       toast({ title: 'Greška', description: error.message, variant: 'destructive' });
     }
   };
+
+  const isLocked = promo?.status !== 'draft';
 
   if (isLoading || !promo) {
     return <div className="flex items-center justify-center p-12"><div className="text-muted-foreground">Učitavanje...</div></div>;
@@ -126,17 +139,22 @@ export default function PromoDetailPage() {
                 Detalji Promocije
               </CardTitle>
               <div className="flex items-center gap-2">
-                <Select value={promo.status} onValueChange={handleStatusChange}>
-                  <SelectTrigger className="w-36">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Priprema</SelectItem>
-                    <SelectItem value="active">Aktivna</SelectItem>
-                    <SelectItem value="completed">Završena</SelectItem>
-                    <SelectItem value="cancelled">Otkazana</SelectItem>
-                  </SelectContent>
-                </Select>
+                {promo.status === 'draft' ? (
+                  <Select value={promo.status} onValueChange={handleStatusChange}>
+                    <SelectTrigger className="w-36">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Priprema</SelectItem>
+                      <SelectItem value="active">Aktivna</SelectItem>
+                      <SelectItem value="cancelled">Otkazana</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : promo.status === 'active' ? (
+                  <Button variant="destructive" size="sm" onClick={() => handleStatusChange('cancelled')}>
+                    Otkaži promociju
+                  </Button>
+                ) : null}
                 <Badge variant={statusColors[promo.status] || 'secondary'}>
                   {statusLabels[promo.status] || promo.status}
                 </Badge>
@@ -204,8 +222,18 @@ export default function PromoDetailPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Artikli u Promociji ({promo.promo_items?.length || 0})</CardTitle>
-            <Button onClick={() => setIsAddDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />Dodaj Artikal</Button>
+            {!isLocked && (
+              <Button onClick={() => setIsAddDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />Dodaj Artikal</Button>
+            )}
           </CardHeader>
+          {isLocked && (
+            <CardContent className="pt-0 pb-2">
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-sm">
+                <Lock className="h-4 w-4" />
+                <span>Promocija je zaključana. Artikli se ne mogu dodavati niti mijenjati.</span>
+              </div>
+            </CardContent>
+          )}
           <CardContent>
             {promo.promo_items?.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">

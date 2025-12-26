@@ -122,6 +122,15 @@ export default function PromoActivitiesPage() {
   };
 
   const openEditDialog = (promo: any) => {
+    // Don't allow editing if not in draft status
+    if (promo.status !== 'draft') {
+      toast({
+        title: 'Zaključano',
+        description: 'Promocija nije u statusu pripreme i ne može se uređivati',
+        variant: 'destructive'
+      });
+      return;
+    }
     setEditingPromo(promo);
     setFormData({
       code: promo.code,
@@ -291,16 +300,18 @@ export default function PromoActivitiesPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditDialog(promo);
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          {promo.status === 'draft' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditDialog(promo);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))
