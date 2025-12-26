@@ -233,6 +233,9 @@ export function usePromoActivities() {
   return useQuery({
     queryKey: ['promo-activities'],
     queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // First get all promos
       const { data, error } = await supabase
         .from('promo_activities')
         .select(`
@@ -246,6 +249,67 @@ export function usePromoActivities() {
         .order('start_date', { ascending: false });
       
       if (error) throw error;
+      
+      // Auto-transition statuses based on dates
+      if (data) {
+        for (const promo of data) {
+          let newStatus: string | null = null;
+          
+          // Draft -> Active when start_date arrives
+          if (promo.status === 'draft' && promo.start_date <= today && promo.end_date >= today) {
+            newStatus = 'active';
+          }
+          // Active -> Completed when end_date passes
+          else if (promo.status === 'active' && promo.end_date < today) {
+            newStatus = 'completed';
+          }
+          
+          if (newStatus) {
+            // If becoming active, apply promo prices
+            if (newStatus === 'active') {
+              const { data: promoItems } = await supabase
+                .from('promo_items')
+                .select('item_id, promo_price')
+                .eq('promo_activity_id', promo.id);
+              
+              if (promoItems && promoItems.length > 0) {
+                for (const pi of promoItems) {
+                  await supabase
+                    .from('items')
+                    .update({ selling_price: pi.promo_price })
+                    .eq('id', pi.item_id);
+                }
+              }
+            }
+            
+            // If becoming completed, restore original prices
+            if (newStatus === 'completed') {
+              const { data: promoItems } = await supabase
+                .from('promo_items')
+                .select('item_id, original_price')
+                .eq('promo_activity_id', promo.id);
+              
+              if (promoItems && promoItems.length > 0) {
+                for (const pi of promoItems) {
+                  await supabase
+                    .from('items')
+                    .update({ selling_price: pi.original_price })
+                    .eq('id', pi.item_id);
+                }
+              }
+            }
+            
+            // Update promo status
+            await supabase
+              .from('promo_activities')
+              .update({ status: newStatus, updated_at: new Date().toISOString() })
+              .eq('id', promo.id);
+            
+            promo.status = newStatus;
+          }
+        }
+      }
+      
       return data;
     }
   });
@@ -348,6 +412,51 @@ export function useUpdatePromoActivity() {
     }) => {
       const { location_ids, ...promoData } = data;
       
+      // Check if status is changing to active - apply promo prices to items
+      if (data.status === 'active') {
+        // Get promo items and apply their promo prices to items table
+        const { data: promoItems } = await supabase
+          .from('promo_items')
+          .select('item_id, promo_price, original_price')
+          .eq('promo_activity_id', id);
+        
+        if (promoItems && promoItems.length > 0) {
+          for (const pi of promoItems) {
+            await supabase
+              .from('items')
+              .update({ selling_price: pi.promo_price })
+              .eq('id', pi.item_id);
+          }
+        }
+      }
+      
+      // If changing back from active to another status, restore original prices
+      if (data.status && data.status !== 'active') {
+        // First check current status
+        const { data: currentPromo } = await supabase
+          .from('promo_activities')
+          .select('status')
+          .eq('id', id)
+          .single();
+        
+        if (currentPromo?.status === 'active') {
+          // Restore original prices
+          const { data: promoItems } = await supabase
+            .from('promo_items')
+            .select('item_id, original_price')
+            .eq('promo_activity_id', id);
+          
+          if (promoItems && promoItems.length > 0) {
+            for (const pi of promoItems) {
+              await supabase
+                .from('items')
+                .update({ selling_price: pi.original_price })
+                .eq('id', pi.item_id);
+            }
+          }
+        }
+      }
+      
       const { error } = await supabase
         .from('promo_activities')
         .update({ ...promoData, updated_at: new Date().toISOString() })
@@ -376,6 +485,8 @@ export function useUpdatePromoActivity() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['promo-activities'] });
       queryClient.invalidateQueries({ queryKey: ['promo-activity', id] });
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['items-list'] });
     }
   });
 }

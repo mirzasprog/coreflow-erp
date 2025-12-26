@@ -27,13 +27,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Plus, Pencil, Package } from 'lucide-react';
+import { Search, Plus, Pencil, Package, Lock } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { ArrowLeft } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { usePartners } from '@/hooks/useMasterData';
 import { useToast } from '@/hooks/use-toast';
+import { useModuleSettings } from '@/hooks/usePriceManagement';
 
 
 interface Item {
@@ -154,6 +155,9 @@ export default function ItemsList() {
   const { data: units } = useUnits();
   const { data: vatRates } = useVatRates();
   const { data: categories } = useCategories();
+  const { data: pricingModule } = useModuleSettings('pricing');
+  
+  const isPricingEnabled = pricingModule?.enabled === true;
   
   const [search, setSearch] = useState('');
   const [editItem, setEditItem] = useState<Item | null>(null);
@@ -326,6 +330,20 @@ export default function ItemsList() {
           </NavLink>
         </div>
 
+        {isPricingEnabled && (
+          <Card className="mb-4 border-yellow-500/50 bg-yellow-500/10">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+                <Lock className="h-5 w-5" />
+                <span className="font-medium">Modul cijena je aktivan</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Upravljanje artiklima je dostupno samo za pregledavanje. Za izmjenu cijena koristite modul Upravljanje Cijenama.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -343,10 +361,12 @@ export default function ItemsList() {
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-                <Button onClick={openNewDialog}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Item
-                </Button>
+                {!isPricingEnabled && (
+                  <Button onClick={openNewDialog}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Item
+                  </Button>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -409,13 +429,15 @@ export default function ItemsList() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => openEditDialog(item)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          {!isPricingEnabled && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => openEditDialog(item)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))
