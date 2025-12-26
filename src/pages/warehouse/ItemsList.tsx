@@ -155,7 +155,7 @@ export default function ItemsList() {
   const { data: units } = useUnits();
   const { data: vatRates } = useVatRates();
   const { data: categories } = useCategories();
-  const { data: pricingModule } = useModuleSettings('pricing');
+  const { data: pricingModule } = useModuleSettings('price_management');
   
   const isPricingEnabled = pricingModule?.enabled === true;
   
