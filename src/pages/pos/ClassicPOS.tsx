@@ -107,8 +107,9 @@ export default function ClassicPOS() {
       setShowPayment(false);
       setCart([]);
       toast.success("Sale completed successfully!");
-    } catch (error) {
-      toast.error("Failed to process payment");
+    } catch (error: any) {
+      console.error("Payment error:", error);
+      toast.error(error?.message || "Failed to process payment");
     }
   };
 

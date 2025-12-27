@@ -369,6 +369,8 @@ export function useCreateReceipt() {
       const total = subtotal;
 
       // Create receipt
+      // Note: cashier_id must reference employees table, not auth.users
+      // Only use shift.cashier_id which is already an employee reference
       const { data: receipt, error: receiptError } = await supabase
         .from("pos_receipts")
         .insert({
@@ -381,7 +383,7 @@ export function useCreateReceipt() {
           total: total,
           shift_id: shiftId || null,
           terminal_id: shift.terminal_id,
-          cashier_id: shift.cashier_id || user?.id || null,
+          cashier_id: shift.cashier_id || null,
         })
         .select()
         .single();
