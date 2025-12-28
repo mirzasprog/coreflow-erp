@@ -118,42 +118,68 @@ serve(async (req) => {
       contextData.push(`AKTIVNI PICKING NALOZI:\n${pickingInfo}`);
     }
 
-    // Get company documents/procedures
+    // Get company documents/procedures - search by keywords from user message
     const { data: documents } = await supabase
       .from('company_documents')
       .select('*')
-      .eq('active', true)
-      .limit(50);
+      .eq('active', true);
 
     let proceduresContext = '';
+    let relevantDocs: any[] = [];
+    
     if (documents && documents.length > 0) {
-      proceduresContext = documents.map((d: any) => 
-        `DOKUMENT: ${d.title}\nKATEGORIJA: ${d.category}\nSADRŽAJ:\n${d.content}\n---`
-      ).join('\n');
+      // Search for relevant documents based on user message keywords
+      const messageLower = message.toLowerCase();
+      const keywords = messageLower.split(/\s+/).filter((w: string) => w.length > 2);
+      
+      relevantDocs = documents.filter((d: any) => {
+        const titleLower = d.title.toLowerCase();
+        const contentLower = d.content.toLowerCase();
+        const categoryLower = d.category.toLowerCase();
+        const docKeywords = (d.keywords || []).map((k: string) => k.toLowerCase());
+        
+        // Check if any keyword from user message matches document
+        return keywords.some((kw: string) => 
+          titleLower.includes(kw) || 
+          contentLower.includes(kw) || 
+          categoryLower.includes(kw) ||
+          docKeywords.some((dk: string) => dk.includes(kw))
+        );
+      });
+      
+      // If no relevant docs found by keywords, include all docs for general questions
+      const docsToUse = relevantDocs.length > 0 ? relevantDocs : documents.slice(0, 20);
+      
+      proceduresContext = docsToUse.map((d: any) => 
+        `DOKUMENT: ${d.title}\nKATEGORIJA: ${d.category}\nKLJUČNE RIJEČI: ${(d.keywords || []).join(', ')}\nSADRŽAJ:\n${d.content}\n---`
+      ).join('\n\n');
     }
 
-    const systemPrompt = `Ti si AI asistent za upravljanje skladištem i poslovanjem. Odgovaraš SAMO na temelju podataka koje dobiješ.
+    console.log(`Found ${documents?.length || 0} total docs, ${relevantDocs.length} relevant docs for query: "${message}"`);
 
-KRITIČNO VAŽNO:
-- Ako nemaš informaciju, reci "Nemam tu informaciju u bazi podataka."
-- NIKADA ne izmišljaj podatke, brojeve ili činjenice
-- Odgovaraj samo na temelju stvarnih podataka iz sustava
-- Ako te pitaju o procedurama a nemaš dokument o tome, reci "Procedura za to nije definirana u sustavu."
+    const systemPrompt = `Ti si AI asistent za upravljanje skladištem, poslovanjem i internim procedurama tvrtke. 
+Tvoj primarni zadatak je pomoći korisnicima pronalaženjem informacija iz baze znanja i poslovnih podataka.
 
-TVOJI PODACI IZ SUSTAVA:
-${contextData.length > 0 ? contextData.join('\n\n') : 'Nema relevantnih podataka u sustavu.'}
+PRIORITET ODGOVARANJA:
+1. PRVO pregledaj INTERNI PRAVILNICI I PROCEDURE - ako postoji dokument koji odgovara pitanju, KORISTI GA i daj detaljan odgovor
+2. Za pitanja o zalihama, narudžbama, prodaji - koristi poslovne podatke iz sustava
+3. Ako apsolutno nemaš nikakvu relevantnu informaciju, tek tada reci da nemaš tu informaciju
 
-${proceduresContext ? `INTERNI PRAVILNICI I PROCEDURE:\n${proceduresContext}` : 'Nema definiranih internih pravilnika i procedura u sustavu.'}
+TVOJI POSLOVNI PODACI IZ SUSTAVA:
+${contextData.length > 0 ? contextData.join('\n\n') : 'Nema trenutno relevantnih poslovnih podataka.'}
 
-Kada te pitaju:
-- O isteku robe: koristi podatke iz ROBA KOJA ISTIČE
-- O narudžbama: koristi podatke iz AKTIVNE NARUDŽBE
-- O zalihama: koristi podatke iz ARTIKLI ISPOD MINIMALNIH ZALIHA
-- O prodaji: koristi podatke iz PRODAJA
-- O picking nalozima: koristi podatke iz AKTIVNI PICKING NALOZI
-- O pravilnicima/procedurama: koristi INTERNI PRAVILNICI I PROCEDURE
+INTERNI PRAVILNICI I PROCEDURE (BAZA ZNANJA):
+${proceduresContext || 'Nema definiranih internih pravilnika i procedura u sustavu.'}
 
-Budi koncizan i jasan. Koristi bullet points. Odgovaraj na hrvatskom jeziku.`;
+PRAVILA:
+- Kada te pitaju o procedurama, uputama, pravilnicima - DETALJNO pregledaj sve dokumente i daj POTPUN odgovor iz sadržaja dokumenta
+- Ne govori "procedura nije definirana" ako postoji relevantan dokument - umjesto toga, izvuci i objasni sadržaj
+- Ako dokument postoji ali nije potpuno jasan, reci što piše i napomeni da korisnik može zatražiti dodatne informacije
+- Budi precizan i citriaj informacije iz dokumenata
+- Ako pitanje nije pokriveno dokumentima niti poslovnim podacima, iskreno reci da nemaš tu informaciju
+- Koristi bullet points za jasnoću
+- Odgovaraj na hrvatskom jeziku`;
+
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
