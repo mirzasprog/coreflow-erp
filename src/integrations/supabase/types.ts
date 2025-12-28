@@ -195,6 +195,51 @@ export type Database = {
           },
         ]
       }
+      chatbot_history: {
+        Row: {
+          answer: string
+          created_at: string
+          has_knowledge_gap: boolean | null
+          id: string
+          question: string
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          suggested_answer: string | null
+          updated_at: string
+          user_id: string | null
+          was_helpful: boolean | null
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          has_knowledge_gap?: boolean | null
+          id?: string
+          question: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          suggested_answer?: string | null
+          updated_at?: string
+          user_id?: string | null
+          was_helpful?: boolean | null
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          has_knowledge_gap?: boolean | null
+          id?: string
+          question?: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          suggested_answer?: string | null
+          updated_at?: string
+          user_id?: string | null
+          was_helpful?: boolean | null
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           active: boolean | null
