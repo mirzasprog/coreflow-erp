@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle, X, Send, Loader2, Bot, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -13,6 +14,7 @@ interface Message {
 }
 
 export function ManagementChatbot() {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { 
@@ -40,7 +42,7 @@ export function ManagementChatbot() {
 
     try {
       const { data, error } = await supabase.functions.invoke('management-chat', {
-        body: { message: userMessage }
+        body: { message: userMessage, userId: user?.id }
       });
 
       if (error) {

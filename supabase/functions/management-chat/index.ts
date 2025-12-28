@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message } = await req.json();
+    const { message, userId } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -126,60 +126,96 @@ serve(async (req) => {
 
     let proceduresContext = '';
     let relevantDocs: any[] = [];
+    let hasKnowledgeGap = false;
     
     if (documents && documents.length > 0) {
       // Search for relevant documents based on user message keywords
       const messageLower = message.toLowerCase();
-      const keywords = messageLower.split(/\s+/).filter((w: string) => w.length > 2);
+      // Extract meaningful keywords (longer than 2 chars, remove common words)
+      const stopWords = ['kako', 'što', 'sto', 'gdje', 'kada', 'zašto', 'zasto', 'koji', 'koja', 'koje', 'mogu', 'moze', 'može', 'imam', 'imati', 'treba', 'trebam', 'hocu', 'hoću', 'zelim', 'želim', 'molim', 'hvala'];
+      const keywords = messageLower
+        .split(/\s+/)
+        .filter((w: string) => w.length > 2 && !stopWords.includes(w));
       
-      relevantDocs = documents.filter((d: any) => {
+      console.log(`Searching with keywords: ${keywords.join(', ')}`);
+      
+      // Score documents by relevance
+      const scoredDocs = documents.map((d: any) => {
         const titleLower = d.title.toLowerCase();
         const contentLower = d.content.toLowerCase();
         const categoryLower = d.category.toLowerCase();
         const docKeywords = (d.keywords || []).map((k: string) => k.toLowerCase());
         
-        // Check if any keyword from user message matches document
-        return keywords.some((kw: string) => 
-          titleLower.includes(kw) || 
-          contentLower.includes(kw) || 
-          categoryLower.includes(kw) ||
-          docKeywords.some((dk: string) => dk.includes(kw))
-        );
+        let score = 0;
+        
+        keywords.forEach((kw: string) => {
+          // Title match = highest priority
+          if (titleLower.includes(kw)) score += 10;
+          // Keyword match = high priority
+          if (docKeywords.some((dk: string) => dk.includes(kw) || kw.includes(dk))) score += 8;
+          // Category match
+          if (categoryLower.includes(kw)) score += 5;
+          // Content match
+          if (contentLower.includes(kw)) score += 3;
+        });
+        
+        return { doc: d, score };
       });
       
-      // If no relevant docs found by keywords, include all docs for general questions
-      const docsToUse = relevantDocs.length > 0 ? relevantDocs : documents.slice(0, 20);
+      // Get documents with score > 0, sorted by score
+      relevantDocs = scoredDocs
+        .filter(s => s.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(s => s.doc);
       
-      proceduresContext = docsToUse.map((d: any) => 
-        `DOKUMENT: ${d.title}\nKATEGORIJA: ${d.category}\nKLJUČNE RIJEČI: ${(d.keywords || []).join(', ')}\nSADRŽAJ:\n${d.content}\n---`
-      ).join('\n\n');
+      console.log(`Found ${relevantDocs.length} relevant docs with scores`);
+      
+      // If relevant docs found, use them. Otherwise mark as knowledge gap
+      if (relevantDocs.length > 0) {
+        proceduresContext = relevantDocs.slice(0, 5).map((d: any) => 
+          `=== DOKUMENT: ${d.title} ===\nKATEGORIJA: ${d.category}\nKLJUČNE RIJEČI: ${(d.keywords || []).join(', ')}\n\nSADRŽAJ:\n${d.content}\n\n${'='.repeat(50)}`
+        ).join('\n\n');
+      } else {
+        // Check if this is a question that SHOULD have an answer in knowledge base
+        const questionIndicators = ['kako', 'što', 'sto', 'gdje', 'kada', 'zašto', 'zasto', 'procedura', 'uputa', 'pravilnik', 'pravilo', 'postupak'];
+        const isKnowledgeQuestion = questionIndicators.some(q => messageLower.includes(q));
+        
+        if (isKnowledgeQuestion) {
+          hasKnowledgeGap = true;
+          console.log('Detected potential knowledge gap - no relevant docs for question');
+        }
+      }
+    } else {
+      // No documents at all
+      hasKnowledgeGap = true;
     }
 
     console.log(`Found ${documents?.length || 0} total docs, ${relevantDocs.length} relevant docs for query: "${message}"`);
 
-    const systemPrompt = `Ti si AI asistent za upravljanje skladištem, poslovanjem i internim procedurama tvrtke. 
-Tvoj primarni zadatak je pomoći korisnicima pronalaženjem informacija iz baze znanja i poslovnih podataka.
+    const systemPrompt = `Ti si AI asistent tvrtke koji STRIKTNO koristi samo informacije iz priloženih dokumenata i poslovnih podataka.
 
-PRIORITET ODGOVARANJA:
-1. PRVO pregledaj INTERNI PRAVILNICI I PROCEDURE - ako postoji dokument koji odgovara pitanju, KORISTI GA i daj detaljan odgovor
-2. Za pitanja o zalihama, narudžbama, prodaji - koristi poslovne podatke iz sustava
-3. Ako apsolutno nemaš nikakvu relevantnu informaciju, tek tada reci da nemaš tu informaciju
+KRITIČNO VAŽNO - REDOSLIJED ODGOVARANJA:
+1. AKO postoji relevantan dokument u "INTERNI DOKUMENTI" sekciji - MORAŠ koristiti TOČNO taj sadržaj
+2. NIKADA ne izmišljaj generičke korake ili procedure koje nisu u dokumentima
+3. NIKADA ne koristi opće znanje s interneta ako postoji interni dokument
+4. Citiraj doslovno iz dokumenata - npr. "Prema dokumentu 'XYZ', koraci su..."
 
-TVOJI POSLOVNI PODACI IZ SUSTAVA:
+POSLOVNI PODACI IZ SUSTAVA:
 ${contextData.length > 0 ? contextData.join('\n\n') : 'Nema trenutno relevantnih poslovnih podataka.'}
 
-INTERNI PRAVILNICI I PROCEDURE (BAZA ZNANJA):
-${proceduresContext || 'Nema definiranih internih pravilnika i procedura u sustavu.'}
+INTERNI DOKUMENTI (BAZA ZNANJA):
+${proceduresContext || 'NAPOMENA: Nema pronađenih relevantnih dokumenata za ovo pitanje.'}
 
-PRAVILA:
-- Kada te pitaju o procedurama, uputama, pravilnicima - DETALJNO pregledaj sve dokumente i daj POTPUN odgovor iz sadržaja dokumenta
-- Ne govori "procedura nije definirana" ako postoji relevantan dokument - umjesto toga, izvuci i objasni sadržaj
-- Ako dokument postoji ali nije potpuno jasan, reci što piše i napomeni da korisnik može zatražiti dodatne informacije
-- Budi precizan i citriaj informacije iz dokumenata
-- Ako pitanje nije pokriveno dokumentima niti poslovnim podacima, iskreno reci da nemaš tu informaciju
+PRAVILA ODGOVARANJA:
+- Ako dokument postoji - KORISTI DOSLOVNO sadržaj dokumenta, ne improvizuj
+- Ako u dokumentu piše "otvori Excel" ili "klikni na inicijale" - TO CITIRAJ, ne zamjenjuj s admin centrom
+- Ako dokument ima slike/korake - napiši "Dokument sadrži vizualne upute korak po korak"
+- Ako NEMA relevantnog dokumenta - reci jasno: "Nemam internu dokumentaciju o ovoj temi. Predlažem da se doda u bazu znanja."
+- Za poslovne podatke (zalihe, narudžbe, prodaja) - koristi samo podatke iz sustava
+- Odgovaraj na hrvatskom jeziku
 - Koristi bullet points za jasnoću
-- Odgovaraj na hrvatskom jeziku`;
 
+${hasKnowledgeGap ? 'NAPOMENA: Ovo pitanje nema pokrivenost u bazi znanja - naznači korisniku da se dokumentacija može dodati.' : ''}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -221,7 +257,27 @@ PRAVILA:
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || "Nažalost, ne mogu odgovoriti na to pitanje.";
 
-    return new Response(JSON.stringify({ reply }), {
+    // Save chat history to database
+    try {
+      const { error: insertError } = await supabase
+        .from('chatbot_history')
+        .insert({
+          user_id: userId || null,
+          question: message,
+          answer: reply,
+          has_knowledge_gap: hasKnowledgeGap
+        });
+      
+      if (insertError) {
+        console.error('Error saving chat history:', insertError);
+      } else {
+        console.log('Chat history saved successfully');
+      }
+    } catch (historyError) {
+      console.error('Failed to save chat history:', historyError);
+    }
+
+    return new Response(JSON.stringify({ reply, hasKnowledgeGap }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
