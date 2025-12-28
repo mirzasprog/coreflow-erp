@@ -1,6 +1,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
+// Helper function to convert ArrayBuffer to base64 without stack overflow
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -13,6 +25,8 @@ serve(async (req) => {
 
   try {
     const { filePath, title, category, keywords } = await req.json();
+    
+    console.log("Processing document:", filePath);
     
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -30,23 +44,29 @@ serve(async (req) => {
       .download(filePath);
 
     if (downloadError) {
+      console.error("Download error:", downloadError);
       throw new Error(`Failed to download file: ${downloadError.message}`);
     }
 
     const fileName = filePath.split('/').pop() || '';
     const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
     
+    console.log("File extension:", fileExt);
+    
     let extractedText = '';
 
     // For text-based files, read directly
     if (['txt', 'md', 'csv'].includes(fileExt)) {
       extractedText = await fileData.text();
+      console.log("Text file read, length:", extractedText.length);
     } 
     // For complex documents, use AI to extract/summarize content
     else if (['pdf', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png'].includes(fileExt)) {
-      // Convert file to base64 for AI processing
+      // Convert file to base64 for AI processing - using chunked approach to avoid stack overflow
       const arrayBuffer = await fileData.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const base64 = arrayBufferToBase64(arrayBuffer);
+      
+      console.log("File converted to base64, length:", base64.length);
       
       // Use AI to extract text content
       if (LOVABLE_API_KEY) {
@@ -61,6 +81,8 @@ serve(async (req) => {
             'jpeg': 'image/jpeg',
             'png': 'image/png'
           };
+
+          console.log("Calling AI gateway for text extraction...");
 
           const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
@@ -94,14 +116,24 @@ serve(async (req) => {
             }),
           });
 
+          console.log("AI response status:", response.status);
+
           if (response.ok) {
             const data = await response.json();
             extractedText = data.choices?.[0]?.message?.content || '';
+            console.log("AI extraction successful, text length:", extractedText.length);
+          } else {
+            const errorText = await response.text();
+            console.error("AI gateway error:", response.status, errorText);
+            extractedText = `[Dokument: ${fileName}] - AI ekstrakcija nije uspjela (${response.status}). Molimo ručno unesite sadržaj.`;
           }
         } catch (aiError) {
           console.error('AI extraction failed:', aiError);
           extractedText = `[Dokument: ${fileName}] - Automatska ekstrakcija nije uspjela. Molimo ručno unesite sadržaj.`;
         }
+      } else {
+        console.log("LOVABLE_API_KEY not available");
+        extractedText = `[Dokument: ${fileName}] - API ključ nije dostupan za ekstrakciju.`;
       }
     }
 
@@ -114,6 +146,8 @@ serve(async (req) => {
     const { data: urlData } = supabase.storage
       .from('company-docs')
       .getPublicUrl(filePath);
+
+    console.log("Saving document to database...");
 
     // Save to company_documents table
     const { data: doc, error: insertError } = await supabase
@@ -132,8 +166,11 @@ serve(async (req) => {
       .single();
 
     if (insertError) {
+      console.error("Insert error:", insertError);
       throw new Error(`Failed to save document: ${insertError.message}`);
     }
+
+    console.log("Document saved successfully:", doc.id);
 
     return new Response(JSON.stringify({ 
       success: true, 
