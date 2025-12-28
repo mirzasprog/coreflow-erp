@@ -218,8 +218,15 @@ export default function CompanyDocuments() {
     setIsUploading(true);
 
     try {
-      // Upload to storage
-      const fileName = `${Date.now()}-${file.name}`;
+      // Sanitize filename: remove special characters, spaces, and diacritics
+      const sanitizedName = file.name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+        .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace special chars with underscore
+        .replace(/_+/g, '_'); // Remove consecutive underscores
+      
+      const fileName = `${Date.now()}-${sanitizedName}`;
+      
       const { error: uploadError } = await supabase.storage
         .from('company-docs')
         .upload(fileName, file);
