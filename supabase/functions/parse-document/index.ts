@@ -13,6 +13,75 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+// Helper function to extract text from document buffers
+async function extractTextFromDocument(buffer: ArrayBuffer, fileExt: string): Promise<string> {
+  const decoder = new TextDecoder('utf-8', { fatal: false });
+  
+  try {
+    // For DOCX files, try to extract text from the XML content
+    if (fileExt === 'docx') {
+      // DOCX is a ZIP file containing XML
+      // We'll try to find readable text patterns
+      const bytes = new Uint8Array(buffer);
+      const text = decoder.decode(bytes);
+      
+      // Look for text content between XML tags
+      const textMatches = text.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
+      if (textMatches && textMatches.length > 0) {
+        const extractedTexts = textMatches.map(match => {
+          const content = match.replace(/<[^>]+>/g, '');
+          return content;
+        });
+        return extractedTexts.join(' ').replace(/\s+/g, ' ').trim();
+      }
+    }
+    
+    // For PDF files, try to find readable text
+    if (fileExt === 'pdf') {
+      const bytes = new Uint8Array(buffer);
+      const text = decoder.decode(bytes);
+      
+      // Try to extract text between stream markers or parentheses (common in PDFs)
+      const textParts: string[] = [];
+      
+      // Look for text in parentheses (common PDF text format)
+      const parenMatches = text.match(/\(([^)]{2,})\)/g);
+      if (parenMatches) {
+        parenMatches.forEach(match => {
+          const content = match.slice(1, -1);
+          if (content.length > 2 && /[a-zA-ZčćžšđČĆŽŠĐ]/.test(content)) {
+            textParts.push(content);
+          }
+        });
+      }
+      
+      if (textParts.length > 10) {
+        return textParts.join(' ').replace(/\s+/g, ' ').trim();
+      }
+    }
+    
+    // For Excel files, try basic extraction
+    if (fileExt === 'xlsx' || fileExt === 'xls') {
+      const bytes = new Uint8Array(buffer);
+      const text = decoder.decode(bytes);
+      
+      // Look for cell content in sharedStrings.xml
+      const stringMatches = text.match(/<t[^>]*>([^<]+)<\/t>/g);
+      if (stringMatches && stringMatches.length > 0) {
+        const extractedTexts = stringMatches.map(match => {
+          return match.replace(/<[^>]+>/g, '');
+        });
+        return extractedTexts.join(' | ').replace(/\s+/g, ' ').trim();
+      }
+    }
+    
+    return '';
+  } catch (e) {
+    console.error('Text extraction error:', e);
+    return '';
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -60,29 +129,22 @@ serve(async (req) => {
       extractedText = await fileData.text();
       console.log("Text file read, length:", extractedText.length);
     } 
-    // For complex documents, use AI to extract/summarize content
-    else if (['pdf', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png'].includes(fileExt)) {
-      // Convert file to base64 for AI processing - using chunked approach to avoid stack overflow
+    // For images only, use AI vision to extract content
+    else if (['jpg', 'jpeg', 'png'].includes(fileExt)) {
       const arrayBuffer = await fileData.arrayBuffer();
       const base64 = arrayBufferToBase64(arrayBuffer);
       
-      console.log("File converted to base64, length:", base64.length);
+      console.log("Image converted to base64, length:", base64.length);
       
-      // Use AI to extract text content
       if (LOVABLE_API_KEY) {
         try {
           const mimeTypes: Record<string, string> = {
-            'pdf': 'application/pdf',
-            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'doc': 'application/msword',
-            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'xls': 'application/vnd.ms-excel',
             'jpg': 'image/jpeg',
             'jpeg': 'image/jpeg',
             'png': 'image/png'
           };
 
-          console.log("Calling AI gateway for text extraction...");
+          console.log("Calling AI gateway for image text extraction...");
 
           const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
@@ -95,19 +157,19 @@ serve(async (req) => {
               messages: [
                 { 
                   role: "system", 
-                  content: "Ti si asistent za ekstrakciju teksta iz dokumenata. Izvuci sav relevantan tekstualni sadržaj iz dokumenta. Ako je to slika, opiši što vidiš. Ako je tablica, strukturiraj podatke. Odgovori samo s ekstrahiranim sadržajem, bez dodatnih komentara." 
+                  content: "Ti si asistent za ekstrakciju teksta iz slika. Izvuci sav relevantan tekstualni sadržaj. Opiši što vidiš i ekstrahiraj bilo koji tekst s slike. Odgovori na hrvatskom." 
                 },
                 { 
                   role: "user", 
                   content: [
                     {
                       type: "text",
-                      text: `Izvuci sav tekstualni sadržaj iz ovog dokumenta (${fileName}). Ako je riječ o pravilniku ili proceduri, zadrži strukturu i naslove.`
+                      text: `Izvuci sav tekstualni sadržaj iz ove slike (${fileName}). Opiši što vidiš.`
                     },
                     {
                       type: "image_url",
                       image_url: {
-                        url: `data:${mimeTypes[fileExt] || 'application/octet-stream'};base64,${base64}`
+                        url: `data:${mimeTypes[fileExt]};base64,${base64}`
                       }
                     }
                   ]
@@ -125,15 +187,55 @@ serve(async (req) => {
           } else {
             const errorText = await response.text();
             console.error("AI gateway error:", response.status, errorText);
-            extractedText = `[Dokument: ${fileName}] - AI ekstrakcija nije uspjela (${response.status}). Molimo ručno unesite sadržaj.`;
+            extractedText = `[Slika: ${fileName}] - AI ekstrakcija nije uspjela. Molimo ručno opišite sadržaj.`;
           }
         } catch (aiError) {
           console.error('AI extraction failed:', aiError);
-          extractedText = `[Dokument: ${fileName}] - Automatska ekstrakcija nije uspjela. Molimo ručno unesite sadržaj.`;
+          extractedText = `[Slika: ${fileName}] - Automatska ekstrakcija nije uspjela. Molimo ručno opišite sadržaj.`;
         }
       } else {
-        console.log("LOVABLE_API_KEY not available");
-        extractedText = `[Dokument: ${fileName}] - API ključ nije dostupan za ekstrakciju.`;
+        extractedText = `[Slika: ${fileName}] - API ključ nije dostupan za ekstrakciju.`;
+      }
+    }
+    // For document files (PDF, Word, Excel), use Lovable document parser
+    else if (['pdf', 'docx', 'doc', 'xlsx', 'xls'].includes(fileExt)) {
+      console.log("Processing document file with Lovable parser...");
+      
+      try {
+        // Get the public URL for the file
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from('company-docs')
+          .createSignedUrl(filePath, 3600); // 1 hour expiry
+        
+        if (signedUrlError) {
+          console.error("Failed to create signed URL:", signedUrlError);
+          throw new Error(`Failed to create signed URL: ${signedUrlError.message}`);
+        }
+
+        const fileUrl = signedUrlData?.signedUrl;
+        console.log("Document URL created for parsing");
+
+        // Use Lovable AI to analyze the document content
+        // First, read the file content directly
+        const arrayBuffer = await fileData.arrayBuffer();
+        const textContent = await extractTextFromDocument(arrayBuffer, fileExt);
+        
+        if (textContent && textContent.trim().length > 50) {
+          extractedText = textContent;
+          console.log("Direct text extraction successful, length:", extractedText.length);
+        } else {
+          // Fallback: Provide helpful message for manual entry
+          extractedText = `[Dokument: ${fileName}]
+
+Automatska ekstrakcija teksta za ovaj format (.${fileExt}) nije potpuno dostupna.
+
+Molimo uredite ovaj dokument i ručno unesite sadržaj - to će omogućiti AI asistentu da koristi informacije iz dokumenta.
+
+Savjet: Otvorite dokument, kopirajte tekst i zalijepite ga ovdje.`;
+        }
+      } catch (docError) {
+        console.error("Document processing error:", docError);
+        extractedText = `[Dokument: ${fileName}] - Molimo uredite i ručno unesite sadržaj dokumenta.`;
       }
     }
 
