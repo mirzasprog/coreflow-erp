@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { unzipSync, strFromU8 } from "https://esm.sh/fflate@0.8.2";
 
 // Helper function to convert ArrayBuffer to base64 without stack overflow
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -13,71 +14,130 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-// Helper function to extract text from document buffers
-async function extractTextFromDocument(buffer: ArrayBuffer, fileExt: string): Promise<string> {
-  const decoder = new TextDecoder('utf-8', { fatal: false });
-  
+// Helper function to extract text from DOCX files
+function extractTextFromDocx(buffer: ArrayBuffer): string {
   try {
-    // For DOCX files, try to extract text from the XML content
-    if (fileExt === 'docx') {
-      // DOCX is a ZIP file containing XML
-      // We'll try to find readable text patterns
-      const bytes = new Uint8Array(buffer);
-      const text = decoder.decode(bytes);
-      
-      // Look for text content between XML tags
-      const textMatches = text.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
-      if (textMatches && textMatches.length > 0) {
-        const extractedTexts = textMatches.map(match => {
-          const content = match.replace(/<[^>]+>/g, '');
-          return content;
-        });
-        return extractedTexts.join(' ').replace(/\s+/g, ' ').trim();
+    const uint8Array = new Uint8Array(buffer);
+    const unzipped = unzipSync(uint8Array);
+    
+    // Find document.xml which contains the main content
+    const documentXml = unzipped['word/document.xml'];
+    if (!documentXml) {
+      console.log("document.xml not found in DOCX");
+      return '';
+    }
+    
+    const xmlContent = strFromU8(documentXml);
+    console.log("DOCX XML content length:", xmlContent.length);
+    
+    // Extract text from <w:t> tags (Word text elements)
+    const textMatches = xmlContent.match(/<w:t[^>]*>([^<]*)<\/w:t>/g);
+    if (!textMatches || textMatches.length === 0) {
+      console.log("No text matches found in DOCX");
+      return '';
+    }
+    
+    // Extract just the text content
+    const texts: string[] = [];
+    for (const match of textMatches) {
+      const content = match.replace(/<w:t[^>]*>/g, '').replace(/<\/w:t>/g, '');
+      if (content) {
+        texts.push(content);
       }
     }
     
-    // For PDF files, try to find readable text
-    if (fileExt === 'pdf') {
-      const bytes = new Uint8Array(buffer);
-      const text = decoder.decode(bytes);
-      
-      // Try to extract text between stream markers or parentheses (common in PDFs)
-      const textParts: string[] = [];
-      
-      // Look for text in parentheses (common PDF text format)
-      const parenMatches = text.match(/\(([^)]{2,})\)/g);
-      if (parenMatches) {
-        parenMatches.forEach(match => {
-          const content = match.slice(1, -1);
-          if (content.length > 2 && /[a-zA-ZčćžšđČĆŽŠĐ]/.test(content)) {
-            textParts.push(content);
-          }
-        });
-      }
-      
-      if (textParts.length > 10) {
-        return textParts.join(' ').replace(/\s+/g, ' ').trim();
+    // Join with spaces, but detect paragraph breaks
+    let result = texts.join('');
+    
+    // Clean up extra whitespace
+    result = result.replace(/\s+/g, ' ').trim();
+    
+    console.log("Extracted DOCX text length:", result.length);
+    return result;
+  } catch (e) {
+    console.error('DOCX extraction error:', e);
+    return '';
+  }
+}
+
+// Helper function to extract text from XLSX files
+function extractTextFromXlsx(buffer: ArrayBuffer): string {
+  try {
+    const uint8Array = new Uint8Array(buffer);
+    const unzipped = unzipSync(uint8Array);
+    
+    // Find sharedStrings.xml which contains text content
+    const sharedStrings = unzipped['xl/sharedStrings.xml'];
+    if (!sharedStrings) {
+      console.log("sharedStrings.xml not found in XLSX");
+      return '';
+    }
+    
+    const xmlContent = strFromU8(sharedStrings);
+    console.log("XLSX sharedStrings length:", xmlContent.length);
+    
+    // Extract text from <t> tags
+    const textMatches = xmlContent.match(/<t[^>]*>([^<]*)<\/t>/g);
+    if (!textMatches || textMatches.length === 0) {
+      console.log("No text matches found in XLSX");
+      return '';
+    }
+    
+    const texts: string[] = [];
+    for (const match of textMatches) {
+      const content = match.replace(/<t[^>]*>/g, '').replace(/<\/t>/g, '');
+      if (content && content.trim()) {
+        texts.push(content.trim());
       }
     }
     
-    // For Excel files, try basic extraction
-    if (fileExt === 'xlsx' || fileExt === 'xls') {
-      const bytes = new Uint8Array(buffer);
-      const text = decoder.decode(bytes);
-      
-      // Look for cell content in sharedStrings.xml
-      const stringMatches = text.match(/<t[^>]*>([^<]+)<\/t>/g);
-      if (stringMatches && stringMatches.length > 0) {
-        const extractedTexts = stringMatches.map(match => {
-          return match.replace(/<[^>]+>/g, '');
-        });
-        return extractedTexts.join(' | ').replace(/\s+/g, ' ').trim();
+    const result = texts.join(' | ');
+    console.log("Extracted XLSX text length:", result.length);
+    return result;
+  } catch (e) {
+    console.error('XLSX extraction error:', e);
+    return '';
+  }
+}
+
+// Helper function to extract text from PDF files (basic extraction)
+function extractTextFromPdf(buffer: ArrayBuffer): string {
+  try {
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    const bytes = new Uint8Array(buffer);
+    const text = decoder.decode(bytes);
+    
+    const textParts: string[] = [];
+    
+    // Look for text in parentheses (common PDF text format)
+    const parenMatches = text.match(/\(([^)]{2,})\)/g);
+    if (parenMatches) {
+      for (const match of parenMatches) {
+        const content = match.slice(1, -1);
+        // Filter for readable text (letters present)
+        if (content.length > 2 && /[a-zA-ZčćžšđČĆŽŠĐ0-9]/.test(content)) {
+          // Decode PDF escape sequences
+          const decoded = content
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '')
+            .replace(/\\t/g, ' ')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+            .replace(/\\\\/g, '\\');
+          textParts.push(decoded);
+        }
       }
+    }
+    
+    if (textParts.length > 5) {
+      const result = textParts.join(' ').replace(/\s+/g, ' ').trim();
+      console.log("Extracted PDF text length:", result.length);
+      return result;
     }
     
     return '';
   } catch (e) {
-    console.error('Text extraction error:', e);
+    console.error('PDF extraction error:', e);
     return '';
   }
 }
@@ -129,7 +189,7 @@ serve(async (req) => {
       extractedText = await fileData.text();
       console.log("Text file read, length:", extractedText.length);
     } 
-    // For images only, use AI vision to extract content
+    // For images, use AI vision to extract content
     else if (['jpg', 'jpeg', 'png'].includes(fileExt)) {
       const arrayBuffer = await fileData.arrayBuffer();
       const base64 = arrayBufferToBase64(arrayBuffer);
@@ -197,46 +257,40 @@ serve(async (req) => {
         extractedText = `[Slika: ${fileName}] - API ključ nije dostupan za ekstrakciju.`;
       }
     }
-    // For document files (PDF, Word, Excel), use Lovable document parser
-    else if (['pdf', 'docx', 'doc', 'xlsx', 'xls'].includes(fileExt)) {
-      console.log("Processing document file with Lovable parser...");
+    // For DOCX files, use proper ZIP extraction
+    else if (fileExt === 'docx') {
+      console.log("Processing DOCX file...");
+      const arrayBuffer = await fileData.arrayBuffer();
+      extractedText = extractTextFromDocx(arrayBuffer);
       
-      try {
-        // Get the public URL for the file
-        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-          .from('company-docs')
-          .createSignedUrl(filePath, 3600); // 1 hour expiry
-        
-        if (signedUrlError) {
-          console.error("Failed to create signed URL:", signedUrlError);
-          throw new Error(`Failed to create signed URL: ${signedUrlError.message}`);
-        }
-
-        const fileUrl = signedUrlData?.signedUrl;
-        console.log("Document URL created for parsing");
-
-        // Use Lovable AI to analyze the document content
-        // First, read the file content directly
-        const arrayBuffer = await fileData.arrayBuffer();
-        const textContent = await extractTextFromDocument(arrayBuffer, fileExt);
-        
-        if (textContent && textContent.trim().length > 50) {
-          extractedText = textContent;
-          console.log("Direct text extraction successful, length:", extractedText.length);
-        } else {
-          // Fallback: Provide helpful message for manual entry
-          extractedText = `[Dokument: ${fileName}]
-
-Automatska ekstrakcija teksta za ovaj format (.${fileExt}) nije potpuno dostupna.
-
-Molimo uredite ovaj dokument i ručno unesite sadržaj - to će omogućiti AI asistentu da koristi informacije iz dokumenta.
-
-Savjet: Otvorite dokument, kopirajte tekst i zalijepite ga ovdje.`;
-        }
-      } catch (docError) {
-        console.error("Document processing error:", docError);
-        extractedText = `[Dokument: ${fileName}] - Molimo uredite i ručno unesite sadržaj dokumenta.`;
+      if (!extractedText || extractedText.length < 20) {
+        console.log("DOCX extraction failed or too short, falling back to message");
+        extractedText = `[Dokument: ${fileName}] - Automatska ekstrakcija nije uspjela. Molimo uredite i ručno unesite sadržaj.`;
       }
+    }
+    // For XLSX files, use proper ZIP extraction
+    else if (fileExt === 'xlsx') {
+      console.log("Processing XLSX file...");
+      const arrayBuffer = await fileData.arrayBuffer();
+      extractedText = extractTextFromXlsx(arrayBuffer);
+      
+      if (!extractedText || extractedText.length < 10) {
+        extractedText = `[Dokument: ${fileName}] - Automatska ekstrakcija nije uspjela. Molimo uredite i ručno unesite sadržaj.`;
+      }
+    }
+    // For PDF files, try basic extraction
+    else if (fileExt === 'pdf') {
+      console.log("Processing PDF file...");
+      const arrayBuffer = await fileData.arrayBuffer();
+      extractedText = extractTextFromPdf(arrayBuffer);
+      
+      if (!extractedText || extractedText.length < 20) {
+        extractedText = `[Dokument: ${fileName}] - PDF ekstrakcija nije potpuna. Molimo uredite i ručno unesite sadržaj.`;
+      }
+    }
+    // For old DOC and XLS files
+    else if (['doc', 'xls'].includes(fileExt)) {
+      extractedText = `[Dokument: ${fileName}] - Stari format (.${fileExt}) nije podržan za automatsku ekstrakciju. Molimo pretvorite u noviji format (.docx, .xlsx) ili ručno unesite sadržaj.`;
     }
 
     // If no text was extracted, provide a placeholder
