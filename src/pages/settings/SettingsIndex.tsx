@@ -11,6 +11,7 @@ import {
   Key,
   Truck,
   FileText,
+  MessageSquare,
 } from "lucide-react";
 
 const settingsSections = [
@@ -19,6 +20,7 @@ const settingsSections = [
     items: [
       { icon: Truck, label: "Business Partners", description: "Manage suppliers and customers", href: "/settings/partners" },
       { icon: FileText, label: "Pravilnici i Procedure", description: "Interni dokumenti za AI asistenta", href: "/settings/documents" },
+      { icon: MessageSquare, label: "AI Chatbot Povijest", description: "Pregled pitanja i unapređenje baze znanja", href: "/settings/chatbot-history" },
       { icon: Building, label: "Company Settings", description: "Manage company information and locations", href: null },
     ],
   },

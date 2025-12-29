@@ -23,6 +23,7 @@ serve(async (req) => {
 
     // Gather relevant data based on the query
     let contextData: string[] = [];
+    const messageLower = message.toLowerCase();
 
     // Check for expiring stock
     const expiryThreshold = new Date();
@@ -66,42 +67,135 @@ serve(async (req) => {
       contextData.push(`AKTIVNE NARUDŽBE:\n${ordersInfo}`);
     }
 
-    // Get low stock items
-    const { data: lowStock } = await supabase
+    // Get all stock items with detailed info
+    const { data: allStock } = await supabase
       .from('stock')
       .select(`
         *,
-        items(code, name, min_stock),
+        items(code, name, min_stock, max_stock, selling_price, purchase_price),
         locations(name)
       `)
-      .limit(100);
+      .limit(500);
 
-    const lowStockItems = (lowStock || []).filter((s: any) => 
+    const lowStockItems = (allStock || []).filter((s: any) => 
       s.items?.min_stock && s.quantity < s.items.min_stock
     );
 
     if (lowStockItems.length > 0) {
-      const lowStockInfo = lowStockItems.slice(0, 10).map((s: any) => 
-        `- ${s.items?.name || 'N/A'}: trenutno ${s.quantity}, minimalno: ${s.items?.min_stock}`
+      const lowStockInfo = lowStockItems.slice(0, 15).map((s: any) => 
+        `- ${s.items?.name || 'N/A'}: trenutno ${s.quantity}, minimalno: ${s.items?.min_stock}, lokacija: ${s.locations?.name || 'N/A'}`
       ).join('\n');
-      contextData.push(`ARTIKLI ISPOD MINIMALNIH ZALIHA:\n${lowStockInfo}`);
+      contextData.push(`ARTIKLI ISPOD MINIMALNIH ZALIHA (${lowStockItems.length} ukupno):\n${lowStockInfo}`);
     }
 
-    // Get recent sales (POS receipts)
-    const sevenDaysAgo = new Date();
+    // Calculate total stock value
+    if (allStock && allStock.length > 0) {
+      const totalStockValue = allStock.reduce((sum: number, s: any) => {
+        const price = s.items?.purchase_price || 0;
+        return sum + (s.quantity * price);
+      }, 0);
+      contextData.push(`UKUPNA VRIJEDNOST ZALIHA: €${totalStockValue.toFixed(2)}`);
+    }
+
+    // Get sales data for multiple periods
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const twoDaysAgo = new Date(todayStart);
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    const sevenDaysAgo = new Date(todayStart);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const thirtyDaysAgo = new Date(todayStart);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    const { data: recentSales } = await supabase
+    // Fetch all receipts for the last 30 days for flexible analysis
+    const { data: allSales } = await supabase
       .from('pos_receipts')
-      .select('*')
-      .gte('receipt_date', sevenDaysAgo.toISOString())
+      .select(`
+        *,
+        pos_receipt_lines(
+          quantity,
+          unit_price,
+          total,
+          items(name, code)
+        )
+      `)
+      .gte('receipt_date', thirtyDaysAgo.toISOString())
       .order('receipt_date', { ascending: false });
 
-    if (recentSales && recentSales.length > 0) {
-      const totalSales = recentSales.reduce((sum: number, r: any) => sum + (r.total || 0), 0);
-      const cashSales = recentSales.filter((r: any) => r.payment_type === 'cash').reduce((sum: number, r: any) => sum + (r.total || 0), 0);
-      const cardSales = recentSales.filter((r: any) => r.payment_type === 'card').reduce((sum: number, r: any) => sum + (r.total || 0), 0);
-      contextData.push(`PRODAJA (zadnjih 7 dana):\n- Ukupno: €${totalSales.toFixed(2)}\n- Gotovina: €${cashSales.toFixed(2)}\n- Kartica: €${cardSales.toFixed(2)}\n- Broj računa: ${recentSales.length}`);
+    if (allSales && allSales.length > 0) {
+      // Today's sales
+      const todaySales = allSales.filter((r: any) => new Date(r.receipt_date) >= todayStart);
+      const todayTotal = todaySales.reduce((sum: number, r: any) => sum + (r.total || 0), 0);
+      
+      // Last 2 days sales
+      const last2DaysSales = allSales.filter((r: any) => new Date(r.receipt_date) >= twoDaysAgo);
+      const last2DaysTotal = last2DaysSales.reduce((sum: number, r: any) => sum + (r.total || 0), 0);
+      const last2DaysCash = last2DaysSales.filter((r: any) => r.payment_type === 'cash').reduce((sum: number, r: any) => sum + (r.total || 0), 0);
+      const last2DaysCard = last2DaysSales.filter((r: any) => r.payment_type === 'card').reduce((sum: number, r: any) => sum + (r.total || 0), 0);
+      
+      // Last 7 days sales
+      const last7DaysSales = allSales.filter((r: any) => new Date(r.receipt_date) >= sevenDaysAgo);
+      const last7DaysTotal = last7DaysSales.reduce((sum: number, r: any) => sum + (r.total || 0), 0);
+      const last7DaysCash = last7DaysSales.filter((r: any) => r.payment_type === 'cash').reduce((sum: number, r: any) => sum + (r.total || 0), 0);
+      const last7DaysCard = last7DaysSales.filter((r: any) => r.payment_type === 'card').reduce((sum: number, r: any) => sum + (r.total || 0), 0);
+      
+      // Last 30 days
+      const last30DaysTotal = allSales.reduce((sum: number, r: any) => sum + (r.total || 0), 0);
+      const last30DaysCash = allSales.filter((r: any) => r.payment_type === 'cash').reduce((sum: number, r: any) => sum + (r.total || 0), 0);
+      const last30DaysCard = allSales.filter((r: any) => r.payment_type === 'card').reduce((sum: number, r: any) => sum + (r.total || 0), 0);
+
+      // Calculate average daily sales
+      const avgDailySales = last30DaysTotal / 30;
+
+      contextData.push(`PRODAJA - DETALJNI PREGLED:
+
+DANAS:
+- Ukupno: €${todayTotal.toFixed(2)}
+- Broj računa: ${todaySales.length}
+
+ZADNJA 2 DANA:
+- Ukupno: €${last2DaysTotal.toFixed(2)}
+- Gotovina: €${last2DaysCash.toFixed(2)}
+- Kartica: €${last2DaysCard.toFixed(2)}
+- Broj računa: ${last2DaysSales.length}
+
+ZADNJIH 7 DANA:
+- Ukupno: €${last7DaysTotal.toFixed(2)}
+- Gotovina: €${last7DaysCash.toFixed(2)}
+- Kartica: €${last7DaysCard.toFixed(2)}
+- Broj računa: ${last7DaysSales.length}
+- Prosječno dnevno: €${(last7DaysTotal / 7).toFixed(2)}
+
+ZADNJIH 30 DANA:
+- Ukupno: €${last30DaysTotal.toFixed(2)}
+- Gotovina: €${last30DaysCash.toFixed(2)}
+- Kartica: €${last30DaysCard.toFixed(2)}
+- Broj računa: ${allSales.length}
+- Prosječno dnevno: €${avgDailySales.toFixed(2)}`);
+
+      // Top selling items in last 7 days
+      const itemSales: Record<string, { name: string, quantity: number, total: number }> = {};
+      last7DaysSales.forEach((receipt: any) => {
+        (receipt.pos_receipt_lines || []).forEach((line: any) => {
+          const itemName = line.items?.name || 'Nepoznato';
+          if (!itemSales[itemName]) {
+            itemSales[itemName] = { name: itemName, quantity: 0, total: 0 };
+          }
+          itemSales[itemName].quantity += line.quantity || 0;
+          itemSales[itemName].total += line.total || 0;
+        });
+      });
+      
+      const topItems = Object.values(itemSales)
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 10);
+      
+      if (topItems.length > 0) {
+        const topItemsInfo = topItems.map((item, idx) => 
+          `${idx + 1}. ${item.name}: ${item.quantity} kom, €${item.total.toFixed(2)}`
+        ).join('\n');
+        contextData.push(`TOP 10 NAJPRODAVANIJIH ARTIKALA (zadnjih 7 dana):\n${topItemsInfo}`);
+      }
     }
 
     // Get picking orders status
@@ -116,6 +210,46 @@ serve(async (req) => {
         `- ${p.picking_number}: status ${p.status}`
       ).join('\n');
       contextData.push(`AKTIVNI PICKING NALOZI:\n${pickingInfo}`);
+    }
+
+    // Get employee count and active employees
+    const { data: employees, count: employeeCount } = await supabase
+      .from('employees')
+      .select('*', { count: 'exact' })
+      .eq('active', true);
+
+    if (employeeCount) {
+      contextData.push(`ZAPOSLENICI: ${employeeCount} aktivnih zaposlenika`);
+    }
+
+    // Get open invoices
+    const { data: openInvoices } = await supabase
+      .from('invoices')
+      .select('*')
+      .in('status', ['draft', 'posted'])
+      .limit(50);
+
+    if (openInvoices && openInvoices.length > 0) {
+      const incomingTotal = openInvoices
+        .filter((i: any) => i.invoice_type === 'incoming')
+        .reduce((sum: number, i: any) => sum + (i.total || 0) - (i.paid_amount || 0), 0);
+      const outgoingTotal = openInvoices
+        .filter((i: any) => i.invoice_type === 'outgoing')
+        .reduce((sum: number, i: any) => sum + (i.total || 0) - (i.paid_amount || 0), 0);
+      
+      contextData.push(`OTVORENE FAKTURE:
+- Ulazne (za platiti): €${incomingTotal.toFixed(2)}
+- Izlazne (za naplatiti): €${outgoingTotal.toFixed(2)}`);
+    }
+
+    // Get items count
+    const { count: itemsCount } = await supabase
+      .from('items')
+      .select('*', { count: 'exact', head: true })
+      .eq('active', true);
+
+    if (itemsCount) {
+      contextData.push(`KATALOG: ${itemsCount} aktivnih artikala u sustavu`);
     }
 
     // Get company documents/procedures - search by keywords from user message
@@ -192,30 +326,36 @@ serve(async (req) => {
 
     console.log(`Found ${documents?.length || 0} total docs, ${relevantDocs.length} relevant docs for query: "${message}"`);
 
-    const systemPrompt = `Ti si AI asistent tvrtke koji STRIKTNO koristi samo informacije iz priloženih dokumenata i poslovnih podataka.
+    const systemPrompt = `Ti si AI asistent tvrtke koji pomaže s poslovnim analizama i internim procedurama.
 
-KRITIČNO VAŽNO - REDOSLIJED ODGOVARANJA:
-1. AKO postoji relevantan dokument u "INTERNI DOKUMENTI" sekciji - MORAŠ koristiti TOČNO taj sadržaj
-2. NIKADA ne izmišljaj generičke korake ili procedure koje nisu u dokumentima
-3. NIKADA ne koristi opće znanje s interneta ako postoji interni dokument
-4. Citiraj doslovno iz dokumenata - npr. "Prema dokumentu 'XYZ', koraci su..."
+IMAŠ PRISTUP PODACIMA IZ ERP SUSTAVA! Koristi ih za odgovaranje na pitanja o prodaji, zalihama, narudžbama, itd.
 
-POSLOVNI PODACI IZ SUSTAVA:
-${contextData.length > 0 ? contextData.join('\n\n') : 'Nema trenutno relevantnih poslovnih podataka.'}
+POSLOVNI PODACI IZ SUSTAVA (AKTUALNI PODACI):
+${contextData.length > 0 ? contextData.join('\n\n') : 'Trenutno nema podataka u sustavu.'}
 
 INTERNI DOKUMENTI (BAZA ZNANJA):
-${proceduresContext || 'NAPOMENA: Nema pronađenih relevantnih dokumenata za ovo pitanje.'}
+${proceduresContext || 'Nema relevantnih dokumenata za ovo pitanje.'}
 
 PRAVILA ODGOVARANJA:
-- Ako dokument postoji - KORISTI DOSLOVNO sadržaj dokumenta, ne improvizuj
-- Ako u dokumentu piše "otvori Excel" ili "klikni na inicijale" - TO CITIRAJ, ne zamjenjuj s admin centrom
-- Ako dokument ima slike/korake - napiši "Dokument sadrži vizualne upute korak po korak"
-- Ako NEMA relevantnog dokumenta - reci jasno: "Nemam internu dokumentaciju o ovoj temi. Predlažem da se doda u bazu znanja."
-- Za poslovne podatke (zalihe, narudžbe, prodaja) - koristi samo podatke iz sustava
-- Odgovaraj na hrvatskom jeziku
-- Koristi bullet points za jasnoću
 
-${hasKnowledgeGap ? 'NAPOMENA: Ovo pitanje nema pokrivenost u bazi znanja - naznači korisniku da se dokumentacija može dodati.' : ''}`;
+1. ZA PITANJA O POSLOVNIM PODACIMA (prodaja, promet, zalihe, narudžbe, fakture):
+   - UVIJEK KORISTI podatke iz "POSLOVNI PODACI IZ SUSTAVA" sekcije
+   - Ako korisnik pita za "zadnja 2 dana" - koristi podatke za ZADNJA 2 DANA
+   - Ako korisnik pita za "zadnjih 7 dana" - koristi podatke za ZADNJIH 7 DANA
+   - Ako korisnik pita za "danas" - koristi podatke za DANAS
+   - NIKADA ne reci da nemaš podatke ako su prikazani gore!
+   - Daj konkretne brojke i statistike
+
+2. ZA PITANJA O PROCEDURAMA I UPUTAMA:
+   - Koristi DOSLOVNO sadržaj iz dokumenata ako postoji
+   - Ako nema dokumenta - reci: "Nemam internu dokumentaciju o ovoj temi. Predlažem da se doda u bazu znanja."
+
+3. OPĆE:
+   - Odgovaraj na hrvatskom jeziku
+   - Koristi bullet points za jasnoću
+   - Budi koncizan i precizan
+
+${hasKnowledgeGap ? 'NAPOMENA: Za ovo pitanje nema interne dokumentacije - predloži da se doda u bazu znanja.' : ''}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
