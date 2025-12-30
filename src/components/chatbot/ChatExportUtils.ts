@@ -51,7 +51,15 @@ export const parseExportData = (content: string): { text: string; exports: Expor
   return { text: cleanText.trim(), exports };
 };
 
-export const exportToWord = (title: string, content: string, tableData?: ExportData) => {
+export const exportToWord = (title: string, content: string, tableData?: ExportData, signature?: string | null) => {
+  const signatureHtml = signature 
+    ? `<div style="margin-top:40px;padding-top:20px;border-top:1px solid #ddd;">
+         <p style="font-size:12px;color:#666;">Digitalni potpis:</p>
+         <img src="${signature}" alt="Potpis" style="max-width:200px;max-height:80px;" />
+         <p style="font-size:10px;color:#999;">Datum: ${new Date().toLocaleDateString('hr-HR')}</p>
+       </div>`
+    : '';
+
   let htmlContent = `
     <html xmlns:o='urn:schemas-microsoft-com:office:office' 
           xmlns:w='urn:schemas-microsoft-com:office:word'>
@@ -89,6 +97,7 @@ export const exportToWord = (title: string, content: string, tableData?: ExportD
   }
 
   htmlContent += `
+      ${signatureHtml}
       <p class="timestamp">Generirano: ${new Date().toLocaleString('hr-HR')}</p>
     </body>
     </html>
@@ -117,13 +126,14 @@ export const exportChatToExcel = (data: ExportData) => {
   exportToExcel(rows, data.title, `${data.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
 };
 
-export const exportChatToPdf = (title: string, content: string, tableData?: ExportData) => {
+export const exportChatToPdf = (title: string, content: string, tableData?: ExportData, signature?: string | null) => {
   if (tableData) {
     exportToPrintablePdf(
       title,
       `Generirano: ${new Date().toLocaleString('hr-HR')}`,
       tableData.columns,
-      tableData.rows
+      tableData.rows,
+      signature
     );
   } else {
     // For text-only content, create a simple table format
@@ -132,7 +142,8 @@ export const exportChatToPdf = (title: string, content: string, tableData?: Expo
       title,
       `Generirano: ${new Date().toLocaleString('hr-HR')}`,
       ['Sadržaj'],
-      lines.map(line => [line])
+      lines.map(line => [line]),
+      signature
     );
   }
 };

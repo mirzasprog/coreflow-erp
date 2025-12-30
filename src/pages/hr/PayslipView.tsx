@@ -1,12 +1,13 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft, Printer, FileDown } from "lucide-react";
+import { ArrowLeft, Printer, FileDown, Pen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { usePayslip, usePayslipDeductions, usePayrollPeriod } from "@/hooks/usePayroll";
+import { SignatureModal } from "@/components/signature/SignatureModal";
 
 export default function PayslipView() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +24,19 @@ export default function PayslipView() {
   };
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const [signatureModalOpen, setSignatureModalOpen] = useState(false);
+  const [currentSignature, setCurrentSignature] = useState<string | null>(null);
+
+  const handlePrintWithSignature = () => {
+    setSignatureModalOpen(true);
+  };
+
+  const handleSignatureConfirm = (signature: string | null) => {
+    setCurrentSignature(signature);
+    setTimeout(() => {
+      handlePrint();
+    }, 100);
+  };
 
   const handlePrint = () => {
     window.print();
@@ -50,8 +64,8 @@ export default function PayslipView() {
             {payslip.employee?.first_name} {payslip.employee?.last_name} - {periodMonth}
           </p>
         </div>
-        <Button variant="outline" onClick={handlePrint}>
-          <FileDown className="h-4 w-4 mr-2" />
+        <Button variant="outline" onClick={handlePrintWithSignature}>
+          <Pen className="h-4 w-4 mr-2" />
           Sačuvaj PDF
         </Button>
       </div>
@@ -201,10 +215,27 @@ export default function PayslipView() {
             </div>
             <div className="print-signature">
               <span className="text-sm">Potpis poslodavca</span>
+              {currentSignature && (
+                <img 
+                  src={currentSignature} 
+                  alt="Digitalni potpis" 
+                  className="max-w-[150px] h-auto mt-2"
+                  style={{ maxHeight: '60px' }}
+                />
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Signature Modal */}
+      <SignatureModal
+        open={signatureModalOpen}
+        onOpenChange={setSignatureModalOpen}
+        onConfirm={handleSignatureConfirm}
+        title="Potpis platne liste"
+        description="Dodajte digitalni potpis prije ispisa dokumenta"
+      />
     </div>
   );
 }

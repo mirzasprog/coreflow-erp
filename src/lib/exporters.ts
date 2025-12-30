@@ -19,7 +19,8 @@ export const exportToPrintablePdf = (
   title: string,
   subtitle: string,
   headers: string[],
-  rows: Array<Array<string | number>>
+  rows: Array<Array<string | number>>,
+  signature?: string | null
 ) => {
   if (typeof window === "undefined" || !rows?.length) return;
 
@@ -41,6 +42,19 @@ export const exportToPrintablePdf = (
     )
     .join("");
 
+  const signatureHtml = signature 
+    ? `<div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;">
+         <p style="font-size:12px;color:#6b7280;margin-bottom:8px;">Digitalni potpis / Digital Signature:</p>
+         <img src="${signature}" alt="Potpis" style="max-width:200px;max-height:80px;" />
+         <p style="font-size:10px;color:#9ca3af;margin-top:4px;">Datum: ${new Date().toLocaleDateString('hr-HR')}</p>
+       </div>`
+    : `<div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;">
+         <p style="font-size:12px;color:#6b7280;margin-bottom:40px;">Potpis / Signature:</p>
+         <div style="border-top:1px solid #9ca3af;width:200px;padding-top:4px;">
+           <p style="font-size:10px;color:#9ca3af;">Datum: _______________</p>
+         </div>
+       </div>`;
+
   const html = `
     <html>
       <head>
@@ -61,6 +75,7 @@ export const exportToPrintablePdf = (
         <h1>${title}</h1>
         <h2>${subtitle}</h2>
         <table>${tableHead ? `<thead><tr>${tableHead}</tr></thead>` : ""}<tbody>${tableRows}</tbody></table>
+        ${signatureHtml}
       </body>
     </html>
   `;
