@@ -326,9 +326,230 @@ ZADNJIH 30 DANA:
 
     console.log(`Found ${documents?.length || 0} total docs, ${relevantDocs.length} relevant docs for query: "${message}"`);
 
-    const systemPrompt = `Ti si AI asistent tvrtke koji pomaže s poslovnim analizama i internim procedurama.
+    // ERP User Guide - comprehensive instructions on how to use the system
+    const erpUserGuide = `
+=== VODIČ ZA KORIŠTENJE ERP SUSTAVA ===
+
+📦 SKLADIŠTE (WAREHOUSE MODULE)
+
+KAKO NAPRAVITI NARUDŽBENICU DOBAVLJAČU:
+1. Idite na Skladište → Narudžbe → Narudžbe dobavljačima
+2. Kliknite "Nova narudžba"
+3. Odaberite dobavljača iz padajućeg izbornika
+4. Odaberite lokaciju/skladište za prijem
+5. Postavite očekivani datum isporuke
+6. Dodajte artikle:
+   - Pretražite artikl po šifri ili nazivu
+   - Unesite količinu
+   - Cijena se automatski povlači iz artikla
+7. Kliknite "Spremi" za nacrt ili "Pošalji" za slanje dobavljaču
+8. Status narudžbe: Nacrt → Poslano → Potvrđeno → Primljeno
+
+KAKO NAPRAVITI PRIJEM ROBE (PRIMKA):
+1. Idite na Skladište → Dokumenti → Primke
+2. Kliknite "Nova primka" ili "Prijem po narudžbi"
+3. Ako je po narudžbi - odaberite narudžbenicu
+4. Unesite stvarno primljene količine
+5. Za artikle s LOT praćenjem unesite:
+   - Broj LOT-a
+   - Datum proizvodnje
+   - Rok trajanja
+   - Bin lokaciju (opciono)
+6. Pregledajte i potvrdite prijem
+7. Zalihe se automatski ažuriraju
+
+KAKO NAPRAVITI IZDAVANJE ROBE (OTPREMNICA):
+1. Idite na Skladište → Dokumenti → Otpremnice
+2. Kliknite "Nova otpremnica"
+3. Odaberite kupca/primatelja
+4. Odaberite skladište iz kojeg izdajete
+5. Dodajte artikle i količine
+6. Za LOT artikle - odaberite koji LOT izdajete (FIFO princip)
+7. Potvrdite dokument
+8. Opcionalno: Kreirajte picking nalog za skladištara
+
+KAKO NAPRAVITI MEĐUSKLADIŠNI PRIJENOS:
+1. Idite na Skladište → Dokumenti → Prijenosi
+2. Kliknite "Novi prijenos"
+3. Odaberite izlazno skladište (Od)
+4. Odaberite ulazno skladište (Do)
+5. Dodajte artikle za prijenos
+6. Za LOT artikle - specificirajte LOT
+7. Potvrdite prijenos
+8. Zalihe se automatski ažuriraju na obje lokacije
+
+KAKO NAPRAVITI INVENTURU:
+1. Idite na Skladište → Dokumenti → Inventure
+2. Kliknite "Nova inventura"
+3. Odaberite skladište
+4. Sustav povlači trenutne zalihe
+5. Unesite stvarno stanje (brojeno stanje)
+6. Sustav automatski računa razliku
+7. Pregledajte viškove i manjkove
+8. Potvrdite inventuru - zalihe se ažuriraju
+
+KAKO PREGLEDATI ZALIHE:
+1. Idite na Skladište → Izvještaji → Stanje zaliha
+2. Filtrirajte po lokaciji, kategoriji ili artiklu
+3. Vidite: trenutnu količinu, rezervirano, dostupno
+4. Za LOT artikle - vidite sve LOT-ove s rokovima
+5. Eksportirajte u Excel ako trebate
+
+KAKO UPRAVLJATI ARTIKLIMA:
+1. Idite na Skladište → Master podaci → Artikli
+2. Za novi artikl: Kliknite "Novi artikl"
+3. Obavezna polja: Šifra, Naziv, Jedinica mjere
+4. Opcionalno: Kategorija, PDV stopa, Nabavna/Prodajna cijena
+5. Za LOT praćenje: Uključite "Praćenje LOT-a"
+6. Postavite min/max zalihe za automatske alarme
+
+💰 FINANCIJE (FINANCE MODULE)
+
+KAKO KREIRATI ULAZNU FAKTURU:
+1. Idite na Financije → Ulazne fakture
+2. Kliknite "Nova faktura"
+3. Odaberite dobavljača
+4. Unesite broj i datum fakture dobavljača
+5. Dodajte stavke:
+   - Odaberite artikl ili unesite opis
+   - Količina, cijena, PDV stopa
+6. Povežite s primkom ako postoji
+7. Spremite ili proknjižite
+
+KAKO KREIRATI IZLAZNU FAKTURU:
+1. Idite na Financije → Izlazne fakture
+2. Kliknite "Nova faktura"
+3. Odaberite kupca
+4. Dodajte stavke s količinama i cijenama
+5. Sustav automatski računa PDV
+6. Proknjižite fakturu
+7. Opcionalno: Isprintajte ili pošaljite emailom
+
+KAKO NAPRAVITI TEMELJNICU (GL ENTRY):
+1. Idite na Financije → Glavna knjiga → Nova temeljnica
+2. Unesite datum i opis
+3. Dodajte stavke knjiženja:
+   - Odaberite konto
+   - Unesite duguje ili potražuje
+4. Osigurajte da je bilanca = 0 (duguje = potražuje)
+5. Proknjižite temeljnicu
+
+👥 HR MODUL
+
+KAKO DODATI NOVOG ZAPOSLENIKA:
+1. Idite na HR → Zaposlenici
+2. Kliknite "Novi zaposlenik"
+3. Unesite osnovne podatke: Ime, Prezime, Email
+4. Dodijelite odjel i lokaciju
+5. Unesite datum zaposlenja
+6. Spremite
+7. Nakon toga kreirajte ugovor
+
+KAKO KREIRATI UGOVOR:
+1. Idite na HR → Ugovori
+2. Kliknite "Novi ugovor"
+3. Odaberite zaposlenika
+4. Unesite: Datum početka, Tip ugovora, Plaću
+5. Opcionalno: Datum kraja, Radno vrijeme, Dani godišnjeg
+6. Spremite ugovor
+
+KAKO EVIDENTIRATI ODSUTNOST:
+1. Idite na HR → Odsutnosti
+2. Kliknite "Nova odsutnost"
+3. Odaberite zaposlenika
+4. Tip: Godišnji, Bolovanje, Plaćeni dopust, itd.
+5. Unesite period (od - do)
+6. Spremite
+7. Opcionalno: Odobrite odsutnost
+
+KAKO NAPRAVITI OBRAČUN PLAĆE:
+1. Idite na HR → Plaće → Periodi
+2. Kliknite "Novi period" ili odaberite postojeći
+3. Kliknite "Obračunaj plaće"
+4. Sustav automatski:
+   - Povlači bruto plaće iz ugovora
+   - Računa odbitke (doprinosi, porez)
+   - Generira platne liste
+5. Pregledajte obračun
+6. Odobrite i izvezite za isplatu
+
+🛒 POS (BLAGAJNA)
+
+KAKO KORISTITI BLAGAJNU:
+1. Idite na POS → Touch POS ili Klasični POS
+2. Otvorite smjenu:
+   - Unesite početno stanje blagajne
+   - Potvrdite
+3. Za prodaju:
+   - Skenirajte barkod ili pretražite artikl
+   - Artikl se dodaje u košaricu
+   - Prilagodite količinu ako treba
+4. Za naplatu:
+   - Kliknite "Naplati"
+   - Odaberite način plaćanja (Gotovina/Kartica)
+   - Unesite primljeni iznos
+   - Potvrdite
+5. Račun se automatski ispisuje
+
+KAKO ZATVORITI SMJENU:
+1. Na POS-u kliknite "Završi smjenu"
+2. Unesite završno stanje blagajne
+3. Sustav prikazuje:
+   - Ukupnu prodaju
+   - Gotovina vs Kartica
+   - Razliku u blagajni
+4. Potvrdite Z izvještaj
+
+💵 CIJENE I PROMOCIJE
+
+KAKO POSTAVITI CIJENE:
+1. Idite na Cijene → Cjenici
+2. Odaberite cjenik ili kreirajte novi
+3. Dodajte artikle s cijenama
+4. Postavite min/max cijenu ako treba
+5. Aktivirajte cjenik
+6. Povežite s lokacijama
+
+KAKO KREIRATI PROMOCIJU:
+1. Idite na Cijene → Promo aktivnosti
+2. Kliknite "Nova promocija"
+3. Unesite naziv i period
+4. Odaberite tip: Popust u %, Fiksna cijena
+5. Dodajte artikle u promociju
+6. Aktivirajte
+
+🔧 OSTALO
+
+KAKO DODATI NOVOG PARTNERA (DOBAVLJAČ/KUPAC):
+1. Idite na Postavke → Partneri
+2. Kliknite "Novi partner"
+3. Unesite: Šifra, Naziv, OIB/PDV ID
+4. Odaberite tip: Dobavljač, Kupac, ili Oba
+5. Unesite kontakt podatke
+6. Spremite
+
+KAKO KORISTITI DOKUMENTE U BAZU ZNANJA:
+1. Idite na Postavke → Dokumenti tvrtke
+2. Kliknite "Novi dokument"
+3. Unesite naslov i kategoriju
+4. Dodajte sadržaj (procedure, pravilnike)
+5. Dodajte ključne riječi za pretragu
+6. Spremite
+7. Chatbot može sada koristiti ovaj dokument
+
+NAVIGACIJA:
+- Koristite bočni izbornik za module
+- Svaki modul ima podkategorije
+- Pretraživanje je dostupno u većini tablica
+- Kliknite na red za detalje
+- Akcije su dostupno putem gumba ili kontekstnog izbornika
+`;
+
+    const systemPrompt = `Ti si AI asistent tvrtke koji pomaže s poslovnim analizama, internim procedurama I UPUTAMA ZA KORIŠTENJE ERP SUSTAVA.
 
 IMAŠ PRISTUP PODACIMA IZ ERP SUSTAVA! Koristi ih za odgovaranje na pitanja o prodaji, zalihama, narudžbama, itd.
+
+${erpUserGuide}
 
 POSLOVNI PODACI IZ SUSTAVA (AKTUALNI PODACI):
 ${contextData.length > 0 ? contextData.join('\n\n') : 'Trenutno nema podataka u sustavu.'}
@@ -338,7 +559,14 @@ ${proceduresContext || 'Nema relevantnih dokumenata za ovo pitanje.'}
 
 PRAVILA ODGOVARANJA:
 
-1. ZA PITANJA O POSLOVNIM PODACIMA (prodaja, promet, zalihe, narudžbe, fakture):
+1. ZA PITANJA "KAKO SE RADI..." (upute za korištenje ERP-a):
+   - OBAVEZNO KORISTI VODIČ ZA ERP iznad
+   - Objasni korak po korak
+   - Navedi točno gdje u meniju korisnik treba ići
+   - Koristi bullet points i numeraciju za jasnoću
+   - Primjeri: "Kako napraviti narudžbu?", "Kako izdati robu?", "Kako zatvoriti smjenu?"
+
+2. ZA PITANJA O POSLOVNIM PODACIMA (prodaja, promet, zalihe, narudžbe, fakture):
    - UVIJEK KORISTI podatke iz "POSLOVNI PODACI IZ SUSTAVA" sekcije
    - Ako korisnik pita za "zadnja 2 dana" - koristi podatke za ZADNJA 2 DANA
    - Ako korisnik pita za "zadnjih 7 dana" - koristi podatke za ZADNJIH 7 DANA
@@ -346,14 +574,15 @@ PRAVILA ODGOVARANJA:
    - NIKADA ne reci da nemaš podatke ako su prikazani gore!
    - Daj konkretne brojke i statistike
 
-2. ZA PITANJA O PROCEDURAMA I UPUTAMA:
-   - Koristi DOSLOVNO sadržaj iz dokumenata ako postoji
+3. ZA PITANJA O PROCEDURAMA I PRAVILNICIMA:
+   - Koristi DOSLOVNO sadržaj iz INTERNIH DOKUMENATA ako postoji
    - Ako nema dokumenta - reci: "Nemam internu dokumentaciju o ovoj temi. Predlažem da se doda u bazu znanja."
 
-3. OPĆE:
+4. OPĆE:
    - Odgovaraj na hrvatskom jeziku
-   - Koristi bullet points za jasnoću
-   - Budi koncizan i precizan
+   - Koristi emoji ikone za vizualnu jasnoću
+   - Koristi bullet points i numeraciju
+   - Budi koncizan ali detaljan za upute
 
 ${hasKnowledgeGap ? 'NAPOMENA: Za ovo pitanje nema interne dokumentacije - predloži da se doda u bazu znanja.' : ''}`;
 
