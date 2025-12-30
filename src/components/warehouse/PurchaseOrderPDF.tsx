@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { SignatureDisplay } from '@/components/signature/SignatureDisplay';
 
 interface PurchaseOrderLine {
   id: string;
@@ -37,9 +38,10 @@ interface PurchaseOrderData {
 
 interface PurchaseOrderPDFProps {
   order: PurchaseOrderData;
+  signature?: string | null;
 }
 
-export function PurchaseOrderPDF({ order }: PurchaseOrderPDFProps) {
+export function PurchaseOrderPDF({ order, signature }: PurchaseOrderPDFProps) {
   return (
     <div className="print-container bg-white text-black p-8 max-w-4xl mx-auto">
       {/* Header */}
@@ -153,12 +155,10 @@ export function PurchaseOrderPDF({ order }: PurchaseOrderPDFProps) {
       {/* Footer / Signatures */}
       <div className="mt-12 pt-8 border-t">
         <div className="grid grid-cols-2 gap-8">
-          <div>
-            <p className="text-sm text-gray-500 mb-12">Authorized Signature / Potpis</p>
-            <div className="border-t border-gray-400 pt-2">
-              <p className="text-sm text-gray-600">Date / Datum: _______________</p>
-            </div>
-          </div>
+          <SignatureDisplay 
+            signature={signature} 
+            label="Authorized Signature / Potpis" 
+          />
           <div>
             <p className="text-sm text-gray-500 mb-12">Stamp / Pečat</p>
             <div className="border-t border-gray-400 pt-2">

@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Clock, ShoppingCart, CheckCircle, Pencil, Trash2, Package, Mail, Printer, FileText, Link2 } from 'lucide-react';
+import { ArrowLeft, Clock, ShoppingCart, CheckCircle, Pencil, Trash2, Package, Mail, Printer, FileText, Link2, Pen } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,6 +47,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { SignatureModal } from '@/components/signature/SignatureModal';
 
 const statusConfig: Record<
   string,
@@ -67,6 +68,20 @@ export default function PurchaseOrderView() {
   const updateStatusMutation = useUpdatePurchaseOrderStatus();
   const convertToGoodsReceiptMutation = useConvertToGoodsReceipt();
   const printRef = useRef<HTMLDivElement>(null);
+  const [signatureModalOpen, setSignatureModalOpen] = useState(false);
+  const [currentSignature, setCurrentSignature] = useState<string | null>(null);
+
+  const handlePrintWithSignature = () => {
+    setSignatureModalOpen(true);
+  };
+
+  const handleSignatureConfirm = (signature: string | null) => {
+    setCurrentSignature(signature);
+    // Small delay to allow state update before printing
+    setTimeout(() => {
+      handlePrint();
+    }, 100);
+  };
 
   const handlePrint = () => {
     const printContent = printRef.current;
@@ -287,8 +302,8 @@ export default function PurchaseOrderView() {
             Back to Purchase Orders
           </NavLink>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handlePrint}>
-              <Printer className="mr-2 h-4 w-4" />
+            <Button variant="outline" onClick={handlePrintWithSignature}>
+              <Pen className="mr-2 h-4 w-4" />
               Print / PDF
             </Button>
             {order.status === 'draft' && (
@@ -559,9 +574,18 @@ export default function PurchaseOrderView() {
         {/* Hidden printable PDF content */}
         <div className="hidden">
           <div ref={printRef}>
-            <PurchaseOrderPDF order={order} />
+            <PurchaseOrderPDF order={order} signature={currentSignature} />
           </div>
         </div>
+
+        {/* Signature Modal */}
+        <SignatureModal
+          open={signatureModalOpen}
+          onOpenChange={setSignatureModalOpen}
+          onConfirm={handleSignatureConfirm}
+          title="Potpis narudžbenice"
+          description="Dodajte digitalni potpis prije ispisa dokumenta"
+        />
       </div>
     </div>
   );
