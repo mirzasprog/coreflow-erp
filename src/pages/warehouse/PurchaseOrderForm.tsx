@@ -174,9 +174,10 @@ export default function PurchaseOrderForm() {
         orderId = data.id;
       }
 
-      // Insert lines
-      if (lines.length > 0) {
-        const lineData = lines.map(line => ({
+      // Insert lines - filter out lines without item_id
+      const validLines = lines.filter(line => line.item_id && line.item_id.trim() !== '');
+      if (validLines.length > 0) {
+        const lineData = validLines.map(line => ({
           order_id: orderId,
           item_id: line.item_id,
           quantity: line.quantity,
