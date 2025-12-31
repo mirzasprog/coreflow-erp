@@ -33,6 +33,7 @@ import SupplierPriceComparison from "./pages/warehouse/SupplierPriceComparison";
 import WarehouseLocations from "./pages/warehouse/WarehouseLocations";
 import PickingOrders from "./pages/warehouse/PickingOrders";
 import FinanceIndex from "./pages/finance/FinanceIndex";
+import ControllingDashboard from "./pages/finance/ControllingDashboard";
 import OutgoingInvoiceList from "./pages/finance/OutgoingInvoiceList";
 import IncomingInvoiceList from "./pages/finance/IncomingInvoiceList";
 import InvoiceForm from "./pages/finance/InvoiceForm";
@@ -145,6 +146,8 @@ const App = () => (
               <Route path="/finance/gl-entries/:id/edit" element={<GLEntryForm />} />
               <Route path="/finance/accounts" element={<ChartOfAccounts />} />
               <Route path="/finance/balance-report" element={<AccountBalanceReport />} />
+              <Route path="/finance/controlling" element={<ControllingDashboard />} />
+              <Route path="/finance/gl-entries/:id/edit" element={<GLEntryForm />} />
               <Route path="/finance/gl-entries/:id/edit" element={<GLEntryForm />} />
               <Route path="/assets" element={<AssetsIndex />} />
               <Route path="/assets/new" element={<AssetForm />} />

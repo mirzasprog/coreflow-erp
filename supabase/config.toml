@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.analyze-price]
 verify_jwt = false
+
+[functions.bi-analytics]
+verify_jwt = false
