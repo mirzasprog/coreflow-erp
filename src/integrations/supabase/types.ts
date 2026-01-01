@@ -2080,6 +2080,63 @@ export type Database = {
         }
         Relationships: []
       }
+      price_rules: {
+        Row: {
+          action: Json
+          active: boolean
+          category_ids: string[] | null
+          code: string
+          conditions: Json
+          created_at: string
+          description: string | null
+          id: string
+          item_ids: string[] | null
+          location_ids: string[] | null
+          name: string
+          priority: number
+          rule_type: string
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          action?: Json
+          active?: boolean
+          category_ids?: string[] | null
+          code: string
+          conditions?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          item_ids?: string[] | null
+          location_ids?: string[] | null
+          name: string
+          priority?: number
+          rule_type?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          action?: Json
+          active?: boolean
+          category_ids?: string[] | null
+          code?: string
+          conditions?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          item_ids?: string[] | null
+          location_ids?: string[] | null
+          name?: string
+          priority?: number
+          rule_type?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
       promo_activities: {
         Row: {
           code: string
