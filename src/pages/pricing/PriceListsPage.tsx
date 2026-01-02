@@ -189,7 +189,7 @@ export default function PriceListsPage() {
                     </TableRow>
                   ) : (
                     filteredLists?.map((list) => (
-                      <TableRow key={list.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/pricing/lists/${list.id}`)}>
+                      <TableRow key={list.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/pricing/price-lists/${list.id}`)}>
                         <TableCell className="font-medium">{list.code}</TableCell>
                         <TableCell>
                           {list.name}
