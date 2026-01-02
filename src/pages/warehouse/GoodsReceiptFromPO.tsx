@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Save, CheckCircle, Loader2, Package, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle, Loader2, Package, AlertCircle, CalendarDays } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { usePurchaseOrder } from '@/hooks/usePurchaseOrders';
 import { useCreateDocument, usePostDocument } from '@/hooks/useWarehouseDocuments';
@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { serializeWmsLineMeta } from '@/lib/warehouseWms';
 
 interface ReceiptLine {
   item_id: string;
@@ -29,7 +30,10 @@ interface ReceiptLine {
   previously_received: number;
   receiving_quantity: number;
   unit_price: number;
-  items?: { code: string; name: string } | null;
+  items?: { code: string; name: string; lot_tracking?: boolean; require_lot_on_receipt?: boolean } | null;
+  lot_number?: string;
+  expiry_date?: string;
+  bin_location?: string;
 }
 
 export default function GoodsReceiptFromPO() {
@@ -78,17 +82,36 @@ export default function GoodsReceiptFromPO() {
   }, []);
 
   useEffect(() => {
-    if (order?.lines) {
-      const receiptLines: ReceiptLine[] = order.lines.map(line => ({
-        item_id: line.item_id,
-        ordered_quantity: line.quantity,
-        previously_received: (line as any).received_quantity || 0,
-        receiving_quantity: line.quantity - ((line as any).received_quantity || 0),
-        unit_price: line.unit_price,
-        items: line.items
-      }));
+    const loadLinesWithLotInfo = async () => {
+      if (!order?.lines) return;
+      
+      // Fetch item details including lot_tracking
+      const itemIds = order.lines.map(l => l.item_id);
+      const { data: itemsData } = await supabase
+        .from('items')
+        .select('id, code, name, lot_tracking, require_lot_on_receipt')
+        .in('id', itemIds);
+      
+      const itemsMap = new Map(itemsData?.map(i => [i.id, i]) || []);
+      
+      const receiptLines: ReceiptLine[] = order.lines.map(line => {
+        const itemData = itemsMap.get(line.item_id);
+        return {
+          item_id: line.item_id,
+          ordered_quantity: line.quantity,
+          previously_received: (line as any).received_quantity || 0,
+          receiving_quantity: line.quantity - ((line as any).received_quantity || 0),
+          unit_price: line.unit_price,
+          items: itemData || line.items,
+          lot_number: '',
+          expiry_date: '',
+          bin_location: ''
+        };
+      });
       setLines(receiptLines);
-    }
+    };
+    
+    loadLinesWithLotInfo();
   }, [order]);
 
   const updateReceivingQuantity = (index: number, value: number) => {
@@ -100,6 +123,13 @@ export default function GoodsReceiptFromPO() {
     }));
   };
 
+  const updateLotData = (index: number, field: 'lot_number' | 'expiry_date' | 'bin_location', value: string) => {
+    setLines(prev => prev.map((line, i) => {
+      if (i !== index) return line;
+      return { ...line, [field]: value };
+    }));
+  };
+
   const calculateTotal = () => {
     return lines.reduce((sum, line) => sum + (line.receiving_quantity * line.unit_price), 0);
   };
@@ -108,9 +138,31 @@ export default function GoodsReceiptFromPO() {
     return lines.some(line => line.receiving_quantity > 0);
   };
 
+  const validateLotData = () => {
+    const errors: string[] = [];
+    lines.forEach((line, index) => {
+      if (line.receiving_quantity > 0 && line.items?.lot_tracking) {
+        if (!line.lot_number?.trim()) {
+          errors.push(`${line.items.code || `Stavka ${index + 1}`}: LOT broj je obavezan`);
+        }
+        if (!line.expiry_date) {
+          errors.push(`${line.items.code || `Stavka ${index + 1}`}: Rok trajanja je obavezan`);
+        }
+      }
+    });
+    return errors;
+  };
+
   const handleSave = async (shouldPost = false) => {
     if (!hasItemsToReceive()) {
       toast.error('Molimo unesite količine za primku');
+      return;
+    }
+
+    // Validate LOT data for items with lot_tracking enabled
+    const lotErrors = validateLotData();
+    if (lotErrors.length > 0) {
+      lotErrors.forEach(err => toast.error(err));
       return;
     }
 
@@ -128,13 +180,23 @@ export default function GoodsReceiptFromPO() {
       status: 'draft' as const
     };
 
-    const documentLines = filteredLines.map(line => ({
-      item_id: line.item_id,
-      quantity: line.receiving_quantity,
-      unit_price: line.unit_price,
-      total_price: line.receiving_quantity * line.unit_price,
-      items: line.items
-    }));
+    const documentLines = filteredLines.map(line => {
+      // Serialize WMS metadata for lines with LOT tracking
+      const wmsMeta = line.items?.lot_tracking ? serializeWmsLineMeta({
+        lotNumber: line.lot_number,
+        expiryDate: line.expiry_date,
+        binLocation: line.bin_location
+      }) : null;
+
+      return {
+        item_id: line.item_id,
+        quantity: line.receiving_quantity,
+        unit_price: line.unit_price,
+        total_price: line.receiving_quantity * line.unit_price,
+        notes: wmsMeta,
+        items: line.items
+      };
+    });
 
     try {
       const result = await createDocument.mutateAsync({ document, lines: documentLines });
@@ -329,17 +391,17 @@ export default function GoodsReceiptFromPO() {
           <CardHeader>
             <CardTitle>Stavke za prijem</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Šifra</TableHead>
                   <TableHead>Naziv artikla</TableHead>
-                  <TableHead className="text-right">Naručeno</TableHead>
-                  <TableHead className="text-right">Već primljeno</TableHead>
                   <TableHead className="text-right">Preostalo</TableHead>
-                  <TableHead className="text-right w-32">Primam sada</TableHead>
-                  <TableHead className="text-right">Cijena</TableHead>
+                  <TableHead className="text-right w-24">Primam</TableHead>
+                  <TableHead>LOT broj</TableHead>
+                  <TableHead>Rok trajanja</TableHead>
+                  <TableHead>Lokacija</TableHead>
                   <TableHead className="text-right">Ukupno</TableHead>
                 </TableRow>
               </TableHeader>
@@ -353,18 +415,16 @@ export default function GoodsReceiptFromPO() {
                 ) : (
                   lines.map((line, index) => {
                     const remaining = line.ordered_quantity - line.previously_received;
+                    const requiresLot = line.items?.lot_tracking;
                     return (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{line.items?.code || '-'}</TableCell>
-                        <TableCell>{line.items?.name || '-'}</TableCell>
-                        <TableCell className="text-right">{line.ordered_quantity}</TableCell>
-                        <TableCell className="text-right">
-                          {line.previously_received > 0 ? (
-                            <Badge variant="secondary">{line.previously_received}</Badge>
-                          ) : (
-                            '0'
+                      <TableRow key={index} className={requiresLot ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}>
+                        <TableCell className="font-medium">
+                          {line.items?.code || '-'}
+                          {requiresLot && (
+                            <Badge variant="outline" className="ml-2 text-xs border-amber-500 text-amber-700">LOT</Badge>
                           )}
                         </TableCell>
+                        <TableCell>{line.items?.name || '-'}</TableCell>
                         <TableCell className="text-right">
                           {remaining > 0 ? (
                             <Badge variant="outline">{remaining}</Badge>
@@ -375,7 +435,7 @@ export default function GoodsReceiptFromPO() {
                         <TableCell className="text-right">
                           <Input
                             type="number"
-                            className="w-24 text-right"
+                            className="w-20 text-right"
                             value={line.receiving_quantity}
                             onChange={(e) => updateReceivingQuantity(index, parseFloat(e.target.value) || 0)}
                             max={remaining}
@@ -383,7 +443,41 @@ export default function GoodsReceiptFromPO() {
                             disabled={remaining <= 0}
                           />
                         </TableCell>
-                        <TableCell className="text-right">€{line.unit_price.toFixed(2)}</TableCell>
+                        <TableCell>
+                          {requiresLot ? (
+                            <Input
+                              className="w-28"
+                              placeholder="LOT-YYYY-XX"
+                              value={line.lot_number || ''}
+                              onChange={(e) => updateLotData(index, 'lot_number', e.target.value)}
+                              disabled={remaining <= 0 || line.receiving_quantity === 0}
+                            />
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {requiresLot ? (
+                            <Input
+                              type="date"
+                              className="w-32"
+                              value={line.expiry_date || ''}
+                              onChange={(e) => updateLotData(index, 'expiry_date', e.target.value)}
+                              disabled={remaining <= 0 || line.receiving_quantity === 0}
+                            />
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            className="w-20"
+                            placeholder="A-01-01"
+                            value={line.bin_location || ''}
+                            onChange={(e) => updateLotData(index, 'bin_location', e.target.value)}
+                            disabled={remaining <= 0 || line.receiving_quantity === 0}
+                          />
+                        </TableCell>
                         <TableCell className="text-right font-medium">
                           €{(line.receiving_quantity * line.unit_price).toFixed(2)}
                         </TableCell>
