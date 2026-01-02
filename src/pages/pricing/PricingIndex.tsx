@@ -14,7 +14,8 @@ import {
   Settings,
   ArrowRight,
   Sparkles,
-  Building2
+  Building2,
+  Cog
 } from 'lucide-react';
 import { useModuleSettings, useToggleModule, usePriceLists, usePromoActivities } from '@/hooks/usePriceManagement';
 import { useToast } from '@/hooks/use-toast';
@@ -86,6 +87,13 @@ export default function PricingIndex() {
       icon: TrendingUp,
       href: '/pricing/competitors',
       color: 'text-purple-500'
+    },
+    {
+      title: 'Pravila Cijena',
+      description: 'Automatska pravila za popuste i akcije',
+      icon: Cog,
+      href: '/pricing/rules',
+      color: 'text-red-500'
     }
   ];
 
