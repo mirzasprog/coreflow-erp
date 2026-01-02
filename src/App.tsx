@@ -82,6 +82,7 @@ import PromoActivitiesPage from "./pages/pricing/PromoActivitiesPage";
 import PromoDetailPage from "./pages/pricing/PromoDetailPage";
 import PriceHistoryPage from "./pages/pricing/PriceHistoryPage";
 import CompetitorPricesPage from "./pages/pricing/CompetitorPricesPage";
+import PriceRulesPage from "./pages/pricing/PriceRulesPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -186,6 +187,7 @@ const App = () => (
               <Route path="/pricing/promos/:id" element={<PromoDetailPage />} />
               <Route path="/pricing/history" element={<PriceHistoryPage />} />
               <Route path="/pricing/competitors" element={<CompetitorPricesPage />} />
+              <Route path="/pricing/rules" element={<PriceRulesPage />} />
               <Route path="/settings" element={<SettingsIndex />} />
               <Route path="/settings/partners" element={<PartnersList />} />
               <Route path="/settings/documents" element={<CompanyDocuments />} />
