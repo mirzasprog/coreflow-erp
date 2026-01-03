@@ -32,6 +32,8 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { DocumentTimeline } from '@/components/warehouse/DocumentTimeline';
+import { DocumentChainCard } from '@/components/warehouse/DocumentChainCard';
 
 function useLinkedInvoice(receiptId: string | undefined) {
   return useQuery({
@@ -150,6 +152,45 @@ export default function GoodsReceiptView() {
             </div>
           )}
         </div>
+
+        {/* Document Chain */}
+        <DocumentChainCard
+          documents={[
+            ...(purchaseOrder ? [{
+              id: document.purchase_order_id!,
+              number: purchaseOrder.order_number,
+              type: 'purchase_order' as const,
+              status: purchaseOrder.status || 'draft'
+            }] : []),
+            {
+              id: document.id,
+              number: document.document_number,
+              type: 'goods_receipt' as const,
+              status: document.status
+            },
+            ...(linkedInvoice ? [{
+              id: linkedInvoice.id,
+              number: linkedInvoice.invoice_number,
+              type: 'invoice' as const,
+              status: linkedInvoice.status || 'draft'
+            }] : [])
+          ]}
+          className="mb-6"
+        />
+
+        {/* Status Timeline */}
+        <Card className="mb-6">
+          <CardContent className="pt-4">
+            <DocumentTimeline 
+              currentStatus={document.status} 
+              documentType="goods_receipt"
+              dates={{
+                created: document.created_at || undefined,
+                posted: document.posted_at || undefined
+              }}
+            />
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
