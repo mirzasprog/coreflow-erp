@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { getExpiryStatus } from "@/lib/warehouseWms";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ExpiryWarnings } from "@/components/warehouse/ExpiryWarnings";
 
 const documentTypes = [
   { icon: ArrowDownToLine, label: "Goods Receipt", labelAlt: "Primka", href: "/warehouse/receipts", count: null },
@@ -322,56 +323,8 @@ export default function WarehouseIndex() {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <div className="module-card">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">LOT Status</h3>
-                <p className="text-sm text-muted-foreground">Praćenje isteka</p>
-              </div>
-              <Badge variant="secondary">Auto review</Badge>
-            </div>
-            <div className="space-y-3">
-              {lotLoading ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : lotData?.length === 0 ? (
-                <div className="py-4 text-center text-muted-foreground text-sm">
-                  Nema LOT-ova koji ističu
-                </div>
-              ) : (
-                lotData?.map((entry) => {
-                  const status = getExpiryStatus(entry.expiry_date || '');
-                  const badgeClass =
-                    status === "expired"
-                      ? "bg-red-100 text-red-700"
-                      : status === "expiring"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : "bg-emerald-100 text-emerald-700";
-                  const statusLabel =
-                    status === "expired" ? "Expired" : status === "expiring" ? "Expiring soon" : "OK";
-                  return (
-                    <div key={entry.id} className="flex items-center justify-between rounded-lg border p-3">
-                      <div>
-                        <p className="text-sm font-medium">
-                          {entry.items?.code || '-'} • {entry.items?.name || '-'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          LOT {entry.lot_number} · {entry.bin_location || entry.locations?.code || '-'} · {entry.quantity} pcs
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">{entry.expiry_date}</p>
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${badgeClass}`}>
-                          {statusLabel}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+          {/* Expiry Warnings Card */}
+          <ExpiryWarnings />
 
           <div className="module-card">
             <div className="mb-4">

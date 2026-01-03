@@ -48,6 +48,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { SignatureModal } from '@/components/signature/SignatureModal';
+import { DocumentTimeline } from '@/components/warehouse/DocumentTimeline';
 
 const statusConfig: Record<
   string,
@@ -338,6 +339,21 @@ export default function PurchaseOrderView() {
             )}
           </div>
         </div>
+
+        {/* Status Timeline */}
+        <Card className="mb-6">
+          <CardContent className="pt-4">
+            <DocumentTimeline 
+              currentStatus={order.status} 
+              documentType="purchase_order"
+              dates={{
+                created: order.created_at || undefined,
+                ordered: order.status !== 'draft' ? order.updated_at || undefined : undefined,
+                received: order.status === 'received' ? order.updated_at || undefined : undefined
+              }}
+            />
+          </CardContent>
+        </Card>
 
         {/* Order Header */}
         <div className="mb-6 grid gap-4 lg:grid-cols-3">

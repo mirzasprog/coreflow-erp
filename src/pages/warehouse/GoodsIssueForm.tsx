@@ -215,6 +215,7 @@ export default function GoodsIssueForm() {
     };
 
     try {
+      let docId = id;
       if (isEdit) {
         await updateDocument.mutateAsync({ id, document, lines });
         if (shouldPost) {
@@ -222,11 +223,17 @@ export default function GoodsIssueForm() {
         }
       } else {
         const result = await createDocument.mutateAsync({ document, lines });
+        docId = result?.id;
         if (shouldPost && result?.id) {
           await postDocument.mutateAsync({ id: result.id, documentType: 'goods_issue' });
         }
       }
-      navigate('/warehouse/issues');
+      // After creating/saving, navigate to view page where user can create picking order
+      if (docId) {
+        navigate(`/warehouse/issues/${docId}`);
+      } else {
+        navigate('/warehouse/issues');
+      }
     } catch (error) {
       // Error handled by mutation
     }
