@@ -214,6 +214,8 @@ async function generateGLDocumentNumber(): Promise<string> {
 
 // Standard account codes - these should match your chart of accounts
 const GL_ACCOUNTS = {
+  CASH: '1000',                // Gotovina / Cash
+  BANK: '1020',                // Žiro račun / Bank account
   ACCOUNTS_RECEIVABLE: '1200', // Potraživanja od kupaca
   ACCOUNTS_PAYABLE: '2200',    // Obveze prema dobavljačima
   GRNI: '2210',                // Roba primljena nefakturisana / Goods Received Not Invoiced
@@ -486,28 +488,146 @@ export function useRecordPayment() {
   
   return useMutation({
     mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
+      // Get invoice with partner info
       const { data: invoice } = await supabase
         .from('invoices')
-        .select('paid_amount, total')
+        .select('paid_amount, total, invoice_number, invoice_type, partner_id, invoice_date')
         .eq('id', id)
         .single();
       
       if (!invoice) throw new Error('Invoice not found');
       
       const newPaidAmount = (invoice.paid_amount || 0) + amount;
+      const isOutgoing = invoice.invoice_type === 'outgoing';
+
+      // Get accounts for GL entry
+      const { data: accounts } = await supabase
+        .from('accounts')
+        .select('id, code, name')
+        .eq('active', true);
       
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts found in chart of accounts.');
+      }
+
+      const findAccount = (codePrefix: string) => {
+        return accounts.find(a => a.code.startsWith(codePrefix));
+      };
+
+      const cashAccount = findAccount(GL_ACCOUNTS.CASH) || findAccount(GL_ACCOUNTS.BANK);
+      const receivableAccount = findAccount(GL_ACCOUNTS.ACCOUNTS_RECEIVABLE);
+      const payableAccount = findAccount(GL_ACCOUNTS.ACCOUNTS_PAYABLE);
+
+      if (!cashAccount) {
+        throw new Error('Cash account not found in chart of accounts.');
+      }
+
+      // Create GL entry for payment
+      const documentNumber = await generateGLDocumentNumber();
+      
+      const glLines: Array<{
+        account_id: string;
+        debit: number;
+        credit: number;
+        description: string | null;
+        partner_id: string | null;
+      }> = [];
+
+      if (isOutgoing) {
+        // Customer payment received: Debit Cash, Credit Receivables
+        glLines.push({
+          account_id: cashAccount.id,
+          debit: amount,
+          credit: 0,
+          description: `Payment received - Invoice ${invoice.invoice_number}`,
+          partner_id: invoice.partner_id
+        });
+        
+        if (receivableAccount) {
+          glLines.push({
+            account_id: receivableAccount.id,
+            debit: 0,
+            credit: amount,
+            description: `Payment received - Invoice ${invoice.invoice_number}`,
+            partner_id: invoice.partner_id
+          });
+        }
+      } else {
+        // Vendor payment made: Debit Payables, Credit Cash
+        if (payableAccount) {
+          glLines.push({
+            account_id: payableAccount.id,
+            debit: amount,
+            credit: 0,
+            description: `Payment made - Invoice ${invoice.invoice_number}`,
+            partner_id: invoice.partner_id
+          });
+        }
+        
+        glLines.push({
+          account_id: cashAccount.id,
+          debit: 0,
+          credit: amount,
+          description: `Payment made - Invoice ${invoice.invoice_number}`,
+          partner_id: invoice.partner_id
+        });
+      }
+
+      // Create GL entry
+      const { data: glEntry, error: glError } = await supabase
+        .from('gl_entries')
+        .insert({
+          entry_date: new Date().toISOString().split('T')[0],
+          description: `${isOutgoing ? 'Payment received' : 'Payment made'}: Invoice ${invoice.invoice_number}`,
+          reference_type: 'payment',
+          reference_id: id,
+          status: 'posted',
+          document_number: documentNumber
+        })
+        .select()
+        .single();
+      
+      if (glError) {
+        throw new Error(`Failed to create GL entry: ${glError.message}`);
+      }
+
+      // Create GL entry lines
+      if (glLines.length > 0) {
+        const linesWithEntryId = glLines.map(line => ({
+          entry_id: glEntry.id,
+          account_id: line.account_id,
+          debit: line.debit,
+          credit: line.credit,
+          description: line.description,
+          partner_id: line.partner_id
+        }));
+
+        const { error: linesError } = await supabase
+          .from('gl_entry_lines')
+          .insert(linesWithEntryId);
+        
+        if (linesError) {
+          // Rollback GL entry
+          await supabase.from('gl_entries').delete().eq('id', glEntry.id);
+          throw new Error(`Failed to create GL entry lines: ${linesError.message}`);
+        }
+      }
+
+      // Update invoice paid amount
       const { error } = await supabase
         .from('invoices')
         .update({ paid_amount: newPaidAmount })
         .eq('id', id);
       
       if (error) throw error;
-      return { id, newPaidAmount };
+      return { id, newPaidAmount, glEntryId: glEntry.id, documentNumber };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoice'] });
-      toast.success('Payment recorded successfully');
+      queryClient.invalidateQueries({ queryKey: ['gl-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['finance', 'cash-balance'] });
+      toast.success(`Payment recorded. GL Entry ${data.documentNumber} created.`);
     },
     onError: (error: Error) => {
       toast.error(`Failed to record payment: ${error.message}`);
