@@ -10,7 +10,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Edit, CheckCircle, Loader2, FileText, ShoppingCart, Link2, Wand2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ArrowLeft, Edit, CheckCircle, Loader2, FileText, ShoppingCart, Link2, Wand2, Sparkles } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
   getWarehouseStatusLabel,
@@ -87,6 +88,8 @@ export default function GoodsReceiptView() {
   }
 
   const isDraft = document.status === 'draft';
+  const isPosted = document.status === 'posted';
+  const showInvoiceSuggestion = isPosted && !linkedInvoice;
   const purchaseOrder = (document as any).purchase_orders;
   const statusTone = getWarehouseStatusTone(document.status);
   const statusLabel = getWarehouseStatusLabel(document.status);
@@ -152,6 +155,28 @@ export default function GoodsReceiptView() {
             </div>
           )}
         </div>
+
+        {/* Invoice Suggestion Alert */}
+        {showInvoiceSuggestion && (
+          <Alert className="mb-6 border-primary/50 bg-primary/5">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <AlertTitle className="text-primary">Prijedlog: Kreirajte ulaznu fakturu</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span className="text-muted-foreground">
+                Primka je proknjižena. Možete automatski generirati ulaznu fakturu iz podataka primke.
+              </span>
+              <Button 
+                size="sm" 
+                onClick={() => generateInvoice.mutate({ receiptId: document.id })}
+                disabled={generateInvoice.isPending}
+              >
+                {generateInvoice.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                <Wand2 className="mr-2 h-3 w-3" />
+                Generiši fakturu
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Document Chain */}
         <DocumentChainCard

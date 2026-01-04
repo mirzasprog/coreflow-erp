@@ -13,17 +13,28 @@ import {
   TrendingUp,
   Wallet,
   PieChart,
+  Landmark,
 } from "lucide-react";
 import { useInvoices } from "@/hooks/useInvoices";
+import { useCashBalance } from "@/hooks/useCashBalance";
 
 export default function FinanceIndex() {
   const { data: outgoingInvoices } = useInvoices('outgoing');
   const { data: incomingInvoices } = useInvoices('incoming');
+  const { data: cashData } = useCashBalance();
 
   const receivables = outgoingInvoices?.reduce((sum, inv) => sum + (inv.total - (inv.paid_amount || 0)), 0) || 0;
   const payables = incomingInvoices?.reduce((sum, inv) => sum + (inv.total - (inv.paid_amount || 0)), 0) || 0;
   const openOutgoing = outgoingInvoices?.filter(inv => inv.status !== 'cancelled' && inv.paid_amount < inv.total).length || 0;
   const openIncoming = incomingInvoices?.filter(inv => inv.status !== 'cancelled' && inv.paid_amount < inv.total).length || 0;
+
+  const formatCurrency = (value: number) => 
+    new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
+
+  const formatChangePercent = (value: number) => {
+    const sign = value >= 0 ? '+' : '';
+    return `${sign}${value.toFixed(1)}% this month`;
+  };
 
   return (
     <div>
@@ -48,17 +59,17 @@ export default function FinanceIndex() {
           />
           <StatCard
             title="Cash Balance"
-            value="€156,780"
-            change="+5.2% this month"
-            changeType="positive"
+            value={formatCurrency(cashData?.cashBalance || 0)}
+            change={formatChangePercent(cashData?.cashChangePercent || 0)}
+            changeType={cashData?.cashChangePercent && cashData.cashChangePercent >= 0 ? "positive" : "negative"}
             icon={Wallet}
             iconColor="bg-module-finance/10 text-module-finance"
           />
           <StatCard
             title="Monthly Profit"
-            value="€12,340"
-            change="+18.3% vs last month"
-            changeType="positive"
+            value={formatCurrency(cashData?.monthlyProfit || 0)}
+            change={formatChangePercent(cashData?.profitChangePercent || 0)}
+            changeType={cashData?.profitChangePercent && cashData.profitChangePercent >= 0 ? "positive" : "negative"}
             icon={TrendingUp}
             iconColor="bg-primary/10 text-primary"
           />
@@ -132,6 +143,17 @@ export default function FinanceIndex() {
               <div>
                 <h3 className="font-semibold">Balance Report</h3>
                 <p className="text-sm text-muted-foreground">Bruto bilanca</p>
+              </div>
+            </div>
+          </NavLink>
+          <NavLink to="/finance/reconciliation" className="module-card p-6 hover:border-primary transition-colors">
+            <div className="flex items-center gap-4">
+              <div className="rounded-lg bg-warning/10 p-3">
+                <Landmark className="h-6 w-6 text-warning" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Bank Reconciliation</h3>
+                <p className="text-sm text-muted-foreground">Sparivanje izvoda</p>
               </div>
             </div>
           </NavLink>
