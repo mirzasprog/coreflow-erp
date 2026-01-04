@@ -195,6 +195,111 @@ export type Database = {
           },
         ]
       }
+      bank_statement_lines: {
+        Row: {
+          amount: number
+          description: string | null
+          id: string
+          matched: boolean | null
+          matched_at: string | null
+          matched_invoice_id: string | null
+          notes: string | null
+          partner_account: string | null
+          partner_name: string | null
+          reference: string | null
+          statement_id: string
+          transaction_date: string
+          transaction_type: string | null
+          value_date: string | null
+        }
+        Insert: {
+          amount: number
+          description?: string | null
+          id?: string
+          matched?: boolean | null
+          matched_at?: string | null
+          matched_invoice_id?: string | null
+          notes?: string | null
+          partner_account?: string | null
+          partner_name?: string | null
+          reference?: string | null
+          statement_id: string
+          transaction_date: string
+          transaction_type?: string | null
+          value_date?: string | null
+        }
+        Update: {
+          amount?: number
+          description?: string | null
+          id?: string
+          matched?: boolean | null
+          matched_at?: string | null
+          matched_invoice_id?: string | null
+          notes?: string | null
+          partner_account?: string | null
+          partner_name?: string | null
+          reference?: string | null
+          statement_id?: string
+          transaction_date?: string
+          transaction_type?: string | null
+          value_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statement_lines_matched_invoice_id_fkey"
+            columns: ["matched_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_statements: {
+        Row: {
+          account_number: string | null
+          bank_name: string
+          closing_balance: number | null
+          currency: string | null
+          id: string
+          imported_at: string | null
+          imported_by: string | null
+          notes: string | null
+          opening_balance: number | null
+          statement_date: string
+        }
+        Insert: {
+          account_number?: string | null
+          bank_name: string
+          closing_balance?: number | null
+          currency?: string | null
+          id?: string
+          imported_at?: string | null
+          imported_by?: string | null
+          notes?: string | null
+          opening_balance?: number | null
+          statement_date?: string
+        }
+        Update: {
+          account_number?: string | null
+          bank_name?: string
+          closing_balance?: number | null
+          currency?: string | null
+          id?: string
+          imported_at?: string | null
+          imported_by?: string | null
+          notes?: string | null
+          opening_balance?: number | null
+          statement_date?: string
+        }
+        Relationships: []
+      }
       chatbot_history: {
         Row: {
           answer: string
