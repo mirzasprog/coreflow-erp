@@ -1,22 +1,40 @@
 import { Clock } from "lucide-react";
-
-interface Activity {
-  id: string;
-  action: string;
-  module: string;
-  user: string;
-  time: string;
-}
-
-const activities: Activity[] = [
-  { id: "1", action: "Goods receipt GR-2024-001 posted", module: "Warehouse", user: "John D.", time: "5 min ago" },
-  { id: "2", action: "Invoice INV-2024-089 created", module: "Finance", user: "Sarah M.", time: "12 min ago" },
-  { id: "3", action: "POS shift closed - Terminal 1", module: "POS", user: "Mike R.", time: "1 hour ago" },
-  { id: "4", action: "Fire extinguisher inspection due", module: "HSE", user: "System", time: "2 hours ago" },
-  { id: "5", action: "New employee added: Ana K.", module: "HR", user: "HR Admin", time: "3 hours ago" },
-];
+import { useDashboardActivity } from "@/hooks/useDashboardActivity";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function RecentActivity() {
+  const { data: activities, isLoading } = useDashboardActivity();
+
+  if (isLoading) {
+    return (
+      <div className="module-card">
+        <h3 className="mb-4 text-lg font-semibold">Recent Activity</h3>
+        <div className="space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <Skeleton className="h-7 w-7 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!activities || activities.length === 0) {
+    return (
+      <div className="module-card">
+        <h3 className="mb-4 text-lg font-semibold">Recent Activity</h3>
+        <div className="flex h-32 items-center justify-center text-muted-foreground">
+          No recent activity
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="module-card">
       <h3 className="mb-4 text-lg font-semibold">Recent Activity</h3>
