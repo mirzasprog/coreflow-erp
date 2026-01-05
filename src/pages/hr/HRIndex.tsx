@@ -153,7 +153,7 @@ export default function HRIndex() {
           />
           <StatCard
             title="Departments"
-            value="—"
+            value={stats?.totalDepartments?.toString() || "0"}
             change="Manage structure"
             icon={Building}
             iconColor="bg-info/10 text-info"

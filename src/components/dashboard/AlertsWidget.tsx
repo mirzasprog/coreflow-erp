@@ -1,19 +1,7 @@
 import { AlertTriangle, CheckCircle, Clock, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Alert {
-  id: string;
-  type: "warning" | "danger" | "info" | "success";
-  message: string;
-  module: string;
-}
-
-const alerts: Alert[] = [
-  { id: "1", type: "danger", message: "3 fire extinguishers overdue for inspection", module: "HSE" },
-  { id: "2", type: "warning", message: "Low stock alert: 5 items below minimum", module: "Warehouse" },
-  { id: "3", type: "info", message: "2 invoices pending approval", module: "Finance" },
-  { id: "4", type: "warning", message: "Employee sanitary check expiring in 7 days", module: "HSE" },
-];
+import { useDashboardAlerts } from "@/hooks/useDashboardAlerts";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const icons = {
   warning: AlertTriangle,
@@ -30,11 +18,26 @@ const colors = {
 };
 
 export function AlertsWidget() {
+  const { data: alerts, isLoading } = useDashboardAlerts();
+
+  if (isLoading) {
+    return (
+      <div className="module-card">
+        <h3 className="mb-4 text-lg font-semibold">Alerts & Notifications</h3>
+        <div className="space-y-3">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-16 rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="module-card">
       <h3 className="mb-4 text-lg font-semibold">Alerts & Notifications</h3>
       <div className="space-y-3">
-        {alerts.map((alert) => {
+        {alerts?.map((alert) => {
           const Icon = icons[alert.type];
           return (
             <div

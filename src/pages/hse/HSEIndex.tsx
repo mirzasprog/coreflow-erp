@@ -15,72 +15,12 @@ import {
   Clock,
   Flame,
   HeartPulse,
-  Users,
   FileCheck,
 } from "lucide-react";
-
-type ActionStatus = "open" | "in_progress" | "completed";
-
-interface ActionItem {
-  id: string;
-  title: string;
-  owner: string;
-  dueIn: string;
-  severity: "low" | "medium" | "high";
-  status: ActionStatus;
-}
-
-const trainingCoverage = [
-  { id: "t1", name: "Fire Safety & Extinguishers", completion: 92, overdue: 1 },
-  { id: "t2", name: "Evacuation & Drills", completion: 88, overdue: 2 },
-  { id: "t3", name: "First Aid & PPE", completion: 76, overdue: 3 },
-];
-
-const readinessScores = [
-  { id: "r1", label: "Fire Safety", status: "Stable", trend: "+4%", score: 86 },
-  { id: "r2", label: "Machinery", status: "Monitor", trend: "-2%", score: 72 },
-  { id: "r3", label: "Medical", status: "Improving", trend: "+3%", score: 81 },
-];
-
-const actionItemsSeed: ActionItem[] = [
-  {
-    id: "a1",
-    title: "Zamijeni istekli aparat FE-007",
-    owner: "Marko Horvat",
-    dueIn: "3 dana",
-    severity: "high",
-    status: "open",
-  },
-  {
-    id: "a2",
-    title: "Planiraj godišnji pregled hidranta H-003",
-    owner: "Tina Vuković",
-    dueIn: "1 tjedan",
-    severity: "medium",
-    status: "in_progress",
-  },
-  {
-    id: "a3",
-    title: "Podsjeti na sanitarnu knjižicu za ugostiteljstvo",
-    owner: "Sanja Petrović",
-    dueIn: "Danas",
-    severity: "high",
-    status: "open",
-  },
-  {
-    id: "a4",
-    title: "Ažuriraj protokol za evakuaciju",
-    owner: "Ivan Kovač",
-    dueIn: "15 dana",
-    severity: "low",
-    status: "completed",
-  },
-];
 
 export default function HSEIndex() {
   const navigate = useNavigate();
   const [inspectionWindow, setInspectionWindow] = useState<"7" | "30" | "all">("30");
-  const [actionItems, setActionItems] = useState<ActionItem[]>(actionItemsSeed);
   const { data: devices } = useSafetyDevices();
   const { data: medicalChecks = [], stats: medicalStats } = useMedicalCheckStats();
 
@@ -129,16 +69,6 @@ export default function HSEIndex() {
       .sort((a, b) => b.daysOverdue - a.daysOverdue);
   }, [medicalChecks]);
 
-  const actionCounts = useMemo(() => {
-    return actionItems.reduce(
-      (acc, item) => {
-        acc[item.status as keyof typeof acc] += 1;
-        return acc;
-      },
-      { open: 0, in_progress: 0, completed: 0 }
-    );
-  }, [actionItems]);
-
   const deviceStats = useMemo(() => {
     const overdue = inspectionsFromDevices.filter((item) => (item.daysUntil || 0) < 0).length;
     const dueSoon = inspectionsFromDevices.filter(
@@ -152,11 +82,31 @@ export default function HSEIndex() {
     };
   }, [inspectionsFromDevices]);
 
-  const updateActionItem = (id: string, status: ActionStatus) => {
-    setActionItems((items) =>
-      items.map((item) => (item.id === id ? { ...item, status } : item))
-    );
-  };
+  // Calculate compliance scores based on real data
+  const complianceScores = useMemo(() => {
+    const deviceCompliance = deviceStats.total > 0
+      ? Math.round(((deviceStats.total - deviceStats.overdue) / deviceStats.total) * 100)
+      : 100;
+    
+    const medicalCompliance = medicalStats.complianceRate;
+    
+    return [
+      {
+        id: "devices",
+        label: "Device Inspections",
+        score: deviceCompliance,
+        status: deviceCompliance >= 90 ? "Good" : deviceCompliance >= 70 ? "Monitor" : "Critical",
+        detail: `${deviceStats.overdue} overdue`,
+      },
+      {
+        id: "medical",
+        label: "Medical Checks",
+        score: medicalCompliance,
+        status: medicalCompliance >= 90 ? "Good" : medicalCompliance >= 70 ? "Monitor" : "Critical",
+        detail: `${medicalStats.overdue} expired`,
+      },
+    ];
+  }, [deviceStats, medicalStats]);
 
   return (
     <div>
@@ -301,7 +251,7 @@ export default function HSEIndex() {
             </div>
           </div>
 
-          {/* Compliance Snapshot */}
+          {/* Compliance Snapshot - Real Data */}
           <div className="module-card">
             <div className="mb-2 flex items-center justify-between">
               <div>
@@ -313,17 +263,17 @@ export default function HSEIndex() {
               </div>
             </div>
             <div className="space-y-3">
-              {readinessScores.map((item) => (
+              {complianceScores.map((item) => (
                 <div key={item.id} className="rounded-lg border bg-muted/40 p-3">
                   <div className="flex items-center justify-between">
                     <p className="font-medium">{item.label}</p>
                     <span
                       className={
-                        item.status === "Stable"
-                          ? "badge-secondary"
-                          : item.status === "Improving"
-                            ? "badge-success"
-                            : "badge-warning"
+                        item.status === "Good"
+                          ? "rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success"
+                          : item.status === "Monitor"
+                            ? "rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning"
+                            : "rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
                       }
                     >
                       {item.status}
@@ -331,93 +281,21 @@ export default function HSEIndex() {
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-module-hse"
+                      className={`h-full rounded-full ${
+                        item.score >= 90 ? "bg-success" : item.score >= 70 ? "bg-warning" : "bg-destructive"
+                      }`}
                       style={{ width: `${item.score}%` }}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">Score: {item.score}% • {item.trend}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Score: {item.score}% • {item.detail}</p>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Action & Medical */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="module-card lg:col-span-2">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Action Center</h3>
-                <p className="text-sm text-muted-foreground">Operativni zadaci za HSE</p>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="badge-danger">{actionCounts.open} Open</span>
-                <span className="badge-warning">{actionCounts.in_progress} In progress</span>
-                <span className="badge-success">{actionCounts.completed} Completed</span>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {actionItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex flex-col gap-3 rounded-lg border p-3 lg:flex-row lg:items-center lg:justify-between"
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={
-                        "flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold " +
-                        (item.severity === "high"
-                          ? "bg-destructive/10 text-destructive"
-                          : item.severity === "medium"
-                            ? "bg-warning/10 text-warning"
-                            : "bg-success/10 text-success")
-                      }
-                    >
-                      {item.owner.split(" ").map((n: string) => n[0]).join("")}
-                    </div>
-                    <div>
-                      <p className="font-medium">{item.title}</p>
-                      <p className="text-sm text-muted-foreground">Nositelj: {item.owner} • Rok: {item.dueIn}</p>
-                      <div className="mt-1 flex flex-wrap gap-2 text-xs">
-                        <span className="rounded-full bg-muted px-2 py-1 font-medium">Severity: {item.severity}</span>
-                        <span
-                          className={
-                            item.status === "completed"
-                              ? "badge-success"
-                              : item.status === "in_progress"
-                                ? "badge-warning"
-                                : "badge-danger"
-                          }
-                        >
-                          {item.status.replace("_", " ")}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => updateActionItem(item.id, "in_progress")}
-                      disabled={item.status === "completed"}
-                    >
-                      Start
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => updateActionItem(item.id, "completed")}
-                      disabled={item.status === "completed"}
-                    >
-                      Resolve
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Overdue Medical Checks */}
+        {/* Overdue Medical Checks */}
+        <div className="grid gap-6 lg:grid-cols-2">
           <div className="module-card">
             <div className="mb-4 flex items-center justify-between">
               <div>
@@ -433,7 +311,7 @@ export default function HSEIndex() {
               </div>
             ) : (
               <div className="space-y-3">
-                {overdueMedical.map((item) => (
+                {overdueMedical.slice(0, 5).map((item) => (
                   <div
                     key={item.id}
                     className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-3"
@@ -450,46 +328,15 @@ export default function HSEIndex() {
                       </div>
                     </div>
                     <span className="rounded-full bg-destructive/10 px-3 py-1 text-sm font-semibold text-destructive">
-                      {item.daysOverdue} days overdue
+                      {item.daysOverdue} days
                     </span>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
 
-        {/* Training & compliance */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="module-card lg:col-span-2">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Training Coverage</h3>
-                <p className="text-sm text-muted-foreground">Obuka i osposobljavanje zaposlenika</p>
-              </div>
-              <Button variant="outline" size="sm">Download plan</Button>
-            </div>
-            <div className="space-y-3">
-              {trainingCoverage.map((training) => (
-                <div key={training.id} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="font-medium">{training.name}</p>
-                      <p className="text-sm text-muted-foreground">{training.overdue} sessions overdue</p>
-                    </div>
-                    <span className="text-sm font-semibold text-module-hse">{training.completion}%</span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-module-hse"
-                      style={{ width: `${training.completion}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
+          {/* Medical Coverage Summary */}
           <div className="module-card">
             <div className="mb-2 flex items-center justify-between">
               <div>
@@ -501,26 +348,31 @@ export default function HSEIndex() {
             <div className="space-y-3">
               <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3">
                 <div>
-                  <p className="font-medium">Aktivni pregledi</p>
-                  <p className="text-sm text-muted-foreground">Planirani i u tijeku</p>
+                  <p className="font-medium">Total Checks</p>
+                  <p className="text-sm text-muted-foreground">All medical records</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold">18</p>
-                  <p className="text-xs text-success">+3 this week</p>
+                  <p className="text-2xl font-bold">{medicalStats.total}</p>
+                  <p className="text-xs text-muted-foreground">records</p>
                 </div>
               </div>
-              <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
-                <p className="font-medium">Expiring soon</p>
-                <p className="text-sm text-muted-foreground">5 zaposlenika unutar 10 dana</p>
-                <div className="mt-2 flex items-center gap-2 text-xs text-warning">
-                  <Clock className="h-3 w-3" /> Hitno planirati
+              {medicalStats.expiringSoon > 0 && (
+                <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
+                  <p className="font-medium">Expiring soon</p>
+                  <p className="text-sm text-muted-foreground">{medicalStats.expiringSoon} employees within 30 days</p>
+                  <div className="mt-2 flex items-center gap-2 text-xs text-warning">
+                    <Clock className="h-3 w-3" /> Plan renewals
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="rounded-lg border border-success/30 bg-success/5 p-3">
-                <p className="font-medium">Completed this month</p>
-                <p className="text-sm text-muted-foreground">12 pregleda završeno</p>
+                <p className="font-medium">Compliance Rate</p>
+                <p className="text-sm text-muted-foreground">{medicalStats.complianceRate}% of checks are valid</p>
                 <div className="mt-2 h-2 rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-success" style={{ width: "68%" }} />
+                  <div 
+                    className="h-full rounded-full bg-success" 
+                    style={{ width: `${medicalStats.complianceRate}%` }} 
+                  />
                 </div>
               </div>
             </div>

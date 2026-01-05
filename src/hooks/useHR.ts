@@ -280,15 +280,17 @@ export function useHRStats() {
   return useQuery({
     queryKey: ["hr_stats"],
     queryFn: async () => {
-      const [employeesRes, contractsRes, absencesRes] = await Promise.all([
+      const [employeesRes, contractsRes, absencesRes, departmentsRes] = await Promise.all([
         supabase.from("employees").select("id, active"),
         supabase.from("contracts").select("id, end_date"),
         supabase.from("absences").select("id, start_date, end_date, approved"),
+        supabase.from("departments").select("id").eq("active", true),
       ]);
 
       if (employeesRes.error) throw employeesRes.error;
       if (contractsRes.error) throw contractsRes.error;
       if (absencesRes.error) throw absencesRes.error;
+      if (departmentsRes.error) throw departmentsRes.error;
 
       const today = new Date().toISOString().split("T")[0];
       const activeEmployees = employeesRes.data.filter((e) => e.active);
@@ -310,6 +312,7 @@ export function useHRStats() {
         pendingAbsences: pendingAbsences.length,
         totalContracts: contractsRes.data.length,
         expiringContracts: expiringContracts.length,
+        totalDepartments: departmentsRes.data.length,
       };
     },
   });
