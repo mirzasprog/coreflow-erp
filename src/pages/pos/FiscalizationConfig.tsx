@@ -296,14 +296,16 @@ export default function FiscalizationConfig() {
                 <div className="space-y-2">
                   <Label>Terminal</Label>
                   <Select
-                    value={editingConfig.terminal_id || ""}
-                    onValueChange={(v) => setEditingConfig({ ...editingConfig, terminal_id: v || null })}
+                    value={editingConfig.terminal_id ?? "all"}
+                    onValueChange={(v) =>
+                      setEditingConfig({ ...editingConfig, terminal_id: v === "all" ? null : v })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Odaberi terminal" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Svi terminali</SelectItem>
+                      <SelectItem value="all">Svi terminali</SelectItem>
                       {terminals.map((t) => (
                         <SelectItem key={t.id} value={t.id}>
                           {t.name} ({t.terminal_code})
@@ -316,14 +318,16 @@ export default function FiscalizationConfig() {
                 <div className="space-y-2">
                   <Label>Lokacija</Label>
                   <Select
-                    value={editingConfig.location_id || ""}
-                    onValueChange={(v) => setEditingConfig({ ...editingConfig, location_id: v || null })}
+                    value={editingConfig.location_id ?? "all"}
+                    onValueChange={(v) =>
+                      setEditingConfig({ ...editingConfig, location_id: v === "all" ? null : v })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Odaberi lokaciju" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sve lokacije</SelectItem>
+                      <SelectItem value="all">Sve lokacije</SelectItem>
                       {locations.map((l) => (
                         <SelectItem key={l.id} value={l.id}>
                           {l.name}
