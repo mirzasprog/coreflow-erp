@@ -300,6 +300,45 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_connections: {
+        Row: {
+          api_key: string | null
+          channel_name: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          property_id: string | null
+          settings: Json | null
+          sync_enabled: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          api_key?: string | null
+          channel_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          property_id?: string | null
+          settings?: Json | null
+          sync_enabled?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string | null
+          channel_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          property_id?: string | null
+          settings?: Json | null
+          sync_enabled?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chatbot_history: {
         Row: {
           answer: string
@@ -879,6 +918,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      hotel_guests: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          id_document_number: string | null
+          id_document_type: string | null
+          last_name: string
+          nationality: string | null
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          id_document_number?: string | null
+          id_document_type?: string | null
+          last_name: string
+          nationality?: string | null
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          id_document_number?: string | null
+          id_document_type?: string | null
+          last_name?: string
+          nationality?: string | null
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       invoice_lines: {
         Row: {
@@ -2490,6 +2574,158 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservations: {
+        Row: {
+          adults: number | null
+          channel_reservation_id: string | null
+          check_in: string
+          check_out: string
+          children: number | null
+          created_at: string
+          guest_id: string | null
+          id: string
+          notes: string | null
+          paid_amount: number | null
+          reservation_number: string
+          room_id: string | null
+          source: string | null
+          status: string
+          total_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          adults?: number | null
+          channel_reservation_id?: string | null
+          check_in: string
+          check_out: string
+          children?: number | null
+          created_at?: string
+          guest_id?: string | null
+          id?: string
+          notes?: string | null
+          paid_amount?: number | null
+          reservation_number: string
+          room_id?: string | null
+          source?: string | null
+          status?: string
+          total_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          adults?: number | null
+          channel_reservation_id?: string | null
+          check_in?: string
+          check_out?: string
+          children?: number | null
+          created_at?: string
+          guest_id?: string | null
+          id?: string
+          notes?: string | null
+          paid_amount?: number | null
+          reservation_number?: string
+          room_id?: string | null
+          source?: string | null
+          status?: string
+          total_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_types: {
+        Row: {
+          active: boolean | null
+          amenities: string[] | null
+          base_price: number
+          created_at: string
+          description: string | null
+          id: string
+          max_occupancy: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          amenities?: string[] | null
+          base_price?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_occupancy?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          amenities?: string[] | null
+          base_price?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_occupancy?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rooms: {
+        Row: {
+          active: boolean | null
+          created_at: string
+          floor: number | null
+          id: string
+          notes: string | null
+          room_number: string
+          room_type_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string
+          floor?: number | null
+          id?: string
+          notes?: string | null
+          room_number: string
+          room_type_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string
+          floor?: number | null
+          id?: string
+          notes?: string | null
+          room_number?: string
+          room_type_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_room_type_id_fkey"
+            columns: ["room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
             referencedColumns: ["id"]
           },
         ]
