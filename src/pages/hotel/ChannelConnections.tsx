@@ -49,8 +49,8 @@ export default function ChannelConnections() {
       api_key: apiKey || null,
       property_id: propertyId || null,
       is_active: true,
+      sync_enabled: false,
       last_sync_at: null,
-      sync_status: "idle",
       settings: {},
     });
     
@@ -180,8 +180,8 @@ export default function ChannelConnections() {
                 {isConnected ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
-                      <span>Status:</span>
-                      <Badge variant="outline">{connection.sync_status}</Badge>
+                      <span>Sinkronizacija:</span>
+                      <Badge variant="outline">{connection.sync_enabled ? "Aktivna" : "Neaktivna"}</Badge>
                     </div>
                     {connection.last_sync_at && (
                       <div className="flex items-center justify-between text-sm">

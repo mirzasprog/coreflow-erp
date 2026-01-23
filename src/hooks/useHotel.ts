@@ -9,6 +9,7 @@ export interface RoomType {
   base_price: number;
   max_occupancy: number;
   amenities: string[] | null;
+  active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -18,8 +19,9 @@ export interface Room {
   room_number: string;
   room_type_id: string | null;
   floor: number | null;
-  status: 'available' | 'occupied' | 'maintenance' | 'cleaning';
+  status: string;
   notes: string | null;
+  active: boolean;
   created_at: string;
   updated_at: string;
   room_type?: RoomType;
@@ -34,7 +36,6 @@ export interface HotelGuest {
   id_document_type: string | null;
   id_document_number: string | null;
   nationality: string | null;
-  date_of_birth: string | null;
   address: string | null;
   notes: string | null;
   created_at: string;
@@ -46,19 +47,15 @@ export interface Reservation {
   reservation_number: string;
   guest_id: string | null;
   room_id: string | null;
-  check_in_date: string;
-  check_out_date: string;
-  actual_check_in: string | null;
-  actual_check_out: string | null;
+  check_in: string;
+  check_out: string;
   adults: number;
   children: number;
-  status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show';
-  source: 'direct' | 'booking_com' | 'airbnb' | 'expedia' | 'other';
-  external_reservation_id: string | null;
+  status: string;
+  source: string;
+  channel_reservation_id: string | null;
   total_price: number;
-  deposit_amount: number | null;
-  deposit_paid: boolean;
-  special_requests: string | null;
+  paid_amount: number;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -72,9 +69,9 @@ export interface ChannelConnection {
   api_key: string | null;
   property_id: string | null;
   is_active: boolean;
+  sync_enabled: boolean;
   last_sync_at: string | null;
-  sync_status: string;
-  settings: Record<string, unknown>;
+  settings: unknown;
   created_at: string;
   updated_at: string;
 }
@@ -225,13 +222,13 @@ export function useReservations(filters?: { startDate?: string; endDate?: string
       let query = supabase
         .from('reservations')
         .select('*, guest:hotel_guests(*), room:rooms(*, room_type:room_types(*))')
-        .order('check_in_date', { ascending: true });
+        .order('check_in', { ascending: true });
       
       if (filters?.startDate) {
-        query = query.gte('check_in_date', filters.startDate);
+        query = query.gte('check_in', filters.startDate);
       }
       if (filters?.endDate) {
-        query = query.lte('check_out_date', filters.endDate);
+        query = query.lte('check_out', filters.endDate);
       }
       if (filters?.status) {
         query = query.eq('status', filters.status);
@@ -248,9 +245,11 @@ export function useCreateReservation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (reservation: Omit<Reservation, 'id' | 'reservation_number' | 'created_at' | 'updated_at' | 'guest' | 'room'>) => {
+      // Generate reservation number
+      const reservationNumber = `RES-${Date.now().toString(36).toUpperCase()}`;
       const { data, error } = await supabase
         .from('reservations')
-        .insert(reservation)
+        .insert({ ...reservation, reservation_number: reservationNumber })
         .select()
         .single();
       if (error) throw error;
@@ -314,7 +313,15 @@ export function useCreateChannelConnection() {
     mutationFn: async (connection: Omit<ChannelConnection, 'id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
         .from('channel_connections')
-        .insert(connection)
+        .insert([{
+          channel_name: connection.channel_name,
+          api_key: connection.api_key,
+          property_id: connection.property_id,
+          is_active: connection.is_active,
+          sync_enabled: connection.sync_enabled,
+          last_sync_at: connection.last_sync_at,
+          settings: connection.settings as Record<string, never>,
+        }])
         .select()
         .single();
       if (error) throw error;
@@ -348,14 +355,14 @@ export function useHotelDashboardStats() {
       const { data: checkIns } = await supabase
         .from('reservations')
         .select('id')
-        .eq('check_in_date', today)
+        .eq('check_in', today)
         .in('status', ['confirmed', 'pending']);
       
       // Get today's check-outs
       const { data: checkOuts } = await supabase
         .from('reservations')
         .select('id')
-        .eq('check_out_date', today)
+        .eq('check_out', today)
         .eq('status', 'checked_in');
       
       // Get active reservations

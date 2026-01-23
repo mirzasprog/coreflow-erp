@@ -42,8 +42,8 @@ export default function ReservationCalendar() {
   const getReservationsForRoomAndDay = (roomId: string, day: Date) => {
     return reservations?.filter(res => {
       if (res.room_id !== roomId) return false;
-      const checkIn = parseISO(res.check_in_date);
-      const checkOut = parseISO(res.check_out_date);
+      const checkIn = parseISO(res.check_in);
+      const checkOut = parseISO(res.check_out);
       return isWithinInterval(day, { start: checkIn, end: checkOut }) || 
              isSameDay(day, checkIn) || 
              isSameDay(day, checkOut);
@@ -122,7 +122,7 @@ export default function ReservationCalendar() {
                                   className={`h-8 rounded flex items-center justify-center text-xs cursor-pointer hover:opacity-80 ${sourceColors[reservation.source]}`}
                                   title={`${reservation.guest?.first_name} ${reservation.guest?.last_name} - ${reservation.source}`}
                                 >
-                                  {isSameDay(parseISO(reservation.check_in_date), day) && (
+                                  {isSameDay(parseISO(reservation.check_in), day) && (
                                     <span className="text-white truncate px-1">
                                       {reservation.guest?.last_name?.slice(0, 3)}
                                     </span>

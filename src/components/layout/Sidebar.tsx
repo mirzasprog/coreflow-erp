@@ -51,6 +51,22 @@ const sections: SidebarSection[] = [
     items: [
       { icon: Warehouse, label: "Warehouse", labelAlt: "Skladište", href: "/warehouse", color: "text-module-warehouse" },
       { icon: ShoppingCart, label: "POS", labelAlt: "Prodaja", href: "/pos", color: "text-module-pos" },
+      { icon: Building2, label: "Hotel", labelAlt: "Smještaj", href: "/hotel", color: "text-module-hotel" },
+    ],
+  },
+  {
+    title: "Commerce",
+    hint: "Prodaja i nabava",
+    items: [
+      { icon: Tags, label: "E-Commerce", labelAlt: "Web Shop", href: "/ecommerce", color: "text-module-ecommerce" },
+      { icon: Tags, label: "Procurement", labelAlt: "Nabava", href: "/procurement", color: "text-module-procurement" },
+    ],
+  },
+  {
+    title: "Production",
+    hint: "Proizvodnja",
+    items: [
+      { icon: HardDrive, label: "Production", labelAlt: "Proizvodnja", href: "/production", color: "text-module-production" },
     ],
   },
   {
