@@ -44,6 +44,7 @@ export default function RoomsList() {
       floor: newRoom.floor,
       status: "available",
       notes: null,
+      active: true,
     });
     setNewRoom({ room_number: "", room_type_id: "", floor: 1 });
     setRoomDialogOpen(false);
@@ -56,6 +57,7 @@ export default function RoomsList() {
       max_occupancy: newType.max_occupancy,
       description: newType.description || null,
       amenities: null,
+      active: true,
     });
     setNewType({ name: "", base_price: 0, max_occupancy: 2, description: "" });
     setTypeDialogOpen(false);

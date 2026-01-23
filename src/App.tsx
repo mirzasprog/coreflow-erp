@@ -72,6 +72,11 @@ import HSECalendar from "./pages/hse/HSECalendar";
 import HSEDevices from "./pages/hse/HSEDevices";
 import HSEInspections from "./pages/hse/HSEInspections";
 import HSEMedicalChecks from "./pages/hse/HSEMedicalChecks";
+import HotelIndex from "./pages/hotel/HotelIndex";
+import ReservationCalendar from "./pages/hotel/ReservationCalendar";
+import RoomsList from "./pages/hotel/RoomsList";
+import GuestsList from "./pages/hotel/GuestsList";
+import ChannelConnections from "./pages/hotel/ChannelConnections";
 import SettingsIndex from "./pages/settings/SettingsIndex";
 import PartnersList from "./pages/settings/PartnersList";
 import CompanyDocuments from "./pages/settings/CompanyDocuments";
@@ -84,6 +89,19 @@ import PromoDetailPage from "./pages/pricing/PromoDetailPage";
 import PriceHistoryPage from "./pages/pricing/PriceHistoryPage";
 import CompetitorPricesPage from "./pages/pricing/CompetitorPricesPage";
 import PriceRulesPage from "./pages/pricing/PriceRulesPage";
+import EcommerceIndex from "./pages/ecommerce/EcommerceIndex";
+import ProductCatalog from "./pages/ecommerce/ProductCatalog";
+import OrdersList from "./pages/ecommerce/OrdersList";
+import OrderView from "./pages/ecommerce/OrderView";
+import WebShopSettings from "./pages/ecommerce/WebShopSettings";
+import ProductionIndex from "./pages/production/ProductionIndex";
+import WorkOrdersList from "./pages/production/WorkOrdersList";
+import WorkOrderForm from "./pages/production/WorkOrderForm";
+import WorkOrderView from "./pages/production/WorkOrderView";
+import BOMList from "./pages/production/BOMList";
+import ProcurementIndex from "./pages/procurement/ProcurementIndex";
+import PurchaseRequests from "./pages/procurement/PurchaseRequests";
+import SupplierAnalysis from "./pages/procurement/SupplierAnalysis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -190,6 +208,24 @@ const App = () => (
               <Route path="/pricing/history" element={<PriceHistoryPage />} />
               <Route path="/pricing/competitors" element={<CompetitorPricesPage />} />
               <Route path="/pricing/rules" element={<PriceRulesPage />} />
+              <Route path="/hotel" element={<HotelIndex />} />
+              <Route path="/hotel/calendar" element={<ReservationCalendar />} />
+              <Route path="/hotel/rooms" element={<RoomsList />} />
+              <Route path="/hotel/guests" element={<GuestsList />} />
+              <Route path="/hotel/channels" element={<ChannelConnections />} />
+              <Route path="/ecommerce" element={<EcommerceIndex />} />
+              <Route path="/ecommerce/products" element={<ProductCatalog />} />
+              <Route path="/ecommerce/orders" element={<OrdersList />} />
+              <Route path="/ecommerce/orders/:id" element={<OrderView />} />
+              <Route path="/ecommerce/settings" element={<WebShopSettings />} />
+              <Route path="/production" element={<ProductionIndex />} />
+              <Route path="/production/work-orders" element={<WorkOrdersList />} />
+              <Route path="/production/work-orders/new" element={<WorkOrderForm />} />
+              <Route path="/production/work-orders/:id" element={<WorkOrderView />} />
+              <Route path="/production/bom" element={<BOMList />} />
+              <Route path="/procurement" element={<ProcurementIndex />} />
+              <Route path="/procurement/requests" element={<PurchaseRequests />} />
+              <Route path="/procurement/supplier-analysis" element={<SupplierAnalysis />} />
               <Route path="/settings" element={<SettingsIndex />} />
               <Route path="/settings/partners" element={<PartnersList />} />
               <Route path="/settings/documents" element={<CompanyDocuments />} />

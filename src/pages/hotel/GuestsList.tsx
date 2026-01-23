@@ -33,7 +33,6 @@ export default function GuestsList() {
       nationality: newGuest.nationality || null,
       id_document_type: newGuest.id_document_type || null,
       id_document_number: newGuest.id_document_number || null,
-      date_of_birth: null,
       address: null,
       notes: null,
     });
