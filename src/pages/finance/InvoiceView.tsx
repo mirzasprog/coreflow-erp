@@ -21,12 +21,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Loader2, Edit, XCircle, CheckCircle, DollarSign } from 'lucide-react';
+import { ArrowLeft, Loader2, Edit, XCircle, CheckCircle, DollarSign, FileCode } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useInvoice, usePostInvoice, useCancelInvoice, useRecordPayment } from '@/hooks/useInvoices';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { generateUBLInvoiceXML, downloadXML, EInvoiceData } from '@/lib/eInvoice';
 
 export default function InvoiceView() {
   const { id } = useParams();
@@ -63,6 +64,51 @@ export default function InvoiceView() {
     await recordPayment.mutateAsync({ id, amount });
     setPaymentDialogOpen(false);
     setPaymentAmount('');
+  };
+
+  const handleGenerateEInvoice = () => {
+    if (!invoice) return;
+
+    const eInvoiceData: EInvoiceData = {
+      invoiceNumber: invoice.invoice_number,
+      invoiceDate: invoice.invoice_date,
+      dueDate: invoice.due_date || invoice.invoice_date,
+      seller: {
+        name: 'Vaša Kompanija d.o.o.', // TODO: Load from company settings
+        taxId: '1234567890123',
+        address: 'Ulica 1',
+        city: 'Sarajevo',
+        postalCode: '71000',
+        country: 'BA',
+      },
+      buyer: {
+        name: invoice.partners?.name || 'Kupac',
+        taxId: invoice.partners?.tax_id || '',
+        address: invoice.partners?.address || '',
+        city: invoice.partners?.city || '',
+        postalCode: invoice.partners?.postal_code || '',
+        country: invoice.partners?.country || 'BA',
+      },
+      lines: invoice.lines?.map(line => ({
+        description: line.description || line.items?.name || 'Artikal',
+        quantity: line.quantity,
+        unitPrice: line.unit_price,
+        vatRate: line.vat_rates?.rate || 17,
+        vatAmount: line.vat_amount,
+        lineTotal: line.total - line.vat_amount,
+      })) || [],
+      totals: {
+        subtotal: invoice.subtotal,
+        vatAmount: invoice.vat_amount,
+        total: invoice.total,
+      },
+      currency: 'BAM',
+      note: invoice.notes || undefined,
+    };
+
+    const xml = generateUBLInvoiceXML(eInvoiceData);
+    downloadXML(xml, `e-faktura-${invoice.invoice_number}.xml`);
+    toast.success('UBL 2.1 XML faktura generirana i preuzeta');
   };
 
   if (isLoading) {
@@ -135,6 +181,12 @@ export default function InvoiceView() {
             )}
             {invoice.status === 'posted' && (
               <>
+                {isOutgoing && (
+                  <Button variant="outline" onClick={handleGenerateEInvoice}>
+                    <FileCode className="mr-2 h-4 w-4" />
+                    E-Faktura (UBL XML)
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => setPaymentDialogOpen(true)}>
                   <DollarSign className="mr-2 h-4 w-4" />
                   Record Payment
