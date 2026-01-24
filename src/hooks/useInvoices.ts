@@ -20,7 +20,7 @@ export interface Invoice {
   notes: string | null;
   warehouse_document_id: string | null;
   created_at: string;
-  partners?: { name: string; code: string } | null;
+  partners?: { name: string; code: string; tax_id?: string; address?: string; city?: string; postal_code?: string; country?: string } | null;
   warehouse_documents?: { document_number: string } | null;
   source_receipt?: { document_number: string; status: string; total_value: number } | null;
 }
@@ -47,7 +47,7 @@ export function useInvoices(invoiceType: InvoiceType) {
         .from('invoices')
         .select(`
           *,
-          partners(name, code),
+          partners(name, code, tax_id, address, city, postal_code, country),
           warehouse_documents:warehouse_document_id(document_number),
           source_receipt:source_receipt_id(document_number, status, total_value)
         `)
@@ -70,7 +70,7 @@ export function useInvoice(id: string | undefined) {
         .from('invoices')
         .select(`
           *,
-          partners(name, code),
+          partners(name, code, tax_id, address, city, postal_code, country),
           warehouse_documents:warehouse_document_id(document_number),
           source_receipt:source_receipt_id(document_number, status, total_value)
         `)
