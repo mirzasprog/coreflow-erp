@@ -156,9 +156,10 @@ export function useUpdateRoom() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...room }: Partial<Room> & { id: string }) => {
+      const { room_type, ...updateData } = room as Partial<Room> & { room_type?: unknown };
       const { data, error } = await supabase
         .from('rooms')
-        .update(room)
+        .update(updateData as never)
         .eq('id', id)
         .select()
         .single();
@@ -271,9 +272,10 @@ export function useUpdateReservation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...reservation }: Partial<Reservation> & { id: string }) => {
+      const { guest, room, ...updateData } = reservation as Partial<Reservation> & { guest?: unknown; room?: unknown };
       const { data, error } = await supabase
         .from('reservations')
-        .update(reservation)
+        .update(updateData as never)
         .eq('id', id)
         .select()
         .single();

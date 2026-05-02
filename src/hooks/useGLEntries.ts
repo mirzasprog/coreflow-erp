@@ -172,7 +172,7 @@ export function useUpdateGLEntry() {
     mutationFn: async ({ id, entry, lines }: { id: string; entry: Record<string, unknown>; lines: GLEntryLine[] }) => {
       const { error: entryError } = await supabase
         .from('gl_entries')
-        .update(entry)
+        .update(entry as never)
         .eq('id', id);
       
       if (entryError) throw entryError;

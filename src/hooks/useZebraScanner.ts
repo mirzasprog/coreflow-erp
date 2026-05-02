@@ -33,7 +33,7 @@ export function useZebraScanner(options: UseZebraScannerOptions = {}) {
   
   const bufferRef = useRef('');
   const lastKeystrokeRef = useRef<number>(0);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const processBarcode = useCallback((rawBarcode: string) => {
     let barcode = rawBarcode.trim();

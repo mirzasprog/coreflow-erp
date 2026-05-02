@@ -81,6 +81,7 @@ import SettingsIndex from "./pages/settings/SettingsIndex";
 import PartnersList from "./pages/settings/PartnersList";
 import CompanyDocuments from "./pages/settings/CompanyDocuments";
 import ChatbotHistory from "./pages/settings/ChatbotHistory";
+import CompanySettingsPage from "./pages/settings/CompanySettings";
 import PricingIndex from "./pages/pricing/PricingIndex";
 import PriceListsPage from "./pages/pricing/PriceListsPage";
 import PriceListDetailPage from "./pages/pricing/PriceListDetailPage";
@@ -230,6 +231,7 @@ const App = () => (
               <Route path="/settings/partners" element={<PartnersList />} />
               <Route path="/settings/documents" element={<CompanyDocuments />} />
               <Route path="/settings/chatbot-history" element={<ChatbotHistory />} />
+              <Route path="/settings/company" element={<CompanySettingsPage />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

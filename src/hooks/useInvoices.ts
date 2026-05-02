@@ -147,7 +147,7 @@ export function useUpdateInvoice() {
     mutationFn: async ({ id, invoice, lines }: { id: string; invoice: Record<string, unknown>; lines: InvoiceLine[] }) => {
       const { error: invError } = await supabase
         .from('invoices')
-        .update(invoice)
+        .update(invoice as never)
         .eq('id', id);
       
       if (invError) throw invError;

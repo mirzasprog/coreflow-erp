@@ -137,7 +137,7 @@ export function useUpdatePayrollPeriodStatus() {
       
       const { error } = await supabase
         .from("payroll_periods")
-        .update(updates)
+        .update(updates as never)
         .eq("id", id);
       if (error) throw error;
     },
