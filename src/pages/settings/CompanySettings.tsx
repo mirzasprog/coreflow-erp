@@ -177,21 +177,24 @@ export default function CompanySettingsPage() {
                   {(settings ?? []).length === 0 ? (
                     <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nema unesenih podataka</TableCell></TableRow>
                   ) : (
-                    settings?.map((s: CompanySettings & { locations?: { name: string; code: string } | null }) => (
-                      <TableRow key={s.id}>
-                        <TableCell>{s.locations?.name ?? '—'}</TableCell>
-                        <TableCell className="font-medium">{s.legal_name}</TableCell>
-                        <TableCell>{s.tax_id}</TableCell>
-                        <TableCell>{s.vat_number ?? '—'}</TableCell>
-                        <TableCell className="font-mono text-xs">{s.iban ?? '—'}</TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button size="sm" variant="outline" onClick={() => setEditing(s)}>Uredi</Button>
-                          <Button size="sm" variant="destructive" onClick={() => s.id && del.mutate(s.id)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    settings?.map((s) => {
+                      const loc = locations?.find((l: { id: string; name: string }) => l.id === s.location_id);
+                      return (
+                        <TableRow key={s.id}>
+                          <TableCell>{loc?.name ?? '—'}</TableCell>
+                          <TableCell className="font-medium">{s.legal_name}</TableCell>
+                          <TableCell>{s.tax_id}</TableCell>
+                          <TableCell>{s.vat_number ?? '—'}</TableCell>
+                          <TableCell className="font-mono text-xs">{s.iban ?? '—'}</TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button size="sm" variant="outline" onClick={() => setEditing(s as CompanySettings)}>Uredi</Button>
+                            <Button size="sm" variant="destructive" onClick={() => s.id && del.mutate(s.id)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

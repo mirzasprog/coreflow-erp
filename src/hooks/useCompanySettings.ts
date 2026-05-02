@@ -31,7 +31,7 @@ export function useCompanySettings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('company_settings')
-        .select('*, locations(name, code)')
+        .select('*')
         .order('legal_name');
       if (error) throw error;
       return data;
