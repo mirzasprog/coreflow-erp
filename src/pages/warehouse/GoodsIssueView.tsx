@@ -10,8 +10,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Edit, CheckCircle, XCircle, Loader2, Link2, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Edit, CheckCircle, XCircle, Loader2, Link2, ClipboardList, FileCode } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
+import { generateDeliveryNoteXML, downloadXML } from '@/lib/eInvoice';
+import { toast } from 'sonner';
 import {
   getWarehouseStatusLabel,
   getWarehouseStatusTone,
