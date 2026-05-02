@@ -73,6 +73,36 @@ export default function GoodsIssueView() {
     await cancelDocument.mutateAsync(id!);
   };
 
+  const handleGenerateDespatch = () => {
+    if (!document) return;
+    try {
+      const xml = generateDeliveryNoteXML({
+        documentNumber: document.document_number,
+        documentDate: document.document_date,
+        sender: {
+          name: document.locations?.name || 'N/A',
+          taxId: '',
+          address: '',
+        },
+        receiver: {
+          name: document.partners?.name || 'N/A',
+          taxId: '',
+          address: '',
+        },
+        lines: (document.lines || []).map((l) => ({
+          itemCode: l.items?.code || '',
+          description: l.items?.name || '',
+          quantity: Number(l.quantity),
+          unit: 'EA',
+        })),
+      });
+      downloadXML(xml, `otpremnica-${document.document_number}.xml`);
+      toast.success('Otpremnica (UBL XML) generirana');
+    } catch (e) {
+      toast.error(`Greška: ${(e as Error).message}`);
+    }
+  };
+
   return (
     <div>
       <Header 
@@ -119,10 +149,16 @@ export default function GoodsIssueView() {
               </>
             )}
             {document.status === 'posted' && (
-              <Button variant="destructive" onClick={handleCancel} disabled={cancelDocument.isPending}>
-                <XCircle className="mr-2 h-4 w-4" />
-                Cancel Document
-              </Button>
+              <>
+                <Button variant="outline" onClick={handleGenerateDespatch}>
+                  <FileCode className="mr-2 h-4 w-4" />
+                  Otpremnica (UBL XML)
+                </Button>
+                <Button variant="destructive" onClick={handleCancel} disabled={cancelDocument.isPending}>
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Cancel Document
+                </Button>
+              </>
             )}
           </div>
         </div>
