@@ -428,7 +428,7 @@ export function useUpdateDocument() {
     mutationFn: async ({ id, document, lines }: { id: string; document: Record<string, unknown>; lines: DocumentLine[] }) => {
       const { error: docError } = await supabase
         .from('warehouse_documents')
-        .update(document)
+        .update(document as never)
         .eq('id', id);
       
       if (docError) throw docError;

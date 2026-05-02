@@ -103,7 +103,7 @@ const SelectItem = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
 >(({ className, children, value, ...props }, ref) => {
   if (value === "") {
-    if (process.env.NODE_ENV !== "production") {
+    if (import.meta.env.DEV) {
       console.warn("SelectItem received an empty value and will be omitted.", { children });
     }
     return null;
