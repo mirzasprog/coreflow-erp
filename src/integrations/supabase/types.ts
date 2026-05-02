@@ -465,6 +465,81 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          address: string | null
+          bank_name: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          default_currency: string | null
+          einvoice_endpoint_id: string | null
+          einvoice_scheme_id: string | null
+          email: string | null
+          iban: string | null
+          id: string
+          legal_name: string
+          location_id: string | null
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          registration_number: string | null
+          swift: string | null
+          tax_id: string
+          updated_at: string | null
+          vat_number: string | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          bank_name?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          default_currency?: string | null
+          einvoice_endpoint_id?: string | null
+          einvoice_scheme_id?: string | null
+          email?: string | null
+          iban?: string | null
+          id?: string
+          legal_name: string
+          location_id?: string | null
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          registration_number?: string | null
+          swift?: string | null
+          tax_id: string
+          updated_at?: string | null
+          vat_number?: string | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          bank_name?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          default_currency?: string | null
+          einvoice_endpoint_id?: string | null
+          einvoice_scheme_id?: string | null
+          email?: string | null
+          iban?: string | null
+          id?: string
+          legal_name?: string
+          location_id?: string | null
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          registration_number?: string | null
+          swift?: string | null
+          tax_id?: string
+          updated_at?: string | null
+          vat_number?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       competitor_prices: {
         Row: {
           competitor_name: string
@@ -662,6 +737,184 @@ export type Database = {
             columns: ["gl_entry_id"]
             isOneToOne: false
             referencedRelation: "gl_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ecommerce_order_items: {
+        Row: {
+          description: string | null
+          id: string
+          item_id: string | null
+          order_id: string
+          quantity: number
+          total: number | null
+          unit_price: number
+          vat_amount: number | null
+          vat_rate_id: string | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          item_id?: string | null
+          order_id: string
+          quantity?: number
+          total?: number | null
+          unit_price?: number
+          vat_amount?: number | null
+          vat_rate_id?: string | null
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          item_id?: string | null
+          order_id?: string
+          quantity?: number
+          total?: number | null
+          unit_price?: number
+          vat_amount?: number | null
+          vat_rate_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ecommerce_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "ecommerce_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ecommerce_orders: {
+        Row: {
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          discount_amount: number | null
+          discount_code: string | null
+          id: string
+          location_id: string | null
+          notes: string | null
+          order_date: string
+          order_number: string
+          partner_id: string | null
+          payment_method: string | null
+          payment_status: string
+          shipping_address: string | null
+          shipping_city: string | null
+          shipping_cost: number | null
+          shipping_country: string | null
+          shipping_method: string | null
+          shipping_postal_code: string | null
+          status: string
+          subtotal: number | null
+          total: number | null
+          tracking_number: string | null
+          updated_at: string | null
+          vat_amount: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          discount_amount?: number | null
+          discount_code?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          order_date?: string
+          order_number: string
+          partner_id?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_cost?: number | null
+          shipping_country?: string | null
+          shipping_method?: string | null
+          shipping_postal_code?: string | null
+          status?: string
+          subtotal?: number | null
+          total?: number | null
+          tracking_number?: string | null
+          updated_at?: string | null
+          vat_amount?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          discount_amount?: number | null
+          discount_code?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          order_date?: string
+          order_number?: string
+          partner_id?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_cost?: number | null
+          shipping_country?: string | null
+          shipping_method?: string | null
+          shipping_postal_code?: string | null
+          status?: string
+          subtotal?: number | null
+          total?: number | null
+          tracking_number?: string | null
+          updated_at?: string | null
+          vat_amount?: number | null
+        }
+        Relationships: []
+      }
+      ecommerce_returns: {
+        Row: {
+          created_at: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          reason: string | null
+          refund_amount: number | null
+          return_date: string
+          return_number: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          reason?: string | null
+          refund_amount?: number | null
+          return_date?: string
+          return_number: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          reason?: string | null
+          refund_amount?: number | null
+          return_date?: string
+          return_number?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ecommerce_returns_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "ecommerce_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -2325,6 +2578,174 @@ export type Database = {
           valid_to?: string | null
         }
         Relationships: []
+      }
+      production_bom_items: {
+        Row: {
+          bom_id: string
+          component_item_id: string
+          id: string
+          notes: string | null
+          quantity: number
+        }
+        Insert: {
+          bom_id: string
+          component_item_id: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+        }
+        Update: {
+          bom_id?: string
+          component_item_id?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_bom_items_bom_id_fkey"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "production_boms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_boms: {
+        Row: {
+          active: boolean | null
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          output_quantity: number
+          product_item_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          output_quantity?: number
+          product_item_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          output_quantity?: number
+          product_item_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      production_work_order_materials: {
+        Row: {
+          consumed_quantity: number | null
+          id: string
+          item_id: string
+          notes: string | null
+          planned_quantity: number
+          work_order_id: string
+        }
+        Insert: {
+          consumed_quantity?: number | null
+          id?: string
+          item_id: string
+          notes?: string | null
+          planned_quantity?: number
+          work_order_id: string
+        }
+        Update: {
+          consumed_quantity?: number | null
+          id?: string
+          item_id?: string
+          notes?: string | null
+          planned_quantity?: number
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_work_order_materials_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "production_work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_work_orders: {
+        Row: {
+          actual_end_date: string | null
+          actual_start_date: string | null
+          bom_id: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          location_id: string | null
+          notes: string | null
+          planned_end_date: string | null
+          planned_quantity: number
+          planned_start_date: string | null
+          produced_quantity: number | null
+          product_item_id: string | null
+          status: string
+          updated_at: string | null
+          work_order_number: string
+        }
+        Insert: {
+          actual_end_date?: string | null
+          actual_start_date?: string | null
+          bom_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          planned_end_date?: string | null
+          planned_quantity?: number
+          planned_start_date?: string | null
+          produced_quantity?: number | null
+          product_item_id?: string | null
+          status?: string
+          updated_at?: string | null
+          work_order_number: string
+        }
+        Update: {
+          actual_end_date?: string | null
+          actual_start_date?: string | null
+          bom_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          location_id?: string | null
+          notes?: string | null
+          planned_end_date?: string | null
+          planned_quantity?: number
+          planned_start_date?: string | null
+          produced_quantity?: number | null
+          product_item_id?: string | null
+          status?: string
+          updated_at?: string | null
+          work_order_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_work_orders_bom_id_fkey"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "production_boms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promo_activities: {
         Row: {
