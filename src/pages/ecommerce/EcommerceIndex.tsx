@@ -4,8 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 import { ShoppingCart, Package, Settings, TrendingUp, Users, CreditCard, Globe } from "lucide-react";
+import { useEcommerceOrders } from "@/hooks/useEcommerce";
+import { useItems } from "@/hooks/useMasterData";
 
 export default function EcommerceIndex() {
+  const { data: orders } = useEcommerceOrders();
+  const { data: items } = useItems();
+  const today = new Date().toDateString();
+  const ordersToday = orders?.filter((o) => new Date(o.order_date).toDateString() === today).length || 0;
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+  const revenue = orders?.filter((o) => new Date(o.order_date) >= monthStart).reduce((s, o) => s + Number(o.total), 0) || 0;
   return (
     <div>
       <Header title="E-Commerce" subtitle="Web Shop i Online Prodaja" />
@@ -19,8 +27,8 @@ export default function EcommerceIndex() {
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Nema novih narudžbi</p>
+              <div className="text-2xl font-bold">{ordersToday}</div>
+              <p className="text-xs text-muted-foreground">Narudžbe danas</p>
             </CardContent>
           </Card>
           <Card>
@@ -29,8 +37,8 @@ export default function EcommerceIndex() {
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">U web shopu</p>
+              <div className="text-2xl font-bold">{items?.length || 0}</div>
+              <p className="text-xs text-muted-foreground">Aktivnih artikala</p>
             </CardContent>
           </Card>
           <Card>
@@ -39,7 +47,7 @@ export default function EcommerceIndex() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0,00 KM</div>
+              <div className="text-2xl font-bold">{revenue.toFixed(2)} KM</div>
               <p className="text-xs text-muted-foreground">Online prodaja</p>
             </CardContent>
           </Card>
