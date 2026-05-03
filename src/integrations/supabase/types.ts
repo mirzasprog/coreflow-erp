@@ -777,6 +777,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "ecommerce_order_items_item_fk"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ecommerce_order_items_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
@@ -870,7 +877,22 @@ export type Database = {
           updated_at?: string | null
           vat_amount?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ecommerce_orders_location_fk"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ecommerce_orders_partner_fk"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ecommerce_returns: {
         Row: {
@@ -2603,10 +2625,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "production_bom_items_bom_fk"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "production_boms"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "production_bom_items_bom_id_fkey"
             columns: ["bom_id"]
             isOneToOne: false
             referencedRelation: "production_boms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_bom_items_component_fk"
+            columns: ["component_item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
             referencedColumns: ["id"]
           },
         ]
@@ -2645,7 +2681,15 @@ export type Database = {
           product_item_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "production_boms_product_fk"
+            columns: ["product_item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       production_work_order_materials: {
         Row: {
@@ -2675,6 +2719,20 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "production_work_order_materials_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "production_work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pwom_item_fk"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pwom_wo_fk"
             columns: ["work_order_id"]
             isOneToOne: false
             referencedRelation: "production_work_orders"
@@ -2743,6 +2801,27 @@ export type Database = {
             columns: ["bom_id"]
             isOneToOne: false
             referencedRelation: "production_boms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pwo_bom_fk"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "production_boms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pwo_location_fk"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pwo_product_fk"
+            columns: ["product_item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
             referencedColumns: ["id"]
           },
         ]
@@ -3032,6 +3111,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "purchase_request_lines_item_fk"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchase_request_lines_request_id_fkey"
             columns: ["request_id"]
             isOneToOne: false
@@ -3095,7 +3181,22 @@ export type Database = {
           total_estimated_value?: number | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requests_location_fk"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_requests_partner_fk"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reservations: {
         Row: {
