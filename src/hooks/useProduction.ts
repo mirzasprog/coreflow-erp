@@ -153,7 +153,7 @@ export function useWorkOrder(id: string | undefined) {
       if (!data) return null;
       const { data: mats } = await supabase
         .from('production_work_order_materials')
-        .select('*, items(code, name)')
+        .select('*')
         .eq('work_order_id', id!);
       return { ...data, materials: (mats || []) as unknown as WOMaterial[] } as WorkOrder;
     },
