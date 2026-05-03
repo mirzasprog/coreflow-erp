@@ -2999,6 +2999,104 @@ export type Database = {
           },
         ]
       }
+      purchase_request_lines: {
+        Row: {
+          description: string | null
+          estimated_total: number | null
+          estimated_unit_price: number | null
+          id: string
+          item_id: string | null
+          notes: string | null
+          quantity: number
+          request_id: string
+        }
+        Insert: {
+          description?: string | null
+          estimated_total?: number | null
+          estimated_unit_price?: number | null
+          id?: string
+          item_id?: string | null
+          notes?: string | null
+          quantity?: number
+          request_id: string
+        }
+        Update: {
+          description?: string | null
+          estimated_total?: number | null
+          estimated_unit_price?: number | null
+          id?: string
+          item_id?: string | null
+          notes?: string | null
+          quantity?: number
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_request_lines_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          converted_po_id: string | null
+          created_at: string | null
+          id: string
+          location_id: string | null
+          needed_by_date: string | null
+          notes: string | null
+          partner_id: string | null
+          priority: string | null
+          request_date: string
+          request_number: string
+          requester_id: string | null
+          status: string
+          total_estimated_value: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          converted_po_id?: string | null
+          created_at?: string | null
+          id?: string
+          location_id?: string | null
+          needed_by_date?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          priority?: string | null
+          request_date?: string
+          request_number: string
+          requester_id?: string | null
+          status?: string
+          total_estimated_value?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          converted_po_id?: string | null
+          created_at?: string | null
+          id?: string
+          location_id?: string | null
+          needed_by_date?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          priority?: string | null
+          request_date?: string
+          request_number?: string
+          requester_id?: string | null
+          status?: string
+          total_estimated_value?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       reservations: {
         Row: {
           adults: number | null
