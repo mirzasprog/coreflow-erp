@@ -58,7 +58,7 @@ export function useBOMs() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('production_boms')
-        .select('*, items:product_item_id(code, name)')
+        .select('*')
         .eq('active', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -74,14 +74,14 @@ export function useBOM(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('production_boms')
-        .select('*, items:product_item_id(code, name)')
+        .select('*')
         .eq('id', id!)
         .maybeSingle();
       if (error) throw error;
       if (!data) return null;
       const { data: bi } = await supabase
         .from('production_bom_items')
-        .select('*, items:component_item_id(code, name)')
+        .select('*')
         .eq('bom_id', id!);
       return { ...data, bom_items: (bi || []) as unknown as BOMItem[] } as BOM;
     },
@@ -131,7 +131,7 @@ export function useWorkOrders() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('production_work_orders')
-        .select('*, items:product_item_id(code, name), locations(name)')
+        .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data || []) as unknown as WorkOrder[];
@@ -146,7 +146,7 @@ export function useWorkOrder(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('production_work_orders')
-        .select('*, items:product_item_id(code, name), locations(name)')
+        .select('*')
         .eq('id', id!)
         .maybeSingle();
       if (error) throw error;
