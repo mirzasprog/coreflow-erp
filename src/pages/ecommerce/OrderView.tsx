@@ -12,6 +12,7 @@ export default function OrderView() {
   const { data: order, isLoading } = useEcommerceOrder(id);
   const ship = useConvertOrderToShipment();
   const updateStatus = useUpdateOrderStatus();
+  const createInvoice = useCreateInvoiceFromOrder();
 
   if (isLoading) return <div className="p-6">Učitavanje...</div>;
   if (!order) return <div className="p-6">Narudžba nije pronađena.</div>;
@@ -84,6 +85,11 @@ export default function OrderView() {
           )}
           {order.status === "shipped" && (
             <Button onClick={() => updateStatus.mutate({ id: order.id, status: "delivered" })}>Označi isporučeno</Button>
+          )}
+          {(order.status === "processing" || order.status === "shipped" || order.status === "delivered") && (
+            <Button variant="outline" onClick={() => createInvoice.mutate(order.id)} disabled={createInvoice.isPending}>
+              <FileText className="h-4 w-4 mr-2" /> Kreiraj fakturu
+            </Button>
           )}
         </div>
       </div>
