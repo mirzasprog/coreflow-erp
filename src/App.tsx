@@ -95,6 +95,8 @@ import ProductCatalog from "./pages/ecommerce/ProductCatalog";
 import OrdersList from "./pages/ecommerce/OrdersList";
 import OrderView from "./pages/ecommerce/OrderView";
 import WebShopSettings from "./pages/ecommerce/WebShopSettings";
+import CustomersList from "./pages/ecommerce/CustomersList";
+import Storefront from "./pages/ecommerce/Storefront";
 import ProductionIndex from "./pages/production/ProductionIndex";
 import WorkOrdersList from "./pages/production/WorkOrdersList";
 import WorkOrderForm from "./pages/production/WorkOrderForm";
@@ -116,6 +118,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/shop" element={<Storefront />} />
             
             {/* POS routes outside main layout */}
             <Route path="/pos/classic" element={<ProtectedRoute><ClassicPOS /></ProtectedRoute>} />
@@ -219,6 +222,7 @@ const App = () => (
               <Route path="/ecommerce/orders" element={<OrdersList />} />
               <Route path="/ecommerce/orders/:id" element={<OrderView />} />
               <Route path="/ecommerce/settings" element={<WebShopSettings />} />
+              <Route path="/ecommerce/customers" element={<CustomersList />} />
               <Route path="/production" element={<ProductionIndex />} />
               <Route path="/production/work-orders" element={<WorkOrdersList />} />
               <Route path="/production/work-orders/new" element={<WorkOrderForm />} />
