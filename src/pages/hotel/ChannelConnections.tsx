@@ -11,6 +11,7 @@ import { Settings, Link2, RefreshCw, Check, X, ExternalLink } from "lucide-react
 import { useChannelConnections, useCreateChannelConnection } from "@/hooks/useHotel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const channelInfo: Record<string, { name: string; color: string; logo: string; description: string }> = {
   booking_com: {
@@ -60,8 +61,23 @@ export default function ChannelConnections() {
     setDialogOpen(false);
   };
 
-  const handleSync = (channelId: string) => {
-    toast.info("Sinkronizacija pokrenuta...", { description: "Ova funkcionalnost zahtijeva API integraciju" });
+  const handleSync = async (channelId: string) => {
+    toast.info("Sinkronizacija pokrenuta...");
+    try {
+      const { data, error } = await supabase.functions.invoke('hotel-channel-sync', {
+        body: { channel_id: channelId },
+      });
+      if (error) throw error;
+      const r = data?.results?.[0];
+      if (r) {
+        toast.success(`Uvezeno: ${r.imported}, ažurirano: ${r.updated}`,
+          { description: r.errors.length ? `Greške: ${r.errors.length}` : undefined });
+      } else {
+        toast.success("Sinkronizacija završena");
+      }
+    } catch (e: any) {
+      toast.error(`Greška: ${e.message}`);
+    }
   };
 
   const getConnectedChannels = () => {
