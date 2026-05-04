@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Truck } from "lucide-react";
-import { useEcommerceOrder, useConvertOrderToShipment, useUpdateOrderStatus } from "@/hooks/useEcommerce";
+import { ArrowLeft, Truck, FileText } from "lucide-react";
+import { useEcommerceOrder, useConvertOrderToShipment, useUpdateOrderStatus, useCreateInvoiceFromOrder } from "@/hooks/useEcommerce";
 
 export default function OrderView() {
   const { id } = useParams();
