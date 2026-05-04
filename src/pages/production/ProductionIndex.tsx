@@ -2,14 +2,25 @@ import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
 import { Factory, ClipboardList, Package, TrendingUp, Clock, CheckCircle } from "lucide-react";
+import { useWorkOrders, useBOMs } from "@/hooks/useProduction";
 
 export default function ProductionIndex() {
+  const { data: workOrders } = useWorkOrders();
+  const { data: boms } = useBOMs();
+
+  const active = workOrders?.filter(w => w.status === 'in_progress').length || 0;
+  const today = new Date().toDateString();
+  const completedToday = workOrders?.filter(w => w.status === 'completed' && w.actual_end_date && new Date(w.actual_end_date).toDateString() === today).length || 0;
+  const draft = workOrders?.filter(w => w.status === 'draft').length || 0;
+  const totalCompleted = workOrders?.filter(w => w.status === 'completed').length || 0;
+  const totalNonDraft = workOrders?.filter(w => w.status !== 'draft').length || 0;
+  const efficiency = totalNonDraft > 0 ? Math.round((totalCompleted / totalNonDraft) * 100) : 0;
+
   return (
     <div>
       <Header title="Proizvodnja" subtitle="Upravljanje proizvodnim procesima" />
 
       <div className="p-6 space-y-6">
-        {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -17,7 +28,7 @@ export default function ProductionIndex() {
               <ClipboardList className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{active}</div>
               <p className="text-xs text-muted-foreground">U tijeku</p>
             </CardContent>
           </Card>
@@ -27,18 +38,18 @@ export default function ProductionIndex() {
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{completedToday}</div>
               <p className="text-xs text-muted-foreground">Radnih naloga</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Čeka materijal</CardTitle>
+              <CardTitle className="text-sm font-medium">Nacrt / pripremljeno</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Blokirano</p>
+              <div className="text-2xl font-bold">{draft}</div>
+              <p className="text-xs text-muted-foreground">Čeka pokretanje</p>
             </CardContent>
           </Card>
           <Card>
@@ -47,13 +58,12 @@ export default function ProductionIndex() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0%</div>
-              <p className="text-xs text-muted-foreground">Ovaj mjesec</p>
+              <div className="text-2xl font-bold">{efficiency}%</div>
+              <p className="text-xs text-muted-foreground">Završeni / pokrenuti</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <NavLink to="/production/work-orders" className="block">
             <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
@@ -61,19 +71,19 @@ export default function ProductionIndex() {
                 <ClipboardList className="h-10 w-10 text-primary mb-3" />
                 <h3 className="font-semibold">Radni nalozi</h3>
                 <p className="text-sm text-muted-foreground text-center mt-1">
-                  Pregled i kreiranje radnih naloga za proizvodnju
+                  {workOrders?.length || 0} ukupno
                 </p>
               </CardContent>
             </Card>
           </NavLink>
-          
+
           <NavLink to="/production/bom" className="block">
             <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
               <CardContent className="flex flex-col items-center justify-center p-6">
                 <Package className="h-10 w-10 text-primary mb-3" />
                 <h3 className="font-semibold">Sastavnice (BOM)</h3>
                 <p className="text-sm text-muted-foreground text-center mt-1">
-                  Definiranje sastava proizvoda
+                  {boms?.length || 0} aktivnih
                 </p>
               </CardContent>
             </Card>
@@ -91,53 +101,6 @@ export default function ProductionIndex() {
             </Card>
           </NavLink>
         </div>
-
-        {/* Features */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Proizvodni modul</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <h4 className="font-medium flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4" />
-                  Radni nalozi
-                </h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Kreiranje i praćenje naloga</li>
-                  <li>• Automatska rezervacija materijala</li>
-                  <li>• Praćenje vremena i troškova</li>
-                  <li>• Status i napredak</li>
-                </ul>
-              </div>
-              <div className="space-y-2">
-                <h4 className="font-medium flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  Sastavnice (BOM)
-                </h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Višerazinske sastavnice</li>
-                  <li>• Automatski izračun potreba</li>
-                  <li>• Verzioniranje</li>
-                  <li>• Kopiranje i izmjena</li>
-                </ul>
-              </div>
-              <div className="space-y-2">
-                <h4 className="font-medium flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  Analitika
-                </h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Efikasnost proizvodnje</li>
-                  <li>• Troškovi po proizvodu</li>
-                  <li>• Vrijeme ciklusa</li>
-                  <li>• OEE pokazatelji</li>
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
