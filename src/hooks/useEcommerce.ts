@@ -249,6 +249,86 @@ export function useConvertOrderToShipment() {
   });
 }
 
+async function generateInvoiceNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `INV-${year}-`;
+  const { data } = await supabase
+    .from('invoices')
+    .select('invoice_number')
+    .like('invoice_number', `${prefix}%`)
+    .order('invoice_number', { ascending: false })
+    .limit(1);
+  let n = 1;
+  if (data && data.length > 0) {
+    const last = parseInt(data[0].invoice_number.replace(prefix, ''), 10);
+    if (!isNaN(last)) n = last + 1;
+  }
+  return `${prefix}${String(n).padStart(5, '0')}`;
+}
+
+export function useCreateInvoiceFromOrder() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const { data: order, error } = await supabase
+        .from('ecommerce_orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+      if (error) throw error;
+      const { data: lines } = await supabase
+        .from('ecommerce_order_items')
+        .select('*')
+        .eq('order_id', orderId);
+
+      const number = await generateInvoiceNumber();
+      const due = new Date();
+      due.setDate(due.getDate() + 15);
+
+      const { data: inv, error: ierr } = await supabase
+        .from('invoices')
+        .insert({
+          invoice_type: 'outgoing',
+          invoice_number: number,
+          invoice_date: new Date().toISOString().split('T')[0],
+          due_date: due.toISOString().split('T')[0],
+          partner_id: order.partner_id,
+          status: 'draft',
+          subtotal: order.subtotal,
+          vat_amount: order.vat_amount,
+          total: order.total,
+          notes: `Iz online narudžbe ${order.order_number}`,
+        })
+        .select()
+        .single();
+      if (ierr) throw ierr;
+
+      if (lines && lines.length) {
+        const il = (lines as any[]).map((l) => ({
+          invoice_id: inv.id,
+          item_id: l.item_id,
+          description: l.description,
+          quantity: Number(l.quantity) || 0,
+          unit_price: Number(l.unit_price) || 0,
+          vat_rate_id: l.vat_rate_id || null,
+          vat_amount: Number(l.vat_amount) || 0,
+          total: Number(l.total) || 0,
+        }));
+        const { error: lerr } = await supabase.from('invoice_lines').insert(il);
+        if (lerr) throw lerr;
+      }
+      return inv;
+    },
+    onSuccess: (inv) => {
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      qc.invalidateQueries({ queryKey: ['ecommerce-orders'] });
+      toast({ title: 'Faktura kreirana', description: (inv as any).invoice_number });
+    },
+    onError: (e: Error) => toast({ title: 'Greška', description: e.message, variant: 'destructive' }),
+  });
+}
+
 export function useWebShopSettings() {
   return useQuery({
     queryKey: ['module-settings', 'webshop'],
