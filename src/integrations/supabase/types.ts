@@ -741,6 +741,54 @@ export type Database = {
           },
         ]
       }
+      ecommerce_customers: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          marketing_consent: boolean | null
+          phone: string | null
+          postal_code: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          email: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          marketing_consent?: boolean | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          marketing_consent?: boolean | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ecommerce_order_items: {
         Row: {
           description: string | null

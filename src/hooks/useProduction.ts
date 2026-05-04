@@ -177,6 +177,51 @@ async function generateWONumber(): Promise<string> {
   return `${prefix}${String(next).padStart(5, '0')}`;
 }
 
+// Recursively expand BOM tree to flat material list (multi-level)
+async function expandBom(bomId: string, multiplier: number, accumulator: Map<string, { item_id: string; planned_quantity: number; notes: string | null }>, depth = 0) {
+  if (depth > 10) throw new Error('BOM dubina prekoračena (>10 razina) — moguća kružna referenca');
+  const { data: bom } = await supabase
+    .from('production_boms')
+    .select('id, output_quantity, product_item_id')
+    .eq('id', bomId)
+    .single();
+  if (!bom) return;
+  const factor = multiplier / Number(bom.output_quantity || 1);
+
+  const { data: bi } = await supabase
+    .from('production_bom_items')
+    .select('component_item_id, quantity, notes')
+    .eq('bom_id', bomId);
+  if (!bi) return;
+
+  for (const line of bi as any[]) {
+    const requiredQty = Number(line.quantity) * factor;
+    // Check if component itself has an active BOM (sub-assembly)
+    const { data: subBom } = await supabase
+      .from('production_boms')
+      .select('id')
+      .eq('product_item_id', line.component_item_id)
+      .eq('active', true)
+      .maybeSingle();
+    if (subBom) {
+      // Expand sub-BOM recursively (component is intermediate, not consumed as raw)
+      await expandBom(subBom.id, requiredQty, accumulator, depth + 1);
+    } else {
+      // Leaf material — accumulate
+      const existing = accumulator.get(line.component_item_id);
+      if (existing) {
+        existing.planned_quantity += requiredQty;
+      } else {
+        accumulator.set(line.component_item_id, {
+          item_id: line.component_item_id,
+          planned_quantity: requiredQty,
+          notes: line.notes || null,
+        });
+      }
+    }
+  }
+}
+
 export function useCreateWorkOrder() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -202,24 +247,16 @@ export function useCreateWorkOrder() {
       if (error) throw error;
 
       if (input.header.bom_id) {
-        const { data: bi } = await supabase
-          .from('production_bom_items')
-          .select('*')
-          .eq('bom_id', input.header.bom_id);
-        const { data: bom } = await supabase
-          .from('production_boms')
-          .select('output_quantity')
-          .eq('id', input.header.bom_id)
-          .single();
-        const factor = (input.header.planned_quantity || 1) / (bom?.output_quantity || 1);
-        if (bi && bi.length) {
-          const mats = bi.map((b: any) => ({
-            work_order_id: wo.id,
-            item_id: b.component_item_id,
-            planned_quantity: Number(b.quantity) * factor,
-            consumed_quantity: 0,
-            notes: b.notes,
-          }));
+        const accumulator = new Map<string, { item_id: string; planned_quantity: number; notes: string | null }>();
+        await expandBom(input.header.bom_id, input.header.planned_quantity || 1, accumulator);
+        const mats = Array.from(accumulator.values()).map(m => ({
+          work_order_id: wo.id,
+          item_id: m.item_id,
+          planned_quantity: m.planned_quantity,
+          consumed_quantity: 0,
+          notes: m.notes,
+        }));
+        if (mats.length) {
           await supabase.from('production_work_order_materials').insert(mats);
         }
       }
@@ -227,7 +264,7 @@ export function useCreateWorkOrder() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['work-orders'] });
-      toast({ title: 'Radni nalog kreiran' });
+      toast({ title: 'Radni nalog kreiran', description: 'Materijali izračunati iz višerazinskog BOM-a' });
     },
     onError: (e: Error) => toast({ title: 'Greška', description: e.message, variant: 'destructive' }),
   });
