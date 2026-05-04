@@ -6,10 +6,12 @@ import { NavLink } from "@/components/NavLink";
 import { ShoppingCart, Package, Settings, TrendingUp, Users, CreditCard, Globe } from "lucide-react";
 import { useEcommerceOrders } from "@/hooks/useEcommerce";
 import { useItems } from "@/hooks/useMasterData";
+import { useEcommerceCustomers } from "@/hooks/useEcommerceCustomers";
 
 export default function EcommerceIndex() {
   const { data: orders } = useEcommerceOrders();
   const { data: items } = useItems();
+  const { data: customers } = useEcommerceCustomers();
   const today = new Date().toDateString();
   const ordersToday = orders?.filter((o) => new Date(o.order_date).toDateString() === today).length || 0;
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
@@ -57,7 +59,7 @@ export default function EcommerceIndex() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{customers?.length || 0}</div>
               <p className="text-xs text-muted-foreground">Online korisnici</p>
             </CardContent>
           </Card>
@@ -101,13 +103,27 @@ export default function EcommerceIndex() {
             </Card>
           </NavLink>
 
-          <Card className="h-full border-dashed">
-            <CardContent className="flex flex-col items-center justify-center p-6">
-              <Globe className="h-10 w-10 text-muted-foreground mb-3" />
-              <h3 className="font-semibold text-muted-foreground">Web Shop Preview</h3>
-              <Badge variant="outline" className="mt-2">Uskoro</Badge>
-            </CardContent>
-          </Card>
+          <NavLink to="/ecommerce/customers" className="block">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+              <CardContent className="flex flex-col items-center justify-center p-6">
+                <Users className="h-10 w-10 text-primary mb-3" />
+                <h3 className="font-semibold">Registrirani kupci</h3>
+                <p className="text-sm text-muted-foreground text-center mt-1">
+                  {customers?.length || 0} kupaca
+                </p>
+              </CardContent>
+            </Card>
+          </NavLink>
+
+          <a href="/shop" target="_blank" rel="noopener noreferrer" className="block">
+            <Card className="h-full border-dashed hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="flex flex-col items-center justify-center p-6">
+                <Globe className="h-10 w-10 text-primary mb-3" />
+                <h3 className="font-semibold">Web Shop Preview</h3>
+                <Badge variant="outline" className="mt-2">Otvori storefront</Badge>
+              </CardContent>
+            </Card>
+          </a>
         </div>
 
         {/* Features Info */}
