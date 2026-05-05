@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Package, Play, CheckCircle } from "lucide-react";
 import { useWorkOrder, useUpdateWOStatus, useIssueMaterials, useReceiveProduction } from "@/hooks/useProduction";
 import { useItems, useLocations } from "@/hooks/useMasterData";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BomTreeView } from "@/components/production/BomTreeView";
 
 export default function WorkOrderView() {
   const { id } = useParams();
