@@ -25,10 +25,13 @@ export default function Storefront() {
   const { data: items } = useQuery({
     queryKey: ['storefront-items', search],
     queryFn: async () => {
-      let q = supabase.from('items').select('id, code, name, selling_price, description').eq('active', true).limit(50);
-      const { data, error } = await q;
+      const { data, error } = await supabase
+        .from('items')
+        .select('id, code, name, selling_price, description, vat_rate_id, vat_rates:vat_rate_id(rate)')
+        .eq('active', true)
+        .limit(50);
       if (error) throw error;
-      return (data || []).filter(i => !search || i.name.toLowerCase().includes(search.toLowerCase()));
+      return (data || []).filter((i: any) => !search || i.name.toLowerCase().includes(search.toLowerCase()));
     },
   });
 
@@ -39,11 +42,20 @@ export default function Storefront() {
     setCart(c => {
       const ex = c.find(x => x.id === item.id);
       if (ex) return c.map(x => x.id === item.id ? { ...x, quantity: x.quantity + 1 } : x);
-      return [...c, { id: item.id, name: item.name, price: Number(item.selling_price) || 0, quantity: 1 }];
+      return [...c, {
+        id: item.id,
+        name: item.name,
+        price: Number(item.selling_price) || 0,
+        quantity: 1,
+        vat_rate_id: item.vat_rate_id || null,
+        vat_rate: Number(item.vat_rates?.rate ?? 17),
+      }];
     });
   };
   const removeFromCart = (id: string) => setCart(c => c.filter(x => x.id !== id));
-  const total = cart.reduce((s, x) => s + x.price * x.quantity, 0);
+  const subtotal = cart.reduce((s, x) => s + x.price * x.quantity, 0);
+  const vatTotal = cart.reduce((s, x) => s + (x.price * x.quantity) * (x.vat_rate / 100), 0);
+  const total = subtotal + vatTotal;
 
   const [checkout, setCheckout] = useState({ name: '', email: '', phone: '', address: '', city: '', postal: '' });
   const [registerForm, setRegisterForm] = useState({ email: '', password: '', first_name: '', last_name: '', phone: '' });
@@ -65,11 +77,23 @@ export default function Storefront() {
           payment_status: 'pending',
           status: 'new',
         },
-        lines: cart.map(c => ({ item_id: c.id, description: c.name, quantity: c.quantity, unit_price: c.price, total: c.price * c.quantity })),
+        lines: cart.map(c => {
+          const lineNet = c.price * c.quantity;
+          const lineVat = lineNet * (c.vat_rate / 100);
+          return {
+            item_id: c.id,
+            description: c.name,
+            quantity: c.quantity,
+            unit_price: c.price,
+            vat_rate_id: c.vat_rate_id,
+            vat_amount: lineVat,
+            total: lineNet + lineVat,
+          };
+        }),
       });
       setCart([]);
       setCheckoutOpen(false);
-      toast.success("Hvala na narudžbi!");
+      toast.success("Hvala na narudžbi! Možete je pratiti kroz administraciju.");
     } catch (e: any) {
       toast.error(e.message);
     }
