@@ -13,7 +13,7 @@ import { useCreateEcommerceOrder } from "@/hooks/useEcommerce";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
-interface CartItem { id: string; name: string; price: number; quantity: number; }
+interface CartItem { id: string; name: string; price: number; quantity: number; vat_rate_id: string | null; vat_rate: number; }
 
 export default function Storefront() {
   const { user } = useAuth();
