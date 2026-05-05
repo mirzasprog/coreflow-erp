@@ -146,8 +146,10 @@ export default function Storefront() {
                         </div>
                       ))}
                     </div>
-                    <div className="border-t pt-3 flex justify-between font-bold">
-                      <span>Ukupno:</span><span>{total.toFixed(2)} KM</span>
+                    <div className="border-t pt-3 space-y-1 text-sm">
+                      <div className="flex justify-between"><span>Subtotal:</span><span>{subtotal.toFixed(2)} KM</span></div>
+                      <div className="flex justify-between text-muted-foreground"><span>PDV:</span><span>{vatTotal.toFixed(2)} KM</span></div>
+                      <div className="flex justify-between font-bold text-base pt-1 border-t"><span>Ukupno:</span><span>{total.toFixed(2)} KM</span></div>
                     </div>
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2">
