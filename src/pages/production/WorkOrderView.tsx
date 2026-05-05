@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Package, Play, CheckCircle } from "lucide-react";
 import { useWorkOrder, useUpdateWOStatus, useIssueMaterials, useReceiveProduction } from "@/hooks/useProduction";
 import { useItems, useLocations } from "@/hooks/useMasterData";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BomTreeView } from "@/components/production/BomTreeView";
 
 export default function WorkOrderView() {
   const { id } = useParams();
@@ -74,27 +76,38 @@ export default function WorkOrderView() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader><CardTitle>Materijali</CardTitle></CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader><TableRow><TableHead>Artikl</TableHead><TableHead>Planirano</TableHead><TableHead>Utrošeno</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {wo.materials?.map((m) => {
-                  const it = itemMap.get(m.item_id);
-                  return (
-                    <TableRow key={m.id}>
-                      <TableCell>{it ? `${it.code} - ${it.name}` : "-"}</TableCell>
-                      <TableCell>{m.planned_quantity}</TableCell>
-                      <TableCell>{m.consumed_quantity}</TableCell>
-                    </TableRow>
-                  );
-                })}
-                {!wo.materials?.length && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Nema materijala</TableCell></TableRow>}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="materials">
+          <TabsList>
+            <TabsTrigger value="materials">Materijali (RN)</TabsTrigger>
+            <TabsTrigger value="bom-tree">BOM stablo</TabsTrigger>
+          </TabsList>
+          <TabsContent value="materials">
+            <Card>
+              <CardHeader><CardTitle>Materijali</CardTitle></CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader><TableRow><TableHead>Artikl</TableHead><TableHead>Planirano</TableHead><TableHead>Utrošeno</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {wo.materials?.map((m) => {
+                      const it = itemMap.get(m.item_id);
+                      return (
+                        <TableRow key={m.id}>
+                          <TableCell>{it ? `${it.code} - ${it.name}` : "-"}</TableCell>
+                          <TableCell>{m.planned_quantity}</TableCell>
+                          <TableCell>{m.consumed_quantity}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {!wo.materials?.length && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Nema materijala</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="bom-tree">
+            <BomTreeView bomId={wo.bom_id} productItemId={wo.product_item_id} multiplier={Number(wo.planned_quantity) || 1} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

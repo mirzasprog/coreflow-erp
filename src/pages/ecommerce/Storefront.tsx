@@ -13,7 +13,7 @@ import { useCreateEcommerceOrder } from "@/hooks/useEcommerce";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
-interface CartItem { id: string; name: string; price: number; quantity: number; }
+interface CartItem { id: string; name: string; price: number; quantity: number; vat_rate_id: string | null; vat_rate: number; }
 
 export default function Storefront() {
   const { user } = useAuth();
@@ -25,10 +25,13 @@ export default function Storefront() {
   const { data: items } = useQuery({
     queryKey: ['storefront-items', search],
     queryFn: async () => {
-      let q = supabase.from('items').select('id, code, name, selling_price, description').eq('active', true).limit(50);
-      const { data, error } = await q;
+      const { data, error } = await supabase
+        .from('items')
+        .select('id, code, name, selling_price, description, vat_rate_id, vat_rates:vat_rate_id(rate)')
+        .eq('active', true)
+        .limit(50);
       if (error) throw error;
-      return (data || []).filter(i => !search || i.name.toLowerCase().includes(search.toLowerCase()));
+      return (data || []).filter((i: any) => !search || i.name.toLowerCase().includes(search.toLowerCase()));
     },
   });
 
@@ -39,11 +42,20 @@ export default function Storefront() {
     setCart(c => {
       const ex = c.find(x => x.id === item.id);
       if (ex) return c.map(x => x.id === item.id ? { ...x, quantity: x.quantity + 1 } : x);
-      return [...c, { id: item.id, name: item.name, price: Number(item.selling_price) || 0, quantity: 1 }];
+      return [...c, {
+        id: item.id,
+        name: item.name,
+        price: Number(item.selling_price) || 0,
+        quantity: 1,
+        vat_rate_id: item.vat_rate_id || null,
+        vat_rate: Number(item.vat_rates?.rate ?? 17),
+      }];
     });
   };
   const removeFromCart = (id: string) => setCart(c => c.filter(x => x.id !== id));
-  const total = cart.reduce((s, x) => s + x.price * x.quantity, 0);
+  const subtotal = cart.reduce((s, x) => s + x.price * x.quantity, 0);
+  const vatTotal = cart.reduce((s, x) => s + (x.price * x.quantity) * (x.vat_rate / 100), 0);
+  const total = subtotal + vatTotal;
 
   const [checkout, setCheckout] = useState({ name: '', email: '', phone: '', address: '', city: '', postal: '' });
   const [registerForm, setRegisterForm] = useState({ email: '', password: '', first_name: '', last_name: '', phone: '' });
@@ -65,11 +77,23 @@ export default function Storefront() {
           payment_status: 'pending',
           status: 'new',
         },
-        lines: cart.map(c => ({ item_id: c.id, description: c.name, quantity: c.quantity, unit_price: c.price, total: c.price * c.quantity })),
+        lines: cart.map(c => {
+          const lineNet = c.price * c.quantity;
+          const lineVat = lineNet * (c.vat_rate / 100);
+          return {
+            item_id: c.id,
+            description: c.name,
+            quantity: c.quantity,
+            unit_price: c.price,
+            vat_rate_id: c.vat_rate_id,
+            vat_amount: lineVat,
+            total: lineNet + lineVat,
+          };
+        }),
       });
       setCart([]);
       setCheckoutOpen(false);
-      toast.success("Hvala na narudžbi!");
+      toast.success("Hvala na narudžbi! Možete je pratiti kroz administraciju.");
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -122,8 +146,10 @@ export default function Storefront() {
                         </div>
                       ))}
                     </div>
-                    <div className="border-t pt-3 flex justify-between font-bold">
-                      <span>Ukupno:</span><span>{total.toFixed(2)} KM</span>
+                    <div className="border-t pt-3 space-y-1 text-sm">
+                      <div className="flex justify-between"><span>Subtotal:</span><span>{subtotal.toFixed(2)} KM</span></div>
+                      <div className="flex justify-between text-muted-foreground"><span>PDV:</span><span>{vatTotal.toFixed(2)} KM</span></div>
+                      <div className="flex justify-between font-bold text-base pt-1 border-t"><span>Ukupno:</span><span>{total.toFixed(2)} KM</span></div>
                     </div>
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2">
