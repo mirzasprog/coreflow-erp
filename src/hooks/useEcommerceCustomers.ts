@@ -14,6 +14,7 @@ export interface EcommerceCustomer {
   postal_code: string | null;
   country: string | null;
   marketing_consent: boolean;
+  status: string;
   created_at: string;
 }
 
@@ -28,6 +29,54 @@ export function useEcommerceCustomers() {
       if (error) throw error;
       return (data || []) as unknown as EcommerceCustomer[];
     },
+  });
+}
+
+export function useEcommerceCustomer(id: string | undefined) {
+  return useQuery({
+    queryKey: ['ecommerce-customer', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ecommerce_customers' as any)
+        .select('*').eq('id', id!).maybeSingle();
+      if (error) throw error;
+      return data as unknown as EcommerceCustomer | null;
+    },
+  });
+}
+
+export function useCustomerOrders(customerId: string | undefined, email?: string | null) {
+  return useQuery({
+    queryKey: ['customer-orders', customerId, email],
+    enabled: !!customerId,
+    queryFn: async () => {
+      let q = supabase.from('ecommerce_orders').select('*').order('created_at', { ascending: false });
+      if (email) {
+        q = q.or(`customer_id.eq.${customerId},customer_email.eq.${email}`);
+      } else {
+        q = q.eq('customer_id', customerId!);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+export function useUpdateCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<EcommerceCustomer> }) => {
+      const { error } = await supabase.from('ecommerce_customers' as any).update(patch).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ecommerce-customers'] });
+      qc.invalidateQueries({ queryKey: ['ecommerce-customer'] });
+      toast.success('Kupac ažuriran');
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
