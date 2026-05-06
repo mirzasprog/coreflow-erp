@@ -36,7 +36,7 @@ async function importReservation(supabase: any, channel: string, ext: any, resul
   if (existing) { result.updated++; return; }
 
   const reservationNumber = `RES-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random()*999)}`;
-  const { error } = await supabase.from('reservations').insert({
+  const { data: newRes, error } = await supabase.from('reservations').insert({
     reservation_number: reservationNumber,
     guest_id: guest.id,
     room_id: room.id,
@@ -47,8 +47,47 @@ async function importReservation(supabase: any, channel: string, ext: any, resul
     source: channel,
     channel_reservation_id: ext.external_id,
     notes: `Imported from ${channel}`,
-  });
-  if (error) result.errors.push(error.message); else result.imported++;
+  }).select('id').single();
+  if (error) { result.errors.push(error.message); return; }
+  result.imported++;
+
+  // Auto-create draft invoice in ERP for the new reservation
+  try {
+    const year = new Date().getFullYear();
+    const prefix = `HTL-${year}-`;
+    const { data: lastInv } = await supabase
+      .from('invoices').select('invoice_number')
+      .like('invoice_number', `${prefix}%`)
+      .order('invoice_number', { ascending: false }).limit(1);
+    let n = 1;
+    if (lastInv && lastInv.length > 0) {
+      const ln = parseInt(lastInv[0].invoice_number.replace(prefix, ''), 10);
+      if (!isNaN(ln)) n = ln + 1;
+    }
+    const invNumber = `${prefix}${String(n).padStart(5, '0')}`;
+    const { data: inv, error: ierr } = await supabase.from('invoices').insert({
+      invoice_type: 'outgoing',
+      invoice_number: invNumber,
+      invoice_date: new Date().toISOString().split('T')[0],
+      status: 'draft',
+      subtotal: ext.total,
+      vat_amount: 0,
+      total: ext.total,
+      notes: `${channel} rezervacija ${reservationNumber} (${ext.check_in} → ${ext.check_out})`,
+    }).select('id').single();
+    if (!ierr && inv) {
+      await supabase.from('invoice_lines').insert({
+        invoice_id: inv.id,
+        description: `Smještaj ${ext.check_in} - ${ext.check_out} (${channel})`,
+        quantity: 1,
+        unit_price: ext.total,
+        total: ext.total,
+        vat_amount: 0,
+      });
+    }
+  } catch (e: any) {
+    result.errors.push(`invoice: ${e.message}`);
+  }
 }
 
 async function syncBookingCom(connection: any, supabase: any): Promise<SyncResult> {

@@ -61,16 +61,32 @@ export default function OrderView() {
           <CardHeader><CardTitle>Stavke</CardTitle></CardHeader>
           <CardContent>
             <Table>
-              <TableHeader><TableRow><TableHead>Artikl</TableHead><TableHead>Količina</TableHead><TableHead>Cijena</TableHead><TableHead>Ukupno</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow>
+                <TableHead>Artikl</TableHead>
+                <TableHead className="text-right">Količina</TableHead>
+                <TableHead className="text-right">Cijena</TableHead>
+                <TableHead className="text-right">Neto</TableHead>
+                <TableHead className="text-right">PDV</TableHead>
+                <TableHead className="text-right">Ukupno</TableHead>
+              </TableRow></TableHeader>
               <TableBody>
-                {order.lines?.map((l) => (
-                  <TableRow key={l.id}>
-                    <TableCell>{l.items?.name || l.description || "-"}</TableCell>
-                    <TableCell>{l.quantity}</TableCell>
-                    <TableCell>{Number(l.unit_price).toFixed(2)} KM</TableCell>
-                    <TableCell>{Number(l.total).toFixed(2)} KM</TableCell>
-                  </TableRow>
-                ))}
+                {order.lines?.map((l) => {
+                  const qty = Number(l.quantity) || 0;
+                  const unit = Number(l.unit_price) || 0;
+                  const net = qty * unit;
+                  const vat = Number(l.vat_amount) || 0;
+                  const tot = Number(l.total) || (net + vat);
+                  return (
+                    <TableRow key={l.id}>
+                      <TableCell>{l.items?.name || l.description || "-"}</TableCell>
+                      <TableCell className="text-right">{qty}</TableCell>
+                      <TableCell className="text-right">{unit.toFixed(2)} KM</TableCell>
+                      <TableCell className="text-right">{net.toFixed(2)} KM</TableCell>
+                      <TableCell className="text-right">{vat.toFixed(2)} KM</TableCell>
+                      <TableCell className="text-right font-medium">{tot.toFixed(2)} KM</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
