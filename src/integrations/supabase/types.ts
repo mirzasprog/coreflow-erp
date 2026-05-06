@@ -754,6 +754,7 @@ export type Database = {
           marketing_consent: boolean | null
           phone: string | null
           postal_code: string | null
+          status: string
           updated_at: string
           user_id: string | null
         }
@@ -769,6 +770,7 @@ export type Database = {
           marketing_consent?: boolean | null
           phone?: string | null
           postal_code?: string | null
+          status?: string
           updated_at?: string
           user_id?: string | null
         }
@@ -784,6 +786,7 @@ export type Database = {
           marketing_consent?: boolean | null
           phone?: string | null
           postal_code?: string | null
+          status?: string
           updated_at?: string
           user_id?: string | null
         }
@@ -844,6 +847,7 @@ export type Database = {
         Row: {
           created_at: string | null
           customer_email: string | null
+          customer_id: string | null
           customer_name: string
           customer_phone: string | null
           discount_amount: number | null
@@ -872,6 +876,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           customer_email?: string | null
+          customer_id?: string | null
           customer_name: string
           customer_phone?: string | null
           discount_amount?: number | null
@@ -900,6 +905,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           customer_email?: string | null
+          customer_id?: string | null
           customer_name?: string
           customer_phone?: string | null
           discount_amount?: number | null
@@ -926,6 +932,13 @@ export type Database = {
           vat_amount?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ecommerce_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "ecommerce_customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ecommerce_orders_location_fk"
             columns: ["location_id"]

@@ -1,13 +1,17 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search } from "lucide-react";
-import { useEcommerceCustomers } from "@/hooks/useEcommerceCustomers";
+import { Search, ShieldOff, ShieldCheck, Eye } from "lucide-react";
+import { useEcommerceCustomers, useUpdateCustomer } from "@/hooks/useEcommerceCustomers";
 
 export default function CustomersList() {
   const { data, isLoading } = useEcommerceCustomers();
+  const update = useUpdateCustomer();
   const [search, setSearch] = useState("");
 
   const filtered = (data || []).filter(c => {
@@ -40,21 +44,41 @@ export default function CustomersList() {
                     <TableHead>Email</TableHead>
                     <TableHead>Telefon</TableHead>
                     <TableHead>Grad</TableHead>
-                    <TableHead>Marketing</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Registriran</TableHead>
+                    <TableHead className="text-right">Akcije</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map(c => (
-                    <TableRow key={c.id}>
-                      <TableCell>{[c.first_name, c.last_name].filter(Boolean).join(' ') || '-'}</TableCell>
-                      <TableCell>{c.email}</TableCell>
-                      <TableCell>{c.phone || '-'}</TableCell>
-                      <TableCell>{c.city || '-'}</TableCell>
-                      <TableCell>{c.marketing_consent ? '✓' : '-'}</TableCell>
-                      <TableCell>{new Date(c.created_at).toLocaleDateString('hr')}</TableCell>
-                    </TableRow>
-                  ))}
+                  {filtered.map(c => {
+                    const blocked = c.status === "blocked";
+                    return (
+                      <TableRow key={c.id}>
+                        <TableCell>{[c.first_name, c.last_name].filter(Boolean).join(' ') || '-'}</TableCell>
+                        <TableCell>{c.email}</TableCell>
+                        <TableCell>{c.phone || '-'}</TableCell>
+                        <TableCell>{c.city || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant={blocked ? "destructive" : "default"}>
+                            {blocked ? "Blokiran" : "Aktivan"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{new Date(c.created_at).toLocaleDateString('hr')}</TableCell>
+                        <TableCell className="text-right space-x-1">
+                          <Button asChild size="sm" variant="ghost">
+                            <Link to={`/ecommerce/customers/${c.id}`}><Eye className="h-4 w-4" /></Link>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={blocked ? "ghost" : "ghost"}
+                            onClick={() => update.mutate({ id: c.id, patch: { status: blocked ? "active" : "blocked" } })}
+                          >
+                            {blocked ? <ShieldCheck className="h-4 w-4 text-green-600" /> : <ShieldOff className="h-4 w-4 text-destructive" />}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

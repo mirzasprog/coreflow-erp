@@ -96,6 +96,7 @@ import OrdersList from "./pages/ecommerce/OrdersList";
 import OrderView from "./pages/ecommerce/OrderView";
 import WebShopSettings from "./pages/ecommerce/WebShopSettings";
 import CustomersList from "./pages/ecommerce/CustomersList";
+import CustomerDetail from "./pages/ecommerce/CustomerDetail";
 import Storefront from "./pages/ecommerce/Storefront";
 import ProductionIndex from "./pages/production/ProductionIndex";
 import WorkOrdersList from "./pages/production/WorkOrdersList";
@@ -223,6 +224,7 @@ const App = () => (
               <Route path="/ecommerce/orders/:id" element={<OrderView />} />
               <Route path="/ecommerce/settings" element={<WebShopSettings />} />
               <Route path="/ecommerce/customers" element={<CustomersList />} />
+              <Route path="/ecommerce/customers/:id" element={<CustomerDetail />} />
               <Route path="/production" element={<ProductionIndex />} />
               <Route path="/production/work-orders" element={<WorkOrdersList />} />
               <Route path="/production/work-orders/new" element={<WorkOrderForm />} />
