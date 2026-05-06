@@ -6,14 +6,13 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Calculator,
-  FileText,
   FolderTree,
   Plus,
-  Receipt,
   TrendingUp,
   Wallet,
   PieChart,
   Landmark,
+  BarChart3,
 } from "lucide-react";
 import { useInvoices } from "@/hooks/useInvoices";
 import { useCashBalance } from "@/hooks/useCashBalance";
@@ -28,13 +27,70 @@ export default function FinanceIndex() {
   const openOutgoing = outgoingInvoices?.filter(inv => inv.status !== 'cancelled' && inv.paid_amount < inv.total).length || 0;
   const openIncoming = incomingInvoices?.filter(inv => inv.status !== 'cancelled' && inv.paid_amount < inv.total).length || 0;
 
-  const formatCurrency = (value: number) => 
+  const formatCurrency = (value: number) =>
     new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
 
   const formatChangePercent = (value: number) => {
     const sign = value >= 0 ? '+' : '';
     return `${sign}${value.toFixed(1)}% this month`;
   };
+
+  const modules = [
+    {
+      title: "Izlazne fakture",
+      titleEn: "Outgoing Invoices",
+      icon: ArrowDownLeft,
+      iconBg: "bg-success/10 text-success",
+      to: "/finance/invoices/outgoing",
+      newTo: "/finance/invoices/outgoing/new",
+      meta: `${openOutgoing} otvorenih`,
+    },
+    {
+      title: "Ulazne fakture",
+      titleEn: "Incoming Invoices",
+      icon: ArrowUpRight,
+      iconBg: "bg-destructive/10 text-destructive",
+      to: "/finance/invoices/incoming",
+      newTo: "/finance/invoices/incoming/new",
+      meta: `${openIncoming} za platiti`,
+    },
+    {
+      title: "Temeljnice (GL)",
+      titleEn: "GL Entries",
+      icon: Calculator,
+      iconBg: "bg-module-finance/10 text-module-finance",
+      to: "/finance/gl-entries",
+      newTo: "/finance/gl-entries/new",
+    },
+    {
+      title: "Kontni plan",
+      titleEn: "Chart of Accounts",
+      icon: FolderTree,
+      iconBg: "bg-primary/10 text-primary",
+      to: "/finance/accounts",
+    },
+    {
+      title: "Bruto bilanca",
+      titleEn: "Balance Report",
+      icon: BarChart3,
+      iconBg: "bg-info/10 text-info",
+      to: "/finance/balance-report",
+    },
+    {
+      title: "Sparivanje izvoda",
+      titleEn: "Bank Reconciliation",
+      icon: Landmark,
+      iconBg: "bg-warning/10 text-warning",
+      to: "/finance/reconciliation",
+    },
+    {
+      title: "Kontroling i BI",
+      titleEn: "Controlling",
+      icon: PieChart,
+      iconBg: "bg-primary/10 text-primary",
+      to: "/finance/controlling",
+    },
+  ];
 
   return (
     <div>
@@ -75,114 +131,29 @@ export default function FinanceIndex() {
           />
         </div>
 
-        {/* Quick Actions */}
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <NavLink to="/finance/invoices/outgoing/new">
-            <QuickAction icon={FileText} title="Outgoing Invoice" subtitle="Izlazna faktura" />
-          </NavLink>
-          <NavLink to="/finance/invoices/incoming/new">
-            <QuickAction icon={Receipt} title="Incoming Invoice" subtitle="Ulazna faktura" />
-          </NavLink>
-          <NavLink to="/finance/gl-entries/new">
-            <QuickAction icon={Calculator} title="GL Journal Entry" subtitle="Temeljnica" />
-          </NavLink>
-          <QuickAction icon={FileText} title="VAT Report" subtitle="PDV izvještaj" />
+        {/* Modules — single, non-duplicated card per area */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {modules.map((m) => (
+            <div key={m.to} className="module-card p-5 flex flex-col justify-between">
+              <NavLink to={m.to} className="flex items-center gap-3 hover:opacity-90">
+                <div className={`rounded-lg p-3 ${m.iconBg}`}>
+                  <m.icon className="h-6 w-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold truncate">{m.title}</h3>
+                  <p className="text-xs text-muted-foreground truncate">{m.titleEn}{m.meta ? ` • ${m.meta}` : ''}</p>
+                </div>
+              </NavLink>
+              {m.newTo && (
+                <NavLink to={m.newTo} className="mt-3">
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Plus className="h-4 w-4 mr-1" /> Novo
+                  </Button>
+                </NavLink>
+              )}
+            </div>
+          ))}
         </div>
-
-        {/* Module Links */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <NavLink to="/finance/invoices/outgoing" className="module-card p-6 hover:border-primary transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="rounded-lg bg-success/10 p-3">
-                <ArrowDownLeft className="h-6 w-6 text-success" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Outgoing Invoices</h3>
-                <p className="text-sm text-muted-foreground">Izlazne fakture</p>
-              </div>
-            </div>
-          </NavLink>
-          <NavLink to="/finance/invoices/incoming" className="module-card p-6 hover:border-primary transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="rounded-lg bg-destructive/10 p-3">
-                <ArrowUpRight className="h-6 w-6 text-destructive" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Incoming Invoices</h3>
-                <p className="text-sm text-muted-foreground">Ulazne fakture</p>
-              </div>
-            </div>
-          </NavLink>
-          <NavLink to="/finance/gl-entries" className="module-card p-6 hover:border-primary transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="rounded-lg bg-module-finance/10 p-3">
-                <Calculator className="h-6 w-6 text-module-finance" />
-              </div>
-              <div>
-                <h3 className="font-semibold">GL Entries</h3>
-                <p className="text-sm text-muted-foreground">Temeljnice</p>
-              </div>
-            </div>
-          </NavLink>
-          <NavLink to="/finance/accounts" className="module-card p-6 hover:border-primary transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="rounded-lg bg-primary/10 p-3">
-                <FolderTree className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Chart of Accounts</h3>
-                <p className="text-sm text-muted-foreground">Kontni plan</p>
-              </div>
-            </div>
-          </NavLink>
-          <NavLink to="/finance/balance-report" className="module-card p-6 hover:border-primary transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="rounded-lg bg-info/10 p-3">
-                <TrendingUp className="h-6 w-6 text-info" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Balance Report</h3>
-                <p className="text-sm text-muted-foreground">Bruto bilanca</p>
-              </div>
-            </div>
-          </NavLink>
-          <NavLink to="/finance/reconciliation" className="module-card p-6 hover:border-primary transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="rounded-lg bg-warning/10 p-3">
-                <Landmark className="h-6 w-6 text-warning" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Bank Reconciliation</h3>
-                <p className="text-sm text-muted-foreground">Sparivanje izvoda</p>
-              </div>
-            </div>
-          </NavLink>
-          <NavLink to="/finance/controlling" className="module-card p-6 hover:border-primary transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="rounded-lg bg-primary/10 p-3">
-                <PieChart className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Controlling</h3>
-                <p className="text-sm text-muted-foreground">Kontroling & BI</p>
-              </div>
-            </div>
-          </NavLink>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function QuickAction({ icon: Icon, title, subtitle }: { icon: any; title: string; subtitle: string }) {
-  return (
-    <div className="module-card flex items-center gap-4 text-left w-full">
-      <div className="rounded-lg bg-module-finance/10 p-3">
-        <Icon className="h-6 w-6 text-module-finance" />
-      </div>
-      <div>
-        <p className="font-medium">{title}</p>
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
       </div>
     </div>
   );
