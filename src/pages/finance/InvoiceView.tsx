@@ -334,6 +334,64 @@ export default function InvoiceView() {
             </Table>
           </CardContent>
         </Card>
+
+        {glEntries && glEntries.length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Audit trag - GL knjiženja ({glEntries.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {glEntries.map((entry: any) => {
+                const totalDebit = (entry.gl_entry_lines || []).reduce((s: number, l: any) => s + (l.debit || 0), 0);
+                return (
+                  <div key={entry.id} className="rounded border p-3">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <NavLink to={`/finance/gl-entries/${entry.id}`} className="font-medium text-primary hover:underline">
+                          {entry.document_number || entry.id.slice(0, 8)}
+                        </NavLink>
+                        <span className="ml-2 text-sm text-muted-foreground">
+                          {format(new Date(entry.entry_date), 'dd.MM.yyyy')} · {entry.description}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={entry.status === 'posted' ? 'default' : entry.status === 'cancelled' ? 'destructive' : 'secondary'}>
+                          {entry.status}
+                        </Badge>
+                        <Badge variant="outline">{entry.reference_type}</Badge>
+                      </div>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Konto</TableHead>
+                          <TableHead>Opis</TableHead>
+                          <TableHead className="text-right">Duguje</TableHead>
+                          <TableHead className="text-right">Potražuje</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {entry.gl_entry_lines?.map((line: any) => (
+                          <TableRow key={line.id}>
+                            <TableCell className="font-mono text-xs">
+                              {line.accounts?.code} {line.accounts?.name}
+                            </TableCell>
+                            <TableCell className="text-sm">{line.description || '-'}</TableCell>
+                            <TableCell className="text-right">{line.debit ? `€${line.debit.toFixed(2)}` : '-'}</TableCell>
+                            <TableCell className="text-right">{line.credit ? `€${line.credit.toFixed(2)}` : '-'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    <div className="mt-2 text-right text-sm text-muted-foreground">
+                      Ukupno: €{totalDebit.toFixed(2)}
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
