@@ -24,6 +24,7 @@ import {
 import { ArrowLeft, Loader2, Edit, XCircle, CheckCircle, DollarSign, FileCode } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useInvoice, usePostInvoice, useCancelInvoice, useRecordPayment } from '@/hooks/useInvoices';
+import { useGLEntriesByReference } from '@/hooks/useGLEntries';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
