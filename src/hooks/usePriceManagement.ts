@@ -395,7 +395,6 @@ export function useUpdatePromoActivity() {
       
       // Check if status is changing to active - apply promo prices to items
       if (data.status === 'active') {
-        // Get promo items and apply their promo prices to items table
         const { data: promoItems } = await supabase
           .from('promo_items')
           .select('item_id, promo_price, original_price')
@@ -407,13 +406,21 @@ export function useUpdatePromoActivity() {
               .from('items')
               .update({ selling_price: pi.promo_price })
               .eq('id', pi.item_id);
+            await supabase
+              .from('price_changes_history')
+              .insert({
+                item_id: pi.item_id,
+                old_price: pi.original_price,
+                new_price: pi.promo_price,
+                change_type: 'promo_activation',
+                change_reason: `Promo aktivacija: ${id}`
+              });
           }
         }
       }
       
       // If changing back from active to another status, restore original prices
       if (data.status && data.status !== 'active') {
-        // First check current status
         const { data: currentPromo } = await supabase
           .from('promo_activities')
           .select('status')
@@ -421,10 +428,9 @@ export function useUpdatePromoActivity() {
           .single();
         
         if (currentPromo?.status === 'active') {
-          // Restore original prices
           const { data: promoItems } = await supabase
             .from('promo_items')
-            .select('item_id, original_price')
+            .select('item_id, original_price, promo_price')
             .eq('promo_activity_id', id);
           
           if (promoItems && promoItems.length > 0) {
@@ -433,6 +439,15 @@ export function useUpdatePromoActivity() {
                 .from('items')
                 .update({ selling_price: pi.original_price })
                 .eq('id', pi.item_id);
+              await supabase
+                .from('price_changes_history')
+                .insert({
+                  item_id: pi.item_id,
+                  old_price: pi.promo_price,
+                  new_price: pi.original_price,
+                  change_type: 'promo_end',
+                  change_reason: `Završetak promocije (${data.status}): ${id}`
+                });
             }
           }
         }
