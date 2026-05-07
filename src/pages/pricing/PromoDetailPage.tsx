@@ -95,8 +95,11 @@ export default function PromoDetailPage() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!id) return;
+    if (newStatus === 'active' && (!promo?.promo_items || promo.promo_items.length === 0)) {
+      toast({ title: 'Nije moguće aktivirati', description: 'Dodajte barem jedan artikal prije aktivacije promocije', variant: 'destructive' });
+      return;
+    }
     if (promo?.status !== 'draft' && newStatus !== promo?.status) {
-      // Can only change status from draft, or cancel active promo
       if (promo?.status === 'active' && newStatus !== 'cancelled') {
         toast({ title: 'Greška', description: 'Aktivna promocija se može samo otkazati', variant: 'destructive' });
         return;
@@ -108,7 +111,7 @@ export default function PromoDetailPage() {
     }
     try {
       await updatePromo.mutateAsync({ id, status: newStatus });
-      toast({ title: 'Uspješno', description: 'Status promocije ažuriran' });
+      toast({ title: 'Uspješno', description: newStatus === 'active' ? `Promocija aktivirana - cijene primijenjene na ${promo.promo_items.length} artikala` : 'Status promocije ažuriran' });
     } catch (error: any) {
       toast({ title: 'Greška', description: error.message, variant: 'destructive' });
     }

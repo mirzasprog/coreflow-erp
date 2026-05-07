@@ -434,3 +434,27 @@ export function exportGLEntriesToCSV(entries: GLEntry[]): void {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+export function useGLEntriesByReference(referenceId: string | undefined) {
+  return useQuery({
+    queryKey: ['gl-entries-by-reference', referenceId],
+    queryFn: async () => {
+      if (!referenceId) return [];
+      const { data, error } = await supabase
+        .from('gl_entries')
+        .select(`
+          *,
+          gl_entry_lines(
+            id, debit, credit, description,
+            accounts:account_id(code, name),
+            partners:partner_id(name)
+          )
+        `)
+        .eq('reference_id', referenceId)
+        .order('entry_date', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!referenceId
+  });
+}

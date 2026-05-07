@@ -172,11 +172,13 @@ export default function PromoActivitiesPage() {
       if (editingPromo) {
         await updatePromo.mutateAsync({ id: editingPromo.id, ...payload });
         toast({ title: 'Uspješno', description: 'Promocija ažurirana' });
+        setIsDialogOpen(false);
       } else {
-        await createPromo.mutateAsync(payload);
-        toast({ title: 'Uspješno', description: 'Promocija kreirana' });
+        const created = await createPromo.mutateAsync(payload);
+        toast({ title: 'Promocija kreirana', description: 'Sada dodajte artikle u promociju' });
+        setIsDialogOpen(false);
+        if (created?.id) navigate(`/pricing/promos/${created.id}`);
       }
-      setIsDialogOpen(false);
     } catch (error: any) {
       toast({ title: 'Greška', description: error.message, variant: 'destructive' });
     }
