@@ -38,6 +38,7 @@ export default function InvoiceView() {
   const invoiceType = isOutgoing ? 'outgoing' : 'incoming';
   
   const { data: invoice, isLoading } = useInvoice(id);
+  const { data: glEntries } = useGLEntriesByReference(id);
   const postInvoice = usePostInvoice();
   const cancelInvoice = useCancelInvoice();
   const recordPayment = useRecordPayment();
