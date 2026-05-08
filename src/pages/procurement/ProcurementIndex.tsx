@@ -1,7 +1,7 @@
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
-import { ShoppingBag, FileText, TrendingUp, Users, AlertTriangle, CheckCircle } from "lucide-react";
+import { ShoppingBag, FileText, TrendingUp, Users, AlertTriangle, CheckCircle, Brain } from "lucide-react";
 import { usePurchaseRequests, useSupplierAnalytics } from "@/hooks/usePurchaseRequests";
 import { usePurchaseOrders } from "@/hooks/usePurchaseOrders";
 
@@ -84,6 +84,18 @@ export default function ProcurementIndex() {
                 <h3 className="font-semibold">Narudžbenice</h3>
                 <p className="text-sm text-muted-foreground text-center mt-1">
                   {pos?.length || 0} ukupno
+                </p>
+              </CardContent>
+            </Card>
+          </NavLink>
+
+          <NavLink to="/procurement/reorder" className="block">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-primary/40">
+              <CardContent className="flex flex-col items-center justify-center p-6">
+                <Brain className="h-10 w-10 text-primary mb-3" />
+                <h3 className="font-semibold">AI preporuka narudžbi</h3>
+                <p className="text-sm text-muted-foreground text-center mt-1">
+                  Sezonalnost, trend, promo, forecast
                 </p>
               </CardContent>
             </Card>
