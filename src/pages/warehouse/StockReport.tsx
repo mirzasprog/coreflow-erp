@@ -19,12 +19,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, ArrowLeft, AlertTriangle, Package, TrendingDown, Warehouse, ShoppingCart } from 'lucide-react';
+import { Search, ArrowLeft, AlertTriangle, Package, TrendingDown, Warehouse, Brain } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useLocations } from '@/hooks/useMasterData';
-import { useGeneratePurchaseOrders } from '@/hooks/usePurchaseOrders';
 
 interface StockItem {
   id: string;
@@ -71,31 +71,13 @@ function useStockReport() {
 export default function StockReport() {
   const { data: stockItems, isLoading } = useStockReport();
   const { data: locations } = useLocations();
-  const generatePurchaseOrders = useGeneratePurchaseOrders();
   const [search, setSearch] = useState('');
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<string>('all');
 
-  // Get low stock items for purchase order generation
+  // Items below min stock — handled in unified AI Reorder engine (/procurement/reorder)
   const lowStockItemsData = stockItems?.filter(item => item.quantity <= (item.items.min_stock || 0)) || [];
-  
-  const handleGeneratePurchaseOrders = () => {
-    const orderItems = lowStockItemsData.map(item => ({
-      item_id: item.item_id,
-      item_code: item.items.code,
-      item_name: item.items.name,
-      location_id: item.location_id,
-      location_name: item.locations.name,
-      current_quantity: item.quantity,
-      min_stock: item.items.min_stock || 0,
-      // Order quantity: bring stock up to min_stock level, or at least min_stock quantity
-      order_quantity: Math.max((item.items.min_stock || 0) - item.quantity, item.items.min_stock || 10),
-      purchase_price: item.items.purchase_price || 0,
-      preferred_supplier_id: item.items.preferred_supplier_id
-    }));
-    
-    generatePurchaseOrders.mutate(orderItems);
-  };
+
 
   const filteredItems = stockItems?.filter(item => {
     const matchesSearch = 
@@ -197,17 +179,18 @@ export default function StockReport() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                   <AlertTriangle className="h-5 w-5" />
-                  Low Stock Alerts ({lowStockItems})
+                  Niska zaliha ({lowStockItems})
                 </CardTitle>
-                <Button 
-                  onClick={handleGeneratePurchaseOrders}
-                  disabled={generatePurchaseOrders.isPending}
-                  className="bg-amber-600 hover:bg-amber-700"
-                >
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  {generatePurchaseOrders.isPending ? 'Creating...' : 'Create Purchase Orders'}
+                <Button asChild className="bg-amber-600 hover:bg-amber-700">
+                  <Link to="/procurement/reorder">
+                    <Brain className="mr-2 h-4 w-4" />
+                    AI preporuka narudžbi
+                  </Link>
                 </Button>
               </div>
+              <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-1">
+                Prijedlozi narudžbi iz min/max zaliha objedinjeni su s AI engine-om (historija, sezonalnost, promo, forecasting).
+              </p>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
