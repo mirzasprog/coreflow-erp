@@ -179,17 +179,18 @@ export default function StockReport() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                   <AlertTriangle className="h-5 w-5" />
-                  Low Stock Alerts ({lowStockItems})
+                  Niska zaliha ({lowStockItems})
                 </CardTitle>
-                <Button 
-                  onClick={handleGeneratePurchaseOrders}
-                  disabled={generatePurchaseOrders.isPending}
-                  className="bg-amber-600 hover:bg-amber-700"
-                >
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  {generatePurchaseOrders.isPending ? 'Creating...' : 'Create Purchase Orders'}
+                <Button asChild className="bg-amber-600 hover:bg-amber-700">
+                  <Link to="/procurement/reorder">
+                    <Brain className="mr-2 h-4 w-4" />
+                    AI preporuka narudžbi
+                  </Link>
                 </Button>
               </div>
+              <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-1">
+                Prijedlozi narudžbi iz min/max zaliha objedinjeni su s AI engine-om (historija, sezonalnost, promo, forecasting).
+              </p>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
