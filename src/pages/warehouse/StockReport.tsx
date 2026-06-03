@@ -19,12 +19,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, ArrowLeft, AlertTriangle, Package, TrendingDown, Warehouse, ShoppingCart } from 'lucide-react';
+import { Search, ArrowLeft, AlertTriangle, Package, TrendingDown, Warehouse, Brain } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useLocations } from '@/hooks/useMasterData';
-import { useGeneratePurchaseOrders } from '@/hooks/usePurchaseOrders';
 
 interface StockItem {
   id: string;
