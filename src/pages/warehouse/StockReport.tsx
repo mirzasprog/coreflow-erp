@@ -71,31 +71,13 @@ function useStockReport() {
 export default function StockReport() {
   const { data: stockItems, isLoading } = useStockReport();
   const { data: locations } = useLocations();
-  const generatePurchaseOrders = useGeneratePurchaseOrders();
   const [search, setSearch] = useState('');
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<string>('all');
 
-  // Get low stock items for purchase order generation
+  // Items below min stock — handled in unified AI Reorder engine (/procurement/reorder)
   const lowStockItemsData = stockItems?.filter(item => item.quantity <= (item.items.min_stock || 0)) || [];
-  
-  const handleGeneratePurchaseOrders = () => {
-    const orderItems = lowStockItemsData.map(item => ({
-      item_id: item.item_id,
-      item_code: item.items.code,
-      item_name: item.items.name,
-      location_id: item.location_id,
-      location_name: item.locations.name,
-      current_quantity: item.quantity,
-      min_stock: item.items.min_stock || 0,
-      // Order quantity: bring stock up to min_stock level, or at least min_stock quantity
-      order_quantity: Math.max((item.items.min_stock || 0) - item.quantity, item.items.min_stock || 10),
-      purchase_price: item.items.purchase_price || 0,
-      preferred_supplier_id: item.items.preferred_supplier_id
-    }));
-    
-    generatePurchaseOrders.mutate(orderItems);
-  };
+
 
   const filteredItems = stockItems?.filter(item => {
     const matchesSearch = 
