@@ -95,7 +95,7 @@ export default function ProcurementIndex() {
                 <Brain className="h-10 w-10 text-primary mb-3" />
                 <h3 className="font-semibold">AI preporuka narudžbi</h3>
                 <p className="text-sm text-muted-foreground text-center mt-1">
-                  Sezonalnost, trend, promo, forecast
+                  Min/max zalihe + historija, sezonalnost, promo, forecast
                 </p>
               </CardContent>
             </Card>
