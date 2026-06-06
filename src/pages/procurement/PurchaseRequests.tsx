@@ -250,6 +250,27 @@ export default function PurchaseRequests() {
               <Label>Napomena</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
+            <div className="rounded-md border bg-muted/40 p-3 flex items-start justify-between gap-3">
+              <div className="text-sm">
+                <div className="font-medium flex items-center gap-2"><Brain className="h-4 w-4 text-primary" /> AI prijedlog stavki</div>
+                <div className="text-muted-foreground text-xs mt-1">
+                  Koristi historijske podatke, sezonalnost, trend, promo aktivnosti i min/max zalihu da predloži artikle i količine.
+                  {partnerId ? " Filter: samo artikli odabranog dobavljača." : ""}
+                </div>
+                {aiNotice && <div className="text-xs mt-1 text-foreground">{aiNotice}</div>}
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="sm" variant="secondary" onClick={applyAiSuggestions} disabled={loadingRecs || !locationId}>
+                      {loadingRecs ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Brain className="h-3 w-3 mr-1" />}
+                      Primijeni AI prijedlog
+                    </Button>
+                  </TooltipTrigger>
+                  {!locationId && <TooltipContent>Prvo odaberi lokaciju</TooltipContent>}
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Stavke</Label>
