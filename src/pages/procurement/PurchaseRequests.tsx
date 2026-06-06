@@ -41,6 +41,7 @@ export default function PurchaseRequests() {
   const createPR = useCreatePurchaseRequest();
   const updateStatus = useUpdatePRStatus();
   const convert = useConvertPRToPO();
+  const { toast } = useToast();
 
   const [partnerId, setPartnerId] = useState<string>("");
   const [locationId, setLocationId] = useState<string>("");
@@ -49,6 +50,36 @@ export default function PurchaseRequests() {
   const [lines, setLines] = useState<PurchaseRequestLine[]>([
     { item_id: null, quantity: 1, estimated_unit_price: 0, estimated_total: 0 },
   ]);
+  const [aiNotice, setAiNotice] = useState<string>("");
+
+  const { data: recommendations, isFetching: loadingRecs, refetch: refetchRecs } =
+    useReorderRecommendations(locationId || undefined);
+
+  const applyAiSuggestions = async () => {
+    if (!locationId) {
+      toast({ title: "Odaberi lokaciju", description: "AI prijedlog koristi lokaciju za izračun zaliha.", variant: "destructive" });
+      return;
+    }
+    const res = await refetchRecs();
+    let recs = res.data || recommendations || [];
+    if (partnerId) recs = recs.filter((r) => r.preferred_supplier_id === partnerId);
+    recs = recs.filter((r) => r.recommended_quantity > 0);
+    if (!recs.length) {
+      toast({ title: "Nema preporuka", description: partnerId ? "Za odabranog dobavljača nema preporuka." : "Trenutno nema artikala za naručivanje." });
+      return;
+    }
+    const newLines: PurchaseRequestLine[] = recs.map((r) => ({
+      item_id: r.item_id,
+      quantity: r.recommended_quantity,
+      estimated_unit_price: r.purchase_price,
+      estimated_total: r.recommended_quantity * r.purchase_price,
+    }));
+    setLines(newLines);
+    const critical = recs.filter((r) => r.urgency === "critical").length;
+    const promo = recs.filter((r) => r.has_active_promo).length;
+    setAiNotice(`AI prijedlog: ${recs.length} artikala (kritično: ${critical}, promo: ${promo}). Sezonalnost, trend i min/max su uzeti u obzir.`);
+    toast({ title: "Primjenjen AI prijedlog", description: `${recs.length} artikala dodano. Količine možete korigirati.` });
+  };
 
   const filtered = requests?.filter((r) =>
     r.request_number.toLowerCase().includes(search.toLowerCase())
