@@ -59,7 +59,55 @@ export default function PurchaseOrderForm() {
     expected_date: '',
     notes: ''
   });
-  const [lines, setLines] = useState<OrderLine[]>([]);
+  const [aiNotice, setAiNotice] = useState<string>('');
+  const { data: recommendations, isFetching: loadingRecs, refetch: refetchRecs } =
+    useReorderRecommendations(formData.location_id || undefined);
+
+  const applyAiSuggestions = async () => {
+    if (!formData.location_id) {
+      toast({
+        title: 'Odaberi lokaciju',
+        description: 'AI prijedlog koristi lokaciju isporuke za izračun zaliha i potrošnje.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    const res = await refetchRecs();
+    let recs = res.data || recommendations || [];
+    if (formData.partner_id) {
+      recs = recs.filter((r) => r.preferred_supplier_id === formData.partner_id);
+    }
+    recs = recs.filter((r) => r.recommended_quantity > 0);
+    if (!recs.length) {
+      toast({
+        title: 'Nema preporuka',
+        description: formData.partner_id
+          ? 'Za odabranog dobavljača trenutno nema artikala za naručivanje.'
+          : 'Trenutno nema artikala koje treba naručiti za ovu lokaciju.'
+      });
+      return;
+    }
+    const newLines: OrderLine[] = recs.map((r) => ({
+      item_id: r.item_id,
+      quantity: r.recommended_quantity,
+      unit_price: r.purchase_price,
+      total_price: r.recommended_quantity * r.purchase_price,
+      notes: r.reasoning.join(' • '),
+      ai_reasoning: r.reasoning.join(' • '),
+      ai_urgency: r.urgency,
+    }));
+    setLines(newLines);
+    const critical = recs.filter((r) => r.urgency === 'critical').length;
+    const promo = recs.filter((r) => r.has_active_promo).length;
+    setAiNotice(
+      `AI prijedlog primijenjen: ${recs.length} artikala (kritično: ${critical}, promo uplift: ${promo}). Količine su uređljive prije spremanja.`
+    );
+    toast({
+      title: 'Primijenjen AI prijedlog',
+      description: `${recs.length} artikala dodano u narudžbu.`
+    });
+  };
+
 
   // Fetch existing order if editing
   const { data: existingOrder } = useQuery({
