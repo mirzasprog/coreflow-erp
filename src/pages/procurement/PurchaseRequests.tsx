@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, FileText, Check, X, ArrowRight } from "lucide-react";
+import { Search, Plus, FileText, Check, X, ArrowRight, Brain, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -19,6 +19,9 @@ import {
   useConvertPRToPO,
   PurchaseRequestLine,
 } from "@/hooks/usePurchaseRequests";
+import { useReorderRecommendations } from "@/hooks/useReorderRecommendations";
+import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const statusLabels: Record<string, { label: string; variant: any }> = {
   draft: { label: "Skica", variant: "secondary" },
@@ -38,6 +41,7 @@ export default function PurchaseRequests() {
   const createPR = useCreatePurchaseRequest();
   const updateStatus = useUpdatePRStatus();
   const convert = useConvertPRToPO();
+  const { toast } = useToast();
 
   const [partnerId, setPartnerId] = useState<string>("");
   const [locationId, setLocationId] = useState<string>("");
@@ -46,6 +50,36 @@ export default function PurchaseRequests() {
   const [lines, setLines] = useState<PurchaseRequestLine[]>([
     { item_id: null, quantity: 1, estimated_unit_price: 0, estimated_total: 0 },
   ]);
+  const [aiNotice, setAiNotice] = useState<string>("");
+
+  const { data: recommendations, isFetching: loadingRecs, refetch: refetchRecs } =
+    useReorderRecommendations(locationId || undefined);
+
+  const applyAiSuggestions = async () => {
+    if (!locationId) {
+      toast({ title: "Odaberi lokaciju", description: "AI prijedlog koristi lokaciju za izračun zaliha.", variant: "destructive" });
+      return;
+    }
+    const res = await refetchRecs();
+    let recs = res.data || recommendations || [];
+    if (partnerId) recs = recs.filter((r) => r.preferred_supplier_id === partnerId);
+    recs = recs.filter((r) => r.recommended_quantity > 0);
+    if (!recs.length) {
+      toast({ title: "Nema preporuka", description: partnerId ? "Za odabranog dobavljača nema preporuka." : "Trenutno nema artikala za naručivanje." });
+      return;
+    }
+    const newLines: PurchaseRequestLine[] = recs.map((r) => ({
+      item_id: r.item_id,
+      quantity: r.recommended_quantity,
+      estimated_unit_price: r.purchase_price,
+      estimated_total: r.recommended_quantity * r.purchase_price,
+    }));
+    setLines(newLines);
+    const critical = recs.filter((r) => r.urgency === "critical").length;
+    const promo = recs.filter((r) => r.has_active_promo).length;
+    setAiNotice(`AI prijedlog: ${recs.length} artikala (kritično: ${critical}, promo: ${promo}). Sezonalnost, trend i min/max su uzeti u obzir.`);
+    toast({ title: "Primjenjen AI prijedlog", description: `${recs.length} artikala dodano. Količine možete korigirati.` });
+  };
 
   const filtered = requests?.filter((r) =>
     r.request_number.toLowerCase().includes(search.toLowerCase())
@@ -83,6 +117,7 @@ export default function PurchaseRequests() {
     setLocationId("");
     setNeededBy("");
     setNotes("");
+    setAiNotice("");
   };
 
   return (
@@ -214,6 +249,27 @@ export default function PurchaseRequests() {
             <div>
               <Label>Napomena</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+            <div className="rounded-md border bg-muted/40 p-3 flex items-start justify-between gap-3">
+              <div className="text-sm">
+                <div className="font-medium flex items-center gap-2"><Brain className="h-4 w-4 text-primary" /> AI prijedlog stavki</div>
+                <div className="text-muted-foreground text-xs mt-1">
+                  Koristi historijske podatke, sezonalnost, trend, promo aktivnosti i min/max zalihu da predloži artikle i količine.
+                  {partnerId ? " Filter: samo artikli odabranog dobavljača." : ""}
+                </div>
+                {aiNotice && <div className="text-xs mt-1 text-foreground">{aiNotice}</div>}
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="sm" variant="secondary" onClick={applyAiSuggestions} disabled={loadingRecs || !locationId}>
+                      {loadingRecs ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Brain className="h-3 w-3 mr-1" />}
+                      Primijeni AI prijedlog
+                    </Button>
+                  </TooltipTrigger>
+                  {!locationId && <TooltipContent>Prvo odaberi lokaciju</TooltipContent>}
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
