@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, FileText, Check, X, ArrowRight } from "lucide-react";
+import { Search, Plus, FileText, Check, X, ArrowRight, Brain, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -19,6 +19,9 @@ import {
   useConvertPRToPO,
   PurchaseRequestLine,
 } from "@/hooks/usePurchaseRequests";
+import { useReorderRecommendations } from "@/hooks/useReorderRecommendations";
+import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const statusLabels: Record<string, { label: string; variant: any }> = {
   draft: { label: "Skica", variant: "secondary" },
