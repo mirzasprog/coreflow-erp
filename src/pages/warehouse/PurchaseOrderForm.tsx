@@ -59,6 +59,7 @@ export default function PurchaseOrderForm() {
     expected_date: '',
     notes: ''
   });
+  const [lines, setLines] = useState<OrderLine[]>([]);
   const [aiNotice, setAiNotice] = useState<string>('');
   const { data: recommendations, isFetching: loadingRecs, refetch: refetchRecs } =
     useReorderRecommendations(formData.location_id || undefined);
