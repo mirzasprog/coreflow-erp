@@ -37,6 +37,8 @@ interface OrderLine {
   unit_price: number;
   total_price: number;
   notes: string;
+  ai_reasoning?: string;
+  ai_urgency?: 'critical' | 'high' | 'normal' | 'low';
 }
 
 export default function PurchaseOrderForm() {
