@@ -117,6 +117,7 @@ export default function PurchaseRequests() {
     setLocationId("");
     setNeededBy("");
     setNotes("");
+    setAiNotice("");
   };
 
   return (
