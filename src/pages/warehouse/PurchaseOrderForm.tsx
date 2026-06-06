@@ -405,13 +405,34 @@ export default function PurchaseOrderForm() {
         {/* Order Lines */}
         <Card className="mt-6">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <CardTitle>Order Lines</CardTitle>
-              <Button onClick={addLine}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Item
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={applyAiSuggestions}
+                  disabled={loadingRecs || !formData.location_id}
+                  title={!formData.location_id ? 'Prvo odaberi lokaciju' : 'Generiraj prijedlog pomoću AI engine-a'}
+                >
+                  {loadingRecs ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Brain className="mr-2 h-4 w-4" />
+                  )}
+                  AI prijedlog
+                </Button>
+                <Button onClick={addLine}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Item
+                </Button>
+              </div>
             </div>
+            {aiNotice && (
+              <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1">
+                <Sparkles className="h-3 w-3 mt-0.5 text-primary" />
+                {aiNotice}
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <Table>
