@@ -21,12 +21,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Brain, Loader2, Sparkles } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useLocations, usePartners, useItems } from '@/hooks/useMasterData';
 import { useToast } from '@/hooks/use-toast';
+import { useReorderRecommendations } from '@/hooks/useReorderRecommendations';
+import { Badge } from '@/components/ui/badge';
 
 interface OrderLine {
   id?: string;
@@ -35,6 +37,8 @@ interface OrderLine {
   unit_price: number;
   total_price: number;
   notes: string;
+  ai_reasoning?: string;
+  ai_urgency?: 'critical' | 'high' | 'normal' | 'low';
 }
 
 export default function PurchaseOrderForm() {
@@ -56,6 +60,55 @@ export default function PurchaseOrderForm() {
     notes: ''
   });
   const [lines, setLines] = useState<OrderLine[]>([]);
+  const [aiNotice, setAiNotice] = useState<string>('');
+  const { data: recommendations, isFetching: loadingRecs, refetch: refetchRecs } =
+    useReorderRecommendations(formData.location_id || undefined);
+
+  const applyAiSuggestions = async () => {
+    if (!formData.location_id) {
+      toast({
+        title: 'Odaberi lokaciju',
+        description: 'AI prijedlog koristi lokaciju isporuke za izračun zaliha i potrošnje.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    const res = await refetchRecs();
+    let recs = res.data || recommendations || [];
+    if (formData.partner_id) {
+      recs = recs.filter((r) => r.preferred_supplier_id === formData.partner_id);
+    }
+    recs = recs.filter((r) => r.recommended_quantity > 0);
+    if (!recs.length) {
+      toast({
+        title: 'Nema preporuka',
+        description: formData.partner_id
+          ? 'Za odabranog dobavljača trenutno nema artikala za naručivanje.'
+          : 'Trenutno nema artikala koje treba naručiti za ovu lokaciju.'
+      });
+      return;
+    }
+    const newLines: OrderLine[] = recs.map((r) => ({
+      item_id: r.item_id,
+      quantity: r.recommended_quantity,
+      unit_price: r.purchase_price,
+      total_price: r.recommended_quantity * r.purchase_price,
+      notes: r.reasoning.join(' • '),
+      ai_reasoning: r.reasoning.join(' • '),
+      ai_urgency: r.urgency,
+    }));
+    setLines(newLines);
+    const critical = recs.filter((r) => r.urgency === 'critical').length;
+    const promo = recs.filter((r) => r.has_active_promo).length;
+    setAiNotice(
+      `AI prijedlog primijenjen: ${recs.length} artikala (kritično: ${critical}, promo uplift: ${promo}). Količine su uređljive prije spremanja.`
+    );
+    toast({
+      title: 'Primijenjen AI prijedlog',
+      description: `${recs.length} artikala dodano u narudžbu.`
+    });
+  };
+
 
   // Fetch existing order if editing
   const { data: existingOrder } = useQuery({
@@ -352,13 +405,34 @@ export default function PurchaseOrderForm() {
         {/* Order Lines */}
         <Card className="mt-6">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <CardTitle>Order Lines</CardTitle>
-              <Button onClick={addLine}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Item
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={applyAiSuggestions}
+                  disabled={loadingRecs || !formData.location_id}
+                  title={!formData.location_id ? 'Prvo odaberi lokaciju' : 'Generiraj prijedlog pomoću AI engine-a'}
+                >
+                  {loadingRecs ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Brain className="mr-2 h-4 w-4" />
+                  )}
+                  AI prijedlog
+                </Button>
+                <Button onClick={addLine}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Item
+                </Button>
+              </div>
             </div>
+            {aiNotice && (
+              <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1">
+                <Sparkles className="h-3 w-3 mt-0.5 text-primary" />
+                {aiNotice}
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <Table>
