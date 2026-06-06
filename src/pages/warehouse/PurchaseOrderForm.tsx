@@ -21,12 +21,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Brain, Loader2, Sparkles } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useLocations, usePartners, useItems } from '@/hooks/useMasterData';
 import { useToast } from '@/hooks/use-toast';
+import { useReorderRecommendations } from '@/hooks/useReorderRecommendations';
+import { Badge } from '@/components/ui/badge';
 
 interface OrderLine {
   id?: string;
