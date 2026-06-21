@@ -107,6 +107,7 @@ import ProcurementIndex from "./pages/procurement/ProcurementIndex";
 import PurchaseRequests from "./pages/procurement/PurchaseRequests";
 import SupplierAnalysis from "./pages/procurement/SupplierAnalysis";
 import ReorderRecommendations from "./pages/procurement/ReorderRecommendations";
+import ReplenishmentCockpit from "./pages/procurement/ReplenishmentCockpit";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
