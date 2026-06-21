@@ -1480,6 +1480,7 @@ export type Database = {
           active: boolean | null
           barcode: string | null
           category_id: string | null
+          central_warehouse_location_id: string | null
           code: string
           created_at: string | null
           description: string | null
@@ -1490,6 +1491,7 @@ export type Database = {
           name: string
           preferred_supplier_id: string | null
           purchase_price: number | null
+          replenishment_source: string
           require_lot_on_receipt: boolean | null
           selling_price: number | null
           unit_id: string | null
@@ -1500,6 +1502,7 @@ export type Database = {
           active?: boolean | null
           barcode?: string | null
           category_id?: string | null
+          central_warehouse_location_id?: string | null
           code: string
           created_at?: string | null
           description?: string | null
@@ -1510,6 +1513,7 @@ export type Database = {
           name: string
           preferred_supplier_id?: string | null
           purchase_price?: number | null
+          replenishment_source?: string
           require_lot_on_receipt?: boolean | null
           selling_price?: number | null
           unit_id?: string | null
@@ -1520,6 +1524,7 @@ export type Database = {
           active?: boolean | null
           barcode?: string | null
           category_id?: string | null
+          central_warehouse_location_id?: string | null
           code?: string
           created_at?: string | null
           description?: string | null
@@ -1530,6 +1535,7 @@ export type Database = {
           name?: string
           preferred_supplier_id?: string | null
           purchase_price?: number | null
+          replenishment_source?: string
           require_lot_on_receipt?: boolean | null
           selling_price?: number | null
           unit_id?: string | null
@@ -1542,6 +1548,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "item_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "items_central_warehouse_location_id_fkey"
+            columns: ["central_warehouse_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
             referencedColumns: ["id"]
           },
           {
@@ -1575,6 +1588,7 @@ export type Database = {
           company_id: string | null
           created_at: string | null
           id: string
+          is_central: boolean
           name: string
           type: string | null
           updated_at: string | null
@@ -1586,6 +1600,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string | null
           id?: string
+          is_central?: boolean
           name: string
           type?: string | null
           updated_at?: string | null
@@ -1597,6 +1612,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string | null
           id?: string
+          is_central?: boolean
           name?: string
           type?: string | null
           updated_at?: string | null
@@ -3258,6 +3274,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      replenishment_runs: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          po_drafts_created: number
+          run_at: string
+          total_suggestions: number
+          transfer_drafts_created: number
+          triggered_by: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          po_drafts_created?: number
+          run_at?: string
+          total_suggestions?: number
+          transfer_drafts_created?: number
+          triggered_by?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          po_drafts_created?: number
+          run_at?: string
+          total_suggestions?: number
+          transfer_drafts_created?: number
+          triggered_by?: string
+        }
+        Relationships: []
       }
       reservations: {
         Row: {
