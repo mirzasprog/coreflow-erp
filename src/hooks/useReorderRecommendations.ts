@@ -44,6 +44,13 @@ export interface ReorderRecommendation {
   reasoning: string[];
   has_active_promo: boolean;
   urgency: 'critical' | 'high' | 'normal' | 'low';
+
+  // Routing
+  location_type: string;
+  routing: 'supplier' | 'transfer';
+  source_location_id: string | null;
+  source_location_name: string | null;
+  source_available: number;
 }
 
 const DEFAULT_LEAD_TIME = 7;
