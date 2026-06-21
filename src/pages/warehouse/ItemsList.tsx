@@ -255,6 +255,8 @@ export default function ItemsList() {
         active: formData.active,
         lot_tracking: formData.lot_tracking,
         require_lot_on_receipt: formData.require_lot_on_receipt,
+        replenishment_source: formData.replenishment_source,
+        central_warehouse_location_id: formData.central_warehouse_location_id || null,
         updated_at: new Date().toISOString()
       };
 
