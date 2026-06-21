@@ -28,6 +28,7 @@ const documentTypes = [
   { icon: ListChecks, label: "Picking", labelAlt: "Komisioniranje", href: "/warehouse/picking", count: null },
   { icon: Scale, label: "Price Comparison", labelAlt: "Usporedba cijena", href: "/warehouse/price-comparison", count: null },
   { icon: BarChart3, label: "Stock Report", labelAlt: "Izvještaj o zalihama", href: "/warehouse/stock-report", count: null },
+  { icon: Package, label: "Replenishment Cockpit", labelAlt: "AI dispečer narudžbi", href: "/procurement/cockpit", count: null },
 ];
 
 // Hook for fetching stock overview from database

@@ -32,7 +32,7 @@ import { NavLink } from '@/components/NavLink';
 import { ArrowLeft } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { usePartners } from '@/hooks/useMasterData';
+import { usePartners, useLocations } from '@/hooks/useMasterData';
 import { useToast } from '@/hooks/use-toast';
 import { useModuleSettings } from '@/hooks/usePriceManagement';
 
@@ -152,6 +152,7 @@ export default function ItemsList() {
   const queryClient = useQueryClient();
   const { data: items, isLoading } = useItemsList();
   const { data: suppliers } = usePartners('supplier');
+  const { data: locations } = useLocations();
   const { data: units } = useUnits();
   const { data: vatRates } = useVatRates();
   const { data: categories } = useCategories();
@@ -177,7 +178,9 @@ export default function ItemsList() {
     category_id: '',
     active: true,
     lot_tracking: false,
-    require_lot_on_receipt: false
+    require_lot_on_receipt: false,
+    replenishment_source: 'auto' as 'auto' | 'supplier' | 'central_warehouse',
+    central_warehouse_location_id: '',
   });
 
   const filteredItems = items?.filter(item => 
@@ -203,7 +206,9 @@ export default function ItemsList() {
       category_id: item.category_id || '',
       active: item.active ?? true,
       lot_tracking: item.lot_tracking ?? false,
-      require_lot_on_receipt: item.require_lot_on_receipt ?? false
+      require_lot_on_receipt: item.require_lot_on_receipt ?? false,
+      replenishment_source: ((item as any).replenishment_source || 'auto') as any,
+      central_warehouse_location_id: (item as any).central_warehouse_location_id || '',
     });
     setIsDialogOpen(true);
   };
@@ -226,7 +231,9 @@ export default function ItemsList() {
       category_id: '',
       active: true,
       lot_tracking: false,
-      require_lot_on_receipt: false
+      require_lot_on_receipt: false,
+      replenishment_source: 'auto' as const,
+      central_warehouse_location_id: '',
     });
     setIsDialogOpen(true);
   };
@@ -249,6 +256,8 @@ export default function ItemsList() {
         active: formData.active,
         lot_tracking: formData.lot_tracking,
         require_lot_on_receipt: formData.require_lot_on_receipt,
+        replenishment_source: formData.replenishment_source,
+        central_warehouse_location_id: formData.central_warehouse_location_id || null,
         updated_at: new Date().toISOString()
       };
 
@@ -555,6 +564,44 @@ export default function ItemsList() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div>
+                  <Label className="text-primary font-medium">Izvor opskrbe</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Određuje kako AI cockpit razmješta ovaj artikl: nabavka od dobavljača ili transfer iz centralnog skladišta
+                  </p>
+                  <Select
+                    value={formData.replenishment_source}
+                    onValueChange={(v) => setFormData({ ...formData, replenishment_source: v as any })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Automatski (sistem odlučuje)</SelectItem>
+                      <SelectItem value="supplier">Uvijek od dobavljača</SelectItem>
+                      <SelectItem value="central_warehouse">Uvijek iz centralnog skladišta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.replenishment_source !== 'supplier' && (
+                  <div>
+                    <Label className="text-sm">Centralno skladište (opcionalno)</Label>
+                    <Select
+                      value={formData.central_warehouse_location_id || 'none'}
+                      onValueChange={(v) => setFormData({ ...formData, central_warehouse_location_id: v === 'none' ? '' : v })}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Bilo koje centralno" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Bilo koje centralno</SelectItem>
+                        {locations?.filter((l: any) => l.is_central || l.type === 'warehouse').map((l: any) => (
+                          <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

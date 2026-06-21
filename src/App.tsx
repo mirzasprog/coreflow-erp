@@ -107,6 +107,7 @@ import ProcurementIndex from "./pages/procurement/ProcurementIndex";
 import PurchaseRequests from "./pages/procurement/PurchaseRequests";
 import SupplierAnalysis from "./pages/procurement/SupplierAnalysis";
 import ReorderRecommendations from "./pages/procurement/ReorderRecommendations";
+import ReplenishmentCockpit from "./pages/procurement/ReplenishmentCockpit";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -235,6 +236,7 @@ const App = () => (
               <Route path="/procurement/requests" element={<PurchaseRequests />} />
               <Route path="/procurement/supplier-analysis" element={<SupplierAnalysis />} />
               <Route path="/procurement/reorder" element={<ReorderRecommendations />} />
+              <Route path="/procurement/cockpit" element={<ReplenishmentCockpit />} />
               <Route path="/settings" element={<SettingsIndex />} />
               <Route path="/settings/partners" element={<PartnersList />} />
               <Route path="/settings/documents" element={<CompanyDocuments />} />

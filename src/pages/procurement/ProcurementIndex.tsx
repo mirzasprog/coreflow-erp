@@ -1,7 +1,7 @@
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
-import { ShoppingBag, FileText, TrendingUp, Users, AlertTriangle, CheckCircle, Brain } from "lucide-react";
+import { ShoppingBag, FileText, TrendingUp, Users, AlertTriangle, CheckCircle, Brain, Layers } from "lucide-react";
 import { usePurchaseRequests, useSupplierAnalytics } from "@/hooks/usePurchaseRequests";
 import { usePurchaseOrders } from "@/hooks/usePurchaseOrders";
 
@@ -89,17 +89,30 @@ export default function ProcurementIndex() {
             </Card>
           </NavLink>
 
+          <NavLink to="/procurement/cockpit" className="block">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-primary/60 bg-primary/5">
+              <CardContent className="flex flex-col items-center justify-center p-6">
+                <Layers className="h-10 w-10 text-primary mb-3" />
+                <h3 className="font-semibold">Replenishment Cockpit</h3>
+                <p className="text-sm text-muted-foreground text-center mt-1">
+                  Jedan ekran: nabavka + transferi + ambulanta (AI)
+                </p>
+              </CardContent>
+            </Card>
+          </NavLink>
+
           <NavLink to="/procurement/reorder" className="block">
             <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-primary/40">
               <CardContent className="flex flex-col items-center justify-center p-6">
                 <Brain className="h-10 w-10 text-primary mb-3" />
                 <h3 className="font-semibold">AI preporuka narudžbi</h3>
                 <p className="text-sm text-muted-foreground text-center mt-1">
-                  Min/max zalihe + historija, sezonalnost, promo, forecast
+                  Detaljni prikaz preporuka po artiklu
                 </p>
               </CardContent>
             </Card>
           </NavLink>
+
 
           <NavLink to="/procurement/supplier-analysis" className="block">
             <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
