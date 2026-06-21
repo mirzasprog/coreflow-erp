@@ -236,6 +236,7 @@ const App = () => (
               <Route path="/procurement/requests" element={<PurchaseRequests />} />
               <Route path="/procurement/supplier-analysis" element={<SupplierAnalysis />} />
               <Route path="/procurement/reorder" element={<ReorderRecommendations />} />
+              <Route path="/procurement/cockpit" element={<ReplenishmentCockpit />} />
               <Route path="/settings" element={<SettingsIndex />} />
               <Route path="/settings/partners" element={<PartnersList />} />
               <Route path="/settings/documents" element={<CompanyDocuments />} />
