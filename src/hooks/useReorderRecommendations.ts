@@ -317,6 +317,43 @@ export function useReorderRecommendations(locationId?: string) {
         // Skip items with zero history AND adequate stock (no signal to reorder)
         if (recommended <= 0 && Number(item.min_stock || 0) === 0 && bucket.total === 0) continue;
 
+        // ----- Routing decision: supplier vs transfer -----
+        const locType = (loc?.type as string) || 'warehouse';
+        const isCentralLoc = !!loc?.is_central || locType === 'warehouse';
+        let routing: 'supplier' | 'transfer' = 'supplier';
+        let sourceLocId: string | null = null;
+        let sourceLocName: string | null = null;
+        let sourceAvail = 0;
+
+        if (!isCentralLoc) {
+          // Determine if a central warehouse can supply this item
+          const repSrc: string = item.replenishment_source || 'auto';
+          const explicitCentral = item.central_warehouse_location_id as string | null;
+          const candidates = centralStockMap.get(row.item_id) || [];
+          let chosen: { location_id: string; available: number } | null = null;
+          if (explicitCentral) {
+            chosen = candidates.find((c) => c.location_id === explicitCentral) || null;
+          }
+          if (!chosen) {
+            // pick central with most available stock
+            chosen = candidates
+              .filter((c) => c.available >= Math.ceil(recommended) * 0.5)
+              .sort((a, b) => b.available - a.available)[0] || null;
+          }
+          if (repSrc === 'central_warehouse') {
+            routing = 'transfer';
+            if (chosen) {
+              sourceLocId = chosen.location_id;
+              sourceAvail = chosen.available;
+            }
+          } else if (repSrc === 'auto' && chosen && chosen.available > 0) {
+            routing = 'transfer';
+            sourceLocId = chosen.location_id;
+            sourceAvail = chosen.available;
+          }
+          if (sourceLocId) sourceLocName = locationMeta.get(sourceLocId)?.name || null;
+        }
+
         recs.push({
           item_id: row.item_id,
           item_code: item.code,
@@ -346,8 +383,14 @@ export function useReorderRecommendations(locationId?: string) {
           reasoning,
           has_active_promo: promoFactor > 1,
           urgency,
+          location_type: locType,
+          routing,
+          source_location_id: sourceLocId,
+          source_location_name: sourceLocName,
+          source_available: sourceAvail,
         });
       }
+
 
       // Sort: critical first, then by recommended qty desc
       const urgencyRank = { critical: 0, high: 1, normal: 2, low: 3 };
