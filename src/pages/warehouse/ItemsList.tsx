@@ -230,7 +230,9 @@ export default function ItemsList() {
       category_id: '',
       active: true,
       lot_tracking: false,
-      require_lot_on_receipt: false
+      require_lot_on_receipt: false,
+      replenishment_source: 'auto' as const,
+      central_warehouse_location_id: '',
     });
     setIsDialogOpen(true);
   };
