@@ -564,6 +564,44 @@ export default function ItemsList() {
                 </Select>
               </div>
 
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div>
+                  <Label className="text-primary font-medium">Izvor opskrbe</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Određuje kako AI cockpit razmješta ovaj artikl: nabavka od dobavljača ili transfer iz centralnog skladišta
+                  </p>
+                  <Select
+                    value={formData.replenishment_source}
+                    onValueChange={(v) => setFormData({ ...formData, replenishment_source: v as any })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Automatski (sistem odlučuje)</SelectItem>
+                      <SelectItem value="supplier">Uvijek od dobavljača</SelectItem>
+                      <SelectItem value="central_warehouse">Uvijek iz centralnog skladišta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.replenishment_source !== 'supplier' && (
+                  <div>
+                    <Label className="text-sm">Centralno skladište (opcionalno)</Label>
+                    <Select
+                      value={formData.central_warehouse_location_id || 'none'}
+                      onValueChange={(v) => setFormData({ ...formData, central_warehouse_location_id: v === 'none' ? '' : v })}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Bilo koje centralno" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Bilo koje centralno</SelectItem>
+                        {locations?.filter((l: any) => l.is_central || l.type === 'warehouse').map((l: any) => (
+                          <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="purchase_price">Purchase Price (€)</Label>
