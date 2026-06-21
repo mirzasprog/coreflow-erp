@@ -1,7 +1,7 @@
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NavLink } from "@/components/NavLink";
-import { ShoppingBag, FileText, TrendingUp, Users, AlertTriangle, CheckCircle, Brain } from "lucide-react";
+import { ShoppingBag, FileText, TrendingUp, Users, AlertTriangle, CheckCircle, Brain, Layers } from "lucide-react";
 import { usePurchaseRequests, useSupplierAnalytics } from "@/hooks/usePurchaseRequests";
 import { usePurchaseOrders } from "@/hooks/usePurchaseOrders";
 
