@@ -80,8 +80,8 @@ export function useReorderRecommendations(locationId?: string) {
         .from('stock')
         .select(`
           item_id, location_id, quantity, reserved_quantity,
-          items!inner(id, code, name, min_stock, max_stock, purchase_price, preferred_supplier_id, active),
-          locations!inner(id, name)
+          items!inner(id, code, name, min_stock, max_stock, purchase_price, preferred_supplier_id, active, replenishment_source, central_warehouse_location_id),
+          locations!inner(id, name, type, is_central)
         `)
         .eq('items.active', true);
       if (locationId) stockQuery = stockQuery.eq('location_id', locationId);
@@ -90,6 +90,33 @@ export function useReorderRecommendations(locationId?: string) {
 
       const itemIds = Array.from(new Set((stockRows || []).map((s: any) => s.item_id)));
       if (itemIds.length === 0) return [];
+
+      // Fetch all locations + central stock for routing decisions
+      const { data: allLocations } = await supabase
+        .from('locations')
+        .select('id, name, type, is_central')
+        .eq('active', true);
+      const centralLocations = (allLocations || []).filter((l: any) => l.is_central || l.type === 'warehouse');
+      const locationMeta = new Map<string, any>((allLocations || []).map((l: any) => [l.id, l]));
+
+      // Fetch central-warehouse stock for items so we can route to transfers
+      const centralLocIds = centralLocations.map((l: any) => l.id);
+      let centralStock: any[] = [];
+      if (centralLocIds.length) {
+        const { data } = await supabase
+          .from('stock')
+          .select('item_id, location_id, quantity, reserved_quantity')
+          .in('item_id', itemIds)
+          .in('location_id', centralLocIds);
+        centralStock = data || [];
+      }
+      const centralStockMap = new Map<string, { location_id: string; available: number }[]>();
+      centralStock.forEach((s) => {
+        const arr = centralStockMap.get(s.item_id) || [];
+        arr.push({ location_id: s.location_id, available: Number(s.quantity || 0) - Number(s.reserved_quantity || 0) });
+        centralStockMap.set(s.item_id, arr);
+      });
+
 
       // 2. Historical consumption from goods_issue documents
       const { data: issueDocs } = await supabase
