@@ -205,7 +205,9 @@ export default function ItemsList() {
       category_id: item.category_id || '',
       active: item.active ?? true,
       lot_tracking: item.lot_tracking ?? false,
-      require_lot_on_receipt: item.require_lot_on_receipt ?? false
+      require_lot_on_receipt: item.require_lot_on_receipt ?? false,
+      replenishment_source: ((item as any).replenishment_source || 'auto') as any,
+      central_warehouse_location_id: (item as any).central_warehouse_location_id || '',
     });
     setIsDialogOpen(true);
   };
