@@ -152,6 +152,7 @@ export default function ItemsList() {
   const queryClient = useQueryClient();
   const { data: items, isLoading } = useItemsList();
   const { data: suppliers } = usePartners('supplier');
+  const { data: locations } = useLocations();
   const { data: units } = useUnits();
   const { data: vatRates } = useVatRates();
   const { data: categories } = useCategories();
