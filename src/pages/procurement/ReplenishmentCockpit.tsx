@@ -19,6 +19,7 @@ import { useLocations } from '@/hooks/useMasterData';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import ReplenishmentSettings from './ReplenishmentSettings';
 
 const urgencyColor: Record<string, any> = {
   critical: 'destructive', high: 'default', normal: 'secondary', low: 'outline',
@@ -294,8 +295,9 @@ export default function ReplenishmentCockpit() {
                 <Brain className="h-5 w-5 text-primary" />
                 AI prijedlozi
               </CardTitle>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Input placeholder="Pretraži..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-56" />
+                <ReplenishmentSettings onChanged={() => refetch()} />
                 <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
                   <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Osvježi
                 </Button>
