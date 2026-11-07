@@ -55,6 +55,29 @@ export type Database = {
           },
         ]
       }
+      account_posting_mappings: {
+        Row: {
+          account_id: string
+          role_key: string
+        }
+        Insert: {
+          account_id: string
+          role_key: string
+        }
+        Update: {
+          account_id?: string
+          role_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_posting_mappings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounts: {
         Row: {
           account_type: string | null

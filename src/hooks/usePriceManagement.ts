@@ -250,47 +250,7 @@ export function usePromoActivities() {
       
       if (error) throw error;
       
-      // Auto-transition statuses based on dates
-      // NOTE: Draft promos do NOT auto-activate - user must manually activate them
-      // Only active promos auto-transition to completed when end_date passes
-      if (data) {
-        for (const promo of data) {
-          let newStatus: string | null = null;
-          
-          // Active -> Completed when end_date passes
-          if (promo.status === 'active' && promo.end_date < today) {
-            newStatus = 'completed';
-          }
-          
-          if (newStatus) {
-            // If becoming completed, restore original prices
-            if (newStatus === 'completed') {
-              const { data: promoItems } = await supabase
-                .from('promo_items')
-                .select('item_id, original_price')
-                .eq('promo_activity_id', promo.id);
-              
-              if (promoItems && promoItems.length > 0) {
-                for (const pi of promoItems) {
-                  await supabase
-                    .from('items')
-                    .update({ selling_price: pi.original_price })
-                    .eq('id', pi.item_id);
-                }
-              }
-            }
-            
-            // Update promo status
-            await supabase
-              .from('promo_activities')
-              .update({ status: newStatus, updated_at: new Date().toISOString() })
-              .eq('id', promo.id);
-            
-            promo.status = newStatus;
-          }
-        }
-      }
-      
+      // Pricing reads never mutate item prices. Effective prices enforce validity at sale time.
       return data;
     }
   });
@@ -393,66 +353,7 @@ export function useUpdatePromoActivity() {
     }) => {
       const { location_ids, ...promoData } = data;
       
-      // Check if status is changing to active - apply promo prices to items
-      if (data.status === 'active') {
-        const { data: promoItems } = await supabase
-          .from('promo_items')
-          .select('item_id, promo_price, original_price')
-          .eq('promo_activity_id', id);
-        
-        if (promoItems && promoItems.length > 0) {
-          for (const pi of promoItems) {
-            await supabase
-              .from('items')
-              .update({ selling_price: pi.promo_price })
-              .eq('id', pi.item_id);
-            await supabase
-              .from('price_changes_history')
-              .insert({
-                item_id: pi.item_id,
-                old_price: pi.original_price,
-                new_price: pi.promo_price,
-                change_type: 'promo_activation',
-                change_reason: `Promo aktivacija: ${id}`
-              });
-          }
-        }
-      }
-      
-      // If changing back from active to another status, restore original prices
-      if (data.status && data.status !== 'active') {
-        const { data: currentPromo } = await supabase
-          .from('promo_activities')
-          .select('status')
-          .eq('id', id)
-          .single();
-        
-        if (currentPromo?.status === 'active') {
-          const { data: promoItems } = await supabase
-            .from('promo_items')
-            .select('item_id, original_price, promo_price')
-            .eq('promo_activity_id', id);
-          
-          if (promoItems && promoItems.length > 0) {
-            for (const pi of promoItems) {
-              await supabase
-                .from('items')
-                .update({ selling_price: pi.original_price })
-                .eq('id', pi.item_id);
-              await supabase
-                .from('price_changes_history')
-                .insert({
-                  item_id: pi.item_id,
-                  old_price: pi.promo_price,
-                  new_price: pi.original_price,
-                  change_type: 'promo_end',
-                  change_reason: `Završetak promocije (${data.status}): ${id}`
-                });
-            }
-          }
-        }
-      }
-      
+      // Database validates activation, overlap and immutable active promotions.
       const { error } = await supabase
         .from('promo_activities')
         .update({ ...promoData, updated_at: new Date().toISOString() })

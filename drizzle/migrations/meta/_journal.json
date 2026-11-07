@@ -29,6 +29,13 @@
       "when": 1794072249575,
       "tag": "0003_effective_location_prices",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794072342774,
+      "tag": "0004_explicit_account_role_mapping",
+      "breakpoints": true
     }
   ]
 }
