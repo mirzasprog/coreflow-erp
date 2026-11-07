@@ -252,46 +252,9 @@ export function useMatchTransaction() {
 
   return useMutation({
     mutationFn: async ({ lineId, invoiceId }: { lineId: string; invoiceId: string }) => {
-      // Get line amount
-      const { data: line, error: lineError } = await supabase
-        .from('bank_statement_lines')
-        .select('amount, statement_id')
-        .eq('id', lineId)
-        .single();
-
-      if (lineError) throw lineError;
-
-      // Update line as matched
-      const { error: updateError } = await supabase
-        .from('bank_statement_lines')
-        .update({
-          matched: true,
-          matched_invoice_id: invoiceId,
-          matched_at: new Date().toISOString(),
-        })
-        .eq('id', lineId);
-
-      if (updateError) throw updateError;
-
-      // Update invoice paid_amount
-      const { data: invoice, error: invError } = await supabase
-        .from('invoices')
-        .select('paid_amount')
-        .eq('id', invoiceId)
-        .single();
-
-      if (invError) throw invError;
-
-      const newPaidAmount = (invoice.paid_amount || 0) + Math.abs(line.amount);
-
-      const { error: payError } = await supabase
-        .from('invoices')
-        .update({ paid_amount: newPaidAmount })
-        .eq('id', invoiceId);
-
-      if (payError) throw payError;
-
-      return { lineId, invoiceId };
+      const { data, error } = await supabase.rpc('erp_bank_match', { p_line: lineId, p_invoice: invoiceId });
+      if (error) throw error;
+      return data as { lineId: string; invoiceId: string };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['bank-statement'] });
@@ -310,44 +273,8 @@ export function useUnmatchTransaction() {
 
   return useMutation({
     mutationFn: async (lineId: string) => {
-      // Get line details first
-      const { data: line, error: lineError } = await supabase
-        .from('bank_statement_lines')
-        .select('amount, matched_invoice_id, statement_id')
-        .eq('id', lineId)
-        .single();
-
-      if (lineError) throw lineError;
-      if (!line.matched_invoice_id) throw new Error('Transakcija nije sparena');
-
-      // Revert invoice payment
-      const { data: invoice, error: invError } = await supabase
-        .from('invoices')
-        .select('paid_amount')
-        .eq('id', line.matched_invoice_id)
-        .single();
-
-      if (invError) throw invError;
-
-      const newPaidAmount = Math.max(0, (invoice.paid_amount || 0) - Math.abs(line.amount));
-
-      await supabase
-        .from('invoices')
-        .update({ paid_amount: newPaidAmount })
-        .eq('id', line.matched_invoice_id);
-
-      // Unmatch line
-      const { error: updateError } = await supabase
-        .from('bank_statement_lines')
-        .update({
-          matched: false,
-          matched_invoice_id: null,
-          matched_at: null,
-        })
-        .eq('id', lineId);
-
-      if (updateError) throw updateError;
-
+      const { error } = await supabase.rpc('erp_bank_match', { p_line: lineId });
+      if (error) throw error;
       return lineId;
     },
     onSuccess: () => {

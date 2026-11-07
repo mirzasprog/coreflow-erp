@@ -206,6 +206,7 @@ export type Database = {
           notes: string | null
           partner_account: string | null
           partner_name: string | null
+          payment_entry_id: string | null
           reference: string | null
           statement_id: string
           transaction_date: string
@@ -222,6 +223,7 @@ export type Database = {
           notes?: string | null
           partner_account?: string | null
           partner_name?: string | null
+          payment_entry_id?: string | null
           reference?: string | null
           statement_id: string
           transaction_date: string
@@ -238,6 +240,7 @@ export type Database = {
           notes?: string | null
           partner_account?: string | null
           partner_name?: string | null
+          payment_entry_id?: string | null
           reference?: string | null
           statement_id?: string
           transaction_date?: string
@@ -250,6 +253,13 @@ export type Database = {
             columns: ["matched_invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_payment_entry_id_fkey"
+            columns: ["payment_entry_id"]
+            isOneToOne: false
+            referencedRelation: "gl_entries"
             referencedColumns: ["id"]
           },
           {
@@ -1158,42 +1168,58 @@ export type Database = {
       }
       gl_entries: {
         Row: {
+          company_id: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
           document_number: string | null
           entry_date: string
           id: string
+          payment_request_amount: number | null
+          payment_request_id: string | null
           reference_id: string | null
           reference_type: string | null
           reversed_entry_id: string | null
           status: Database["public"]["Enums"]["document_status"] | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           document_number?: string | null
           entry_date?: string
           id?: string
+          payment_request_amount?: number | null
+          payment_request_id?: string | null
           reference_id?: string | null
           reference_type?: string | null
           reversed_entry_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
           document_number?: string | null
           entry_date?: string
           id?: string
+          payment_request_amount?: number | null
+          payment_request_id?: string | null
           reference_id?: string | null
           reference_type?: string | null
           reversed_entry_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "gl_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "gl_entries_reversed_entry_id_fkey"
             columns: ["reversed_entry_id"]
@@ -1360,6 +1386,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          company_id: string | null
           created_at: string | null
           created_by: string | null
           due_date: string | null
@@ -1380,6 +1407,7 @@ export type Database = {
           warehouse_document_id: string | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string | null
           created_by?: string | null
           due_date?: string | null
@@ -1400,6 +1428,7 @@ export type Database = {
           warehouse_document_id?: string | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string | null
           created_by?: string | null
           due_date?: string | null
@@ -1420,6 +1449,13 @@ export type Database = {
           warehouse_document_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_partner_id_fkey"
             columns: ["partner_id"]
@@ -3776,6 +3812,35 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          company_id: string
+          granted_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          granted_at?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          granted_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vat_rates: {
         Row: {
           active: boolean | null
@@ -3939,7 +4004,43 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      erp_account: { Args: { p_code: string }; Returns: string }
+      erp_bank_match: {
+        Args: { p_invoice?: string; p_line: string }
+        Returns: Json
+      }
+      erp_effective_price: {
+        Args: { p_date?: string; p_item: string; p_location: string }
+        Returns: number
+      }
+      erp_has_role: {
+        Args: { p_company?: string; p_roles: string[] }
+        Returns: boolean
+      }
+      erp_invoice_action: {
+        Args: {
+          p_action: string
+          p_amount?: number
+          p_bank?: boolean
+          p_id: string
+          p_key?: string
+        }
+        Returns: Json
+      }
+      erp_next_gl_number: { Args: never; Returns: string }
+      erp_pos_items: {
+        Args: { p_location: string; p_search?: string }
+        Returns: {
+          barcode: string
+          code: string
+          id: string
+          name: string
+          selling_price: number
+          vat_rate: number
+          vat_rate_id: string
+        }[]
+      }
+      erp_reverse_gl: { Args: { p_id: string }; Returns: Json }
     }
     Enums: {
       absence_type:

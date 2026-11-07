@@ -1,0 +1,24 @@
+CREATE FUNCTION public.erp_effective_price(p_item uuid,p_location uuid,p_date date DEFAULT current_date) RETURNS numeric LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$
+ SELECT coalesce((SELECT pi.promo_price FROM public.promo_items pi JOIN public.promo_activities pa ON pa.id=pi.promo_activity_id WHERE pi.item_id=i.id AND pa.status='active' AND p_date BETWEEN pa.start_date AND pa.end_date AND (NOT coalesce(pa.is_weekend_only,false) OR extract(isodow FROM p_date) IN (6,7)) AND (EXISTS(SELECT 1 FROM public.promo_activity_locations al WHERE al.promo_activity_id=pa.id AND al.location_id=p_location) OR NOT EXISTS(SELECT 1 FROM public.promo_activity_locations al WHERE al.promo_activity_id=pa.id)) ORDER BY pa.start_date DESC,pa.id LIMIT 1),
+ (SELECT li.selling_price FROM public.price_list_items li JOIN public.price_lists pl ON pl.id=li.price_list_id LEFT JOIN public.price_list_locations ll ON ll.price_list_id=pl.id AND ll.location_id=p_location WHERE li.item_id=i.id AND pl.active IS TRUE AND (pl.valid_from IS NULL OR pl.valid_from<=p_date) AND (pl.valid_to IS NULL OR pl.valid_to>=p_date) AND (ll.id IS NOT NULL OR (pl.is_default IS TRUE AND NOT EXISTS(SELECT 1 FROM public.price_list_locations a WHERE a.price_list_id=pl.id))) ORDER BY (ll.id IS NULL),ll.priority ASC NULLS LAST,pl.id LIMIT 1),i.selling_price) FROM public.items i WHERE i.id=p_item AND i.active IS TRUE
+$$;
+CREATE FUNCTION public.erp_pos_items(p_location uuid,p_search text DEFAULT '') RETURNS TABLE(id uuid,code varchar,name varchar,barcode varchar,selling_price numeric,vat_rate numeric,vat_rate_id uuid) LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ DECLARE co uuid; BEGIN
+ SELECT company_id INTO co FROM public.locations WHERE locations.id=p_location AND active IS TRUE;
+ IF co IS NULL OR NOT public.erp_has_role(ARRAY['POSCashier','Warehouse','Management'],co) THEN RAISE EXCEPTION 'Valid authorized POS location required'; END IF;
+ RETURN QUERY SELECT i.id,i.code,i.name,i.barcode,public.erp_effective_price(i.id,p_location),v.rate,i.vat_rate_id FROM public.items i JOIN public.vat_rates v ON v.id=i.vat_rate_id AND v.active IS TRUE WHERE i.active IS TRUE AND (p_search='' OR i.name ILIKE '%'||p_search||'%' OR i.code ILIKE '%'||p_search||'%' OR i.barcode=p_search) ORDER BY i.name LIMIT 50;
+END $$;
+REVOKE ALL ON FUNCTION public.erp_effective_price(uuid,uuid,date) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.erp_pos_items(uuid,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.erp_pos_items(uuid,text) TO authenticated;
+CREATE FUNCTION public.erp_promo_guard() RETURNS trigger LANGUAGE plpgsql SET search_path=public AS $$ BEGIN
+ IF TG_OP='UPDATE' AND OLD.status='active' AND (to_jsonb(NEW)-'status'-'updated_at') IS DISTINCT FROM (to_jsonb(OLD)-'status'-'updated_at') THEN RAISE EXCEPTION 'Active promotion is locked'; END IF;
+ IF NEW.status='active' THEN
+  PERFORM pg_advisory_xact_lock(732419,2);
+  IF NOT EXISTS(SELECT 1 FROM public.promo_items WHERE promo_activity_id=NEW.id) THEN RAISE EXCEPTION 'Add items before activating the promotion'; END IF;
+  IF EXISTS(SELECT 1 FROM public.promo_items a JOIN public.promo_items b ON b.item_id=a.item_id JOIN public.promo_activities p ON p.id=b.promo_activity_id WHERE a.promo_activity_id=NEW.id AND p.id<>NEW.id AND p.status='active' AND daterange(p.start_date,p.end_date,'[]') && daterange(NEW.start_date,NEW.end_date,'[]') AND (NOT EXISTS(SELECT 1 FROM public.promo_activity_locations WHERE promo_activity_id=NEW.id) OR NOT EXISTS(SELECT 1 FROM public.promo_activity_locations WHERE promo_activity_id=p.id) OR EXISTS(SELECT 1 FROM public.promo_activity_locations l JOIN public.promo_activity_locations m ON m.location_id=l.location_id WHERE l.promo_activity_id=NEW.id AND m.promo_activity_id=p.id))) THEN RAISE EXCEPTION 'An overlapping active promotion exists for these items and locations'; END IF;
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER promo_status_guard BEFORE UPDATE ON public.promo_activities FOR EACH ROW EXECUTE FUNCTION public.erp_promo_guard();
+CREATE FUNCTION public.erp_promo_item_guard() RETURNS trigger LANGUAGE plpgsql SET search_path=public AS $$ DECLARE pid uuid; BEGIN pid:=CASE WHEN TG_OP='DELETE' THEN OLD.promo_activity_id ELSE NEW.promo_activity_id END; IF EXISTS(SELECT 1 FROM public.promo_activities WHERE id=pid AND status<>'draft') THEN RAISE EXCEPTION 'Only draft promotion items can be changed'; END IF; IF TG_OP='DELETE' THEN RETURN OLD; END IF; RETURN NEW; END $$;
+CREATE TRIGGER promo_item_guard BEFORE INSERT OR UPDATE OR DELETE ON public.promo_items FOR EACH ROW EXECUTE FUNCTION public.erp_promo_item_guard();

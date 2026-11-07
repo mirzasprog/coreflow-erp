@@ -1,13 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { AccessError, requireStaff } from "../_shared/staff-auth.ts";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+
 
 interface ReminderPayload {
   medicalCheckIds?: string[];
@@ -41,16 +39,15 @@ interface SafetyInspection {
   safety_devices: SafetyDevice | null;
 }
 
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char] ?? char));
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
+    const { scoped: supabase } = await requireStaff(req, ['HSEOfficer']);
     const { medicalCheckIds = [], inspectionIds = [] }: ReminderPayload = await req.json();
 
     if (!medicalCheckIds.length && !inspectionIds.length) {
@@ -98,17 +95,6 @@ const handler = async (req: Request): Promise<Response> => {
       safety_devices: insp.safety_devices as SafetyDevice | null,
     }));
 
-    medicalChecks.forEach((check) => {
-      if (check.employees?.email) recipientSet.add(check.employees.email);
-    });
-
-    if (!recipientSet.size) {
-      return new Response(
-        JSON.stringify({ success: false, message: "No recipient emails available" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
-      );
-    }
-
     const medicalItems = medicalChecks.map((check) => {
       const validUntil = check.valid_until ? new Date(check.valid_until) : null;
       const daysRemaining = validUntil ? Math.ceil((validUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
@@ -153,19 +139,30 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    const to = Array.from(recipientSet);
-    const emailResponse = await resend.emails.send({
-      from: "HSE Podsjetnik <onboarding@resend.dev>",
-      to,
-      subject: "HSE upozorenja - isteci pregleda",
-      html,
-    });
+    const groups = new Map<string, MedicalCheck[]>();
+    for (const check of medicalChecks) {
+      const email = check.employees?.email;
+      if (email) groups.set(email, [...(groups.get(email) ?? []), check]);
+    }
+    let sent = 0;
+    for (const [email, checks] of groups) {
+      const body = checks.map(check => `<li>${escapeHtml(check.check_type)} — ${escapeHtml(check.valid_until ?? '-')}</li>`).join('');
+      const response = await resend.emails.send({ from: 'HSE Podsjetnik <onboarding@resend.dev>', to: [email], subject: 'HSE podsjetnik', html: `<h2>Vaši pregledi</h2><ul>${body}</ul>` });
+      if (response.error) throw new Error('Slanje podsjetnika nije uspjelo');
+      sent++;
+    }
+    // Aggregate recipients are explicitly configured by the operator, never all employees.
+    for (const email of recipientSet) {
+      const response = await resend.emails.send({ from: 'HSE Podsjetnik <onboarding@resend.dev>', to: [email], subject: 'HSE pregled upozorenja', html });
+      if (response.error) throw new Error('Slanje HSE pregleda nije uspjelo');
+      sent++;
+    }
+    if (!sent) throw new AccessError('Nema ovlaštenih primatelja', 400);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Podsjetnik poslan na ${to.join(", ")}`,
-        emailId: emailResponse.data?.id,
+        message: `Poslano ${sent} privatnih podsjetnika`,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
     );
@@ -173,7 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      { status: error instanceof AccessError ? error.status : 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
     );
   }
 };

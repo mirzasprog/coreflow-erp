@@ -283,68 +283,9 @@ export function useReverseGLEntry() {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      // Get the original entry with lines
-      const { data: originalEntry, error: entryError } = await supabase
-        .from('gl_entries')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (entryError) throw entryError;
-      if (originalEntry.status !== 'posted') {
-        throw new Error('Only posted entries can be reversed');
-      }
-
-      const { data: originalLines, error: linesError } = await supabase
-        .from('gl_entry_lines')
-        .select('*')
-        .eq('entry_id', id);
-      
-      if (linesError) throw linesError;
-
-      // Generate document number for reversal
-      const documentNumber = await generateDocumentNumber();
-
-      // Create reverse entry
-      const { data: reversedEntry, error: createError } = await supabase
-        .from('gl_entries')
-        .insert({
-          entry_date: new Date().toISOString().split('T')[0],
-          description: `Storno: ${originalEntry.description || originalEntry.document_number}`,
-          reference_type: originalEntry.reference_type,
-          reference_id: originalEntry.reference_id,
-          reversed_entry_id: id,
-          status: 'posted',
-          document_number: documentNumber
-        })
-        .select()
-        .single();
-      
-      if (createError) throw createError;
-
-      // Create reversed lines (swap debit and credit)
-      const reversedLines = originalLines.map(line => ({
-        entry_id: reversedEntry.id,
-        account_id: line.account_id,
-        debit: line.credit || 0,
-        credit: line.debit || 0,
-        description: line.description,
-        partner_id: line.partner_id
-      }));
-
-      const { error: linesInsertError } = await supabase
-        .from('gl_entry_lines')
-        .insert(reversedLines);
-      
-      if (linesInsertError) throw linesInsertError;
-
-      // Mark original as cancelled
-      await supabase
-        .from('gl_entries')
-        .update({ status: 'cancelled' })
-        .eq('id', id);
-
-      return { originalId: id, reversedId: reversedEntry.id, documentNumber };
+      const { data, error } = await supabase.rpc('erp_reverse_gl', { p_id: id });
+      if (error) throw error;
+      return data as { originalId: string; reversedId: string; documentNumber: string };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['gl-entries'] });

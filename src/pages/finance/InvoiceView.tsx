@@ -29,6 +29,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { generateUBLInvoiceXML, downloadXML, EInvoiceData } from '@/lib/eInvoice';
+import { useCompanySettings } from '@/hooks/useCompanySettings';
 
 export default function InvoiceView() {
   const { id } = useParams();
@@ -42,9 +43,11 @@ export default function InvoiceView() {
   const postInvoice = usePostInvoice();
   const cancelInvoice = useCancelInvoice();
   const recordPayment = useRecordPayment();
+  const { data: companySettings } = useCompanySettings();
 
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentRequestId, setPaymentRequestId] = useState(() => crypto.randomUUID());
 
   const handlePost = async () => {
     if (!id) return;
@@ -63,7 +66,8 @@ export default function InvoiceView() {
       toast.error('Please enter a valid payment amount');
       return;
     }
-    await recordPayment.mutateAsync({ id, amount });
+    await recordPayment.mutateAsync({ id, amount, requestId: paymentRequestId });
+    setPaymentRequestId(crypto.randomUUID());
     setPaymentDialogOpen(false);
     setPaymentAmount('');
   };
@@ -71,17 +75,23 @@ export default function InvoiceView() {
   const handleGenerateEInvoice = () => {
     if (!invoice) return;
 
+    const receipt = (invoice as any).source_receipt;
+    const seller = companySettings?.find(settings => settings.location_id === receipt?.location_id)
+      ?? (companySettings?.length === 1 ? companySettings[0] : undefined);
+    if (!seller?.legal_name || !seller.tax_id) return toast.error('Nedostaju podaci prodavatelja u postavkama kompanije.');
+    if (invoice.lines?.some(line => line.vat_rates?.rate == null)) return toast.error('Nedostaje stopa PDV-a za stavku fakture.');
+
     const eInvoiceData: EInvoiceData = {
       invoiceNumber: invoice.invoice_number,
       invoiceDate: invoice.invoice_date,
       dueDate: invoice.due_date || invoice.invoice_date,
       seller: {
-        name: 'Vaša Kompanija d.o.o.', // TODO: Load from company settings
-        taxId: '1234567890123',
-        address: 'Ulica 1',
-        city: 'Sarajevo',
-        postalCode: '71000',
-        country: 'BA',
+        name: seller.legal_name,
+        taxId: seller.tax_id,
+        address: seller.address || '',
+        city: seller.city || '',
+        postalCode: seller.postal_code || '',
+        country: seller.country || 'BA',
       },
       buyer: {
         name: invoice.partners?.name || 'Kupac',
@@ -95,7 +105,7 @@ export default function InvoiceView() {
         description: line.description || line.items?.name || 'Artikal',
         quantity: line.quantity,
         unitPrice: line.unit_price,
-        vatRate: line.vat_rates?.rate || 17,
+        vatRate: line.vat_rates?.rate ?? 0,
         vatAmount: line.vat_amount,
         lineTotal: line.total - line.vat_amount,
       })) || [],
