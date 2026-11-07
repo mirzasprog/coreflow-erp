@@ -93,12 +93,12 @@ export default function ChannelConnections() {
             Kanali rezervacija
           </h1>
           <p className="text-muted-foreground">
-            Povežite platforme poput Booking.com i Airbnb za automatsku sinkronizaciju
+            Booking.com / Airbnb — stvarna integracija nije konfigurirana
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button disabled>
               <Link2 className="h-4 w-4 mr-2" />
               Poveži novi kanal
             </Button>
@@ -180,7 +180,7 @@ export default function ChannelConnections() {
                   {isConnected ? (
                     <Badge className="bg-green-100 text-green-800">
                       <Check className="h-3 w-3 mr-1" />
-                      Povezano
+                      Konfiguracija spremljena
                     </Badge>
                   ) : (
                     <Badge variant="outline">
@@ -197,7 +197,7 @@ export default function ChannelConnections() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span>Sinkronizacija:</span>
-                      <Badge variant="outline">{connection.sync_enabled ? "Aktivna" : "Neaktivna"}</Badge>
+                      <Badge variant="outline">Nedostupna</Badge>
                     </div>
                     {connection.last_sync_at && (
                       <div className="flex items-center justify-between text-sm">
@@ -209,12 +209,13 @@ export default function ChannelConnections() {
                     )}
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Aktivno:</span>
-                      <Switch checked={connection.is_active} />
+                      <Switch checked={connection.is_active} disabled />
                     </div>
                     <Button 
                       variant="outline" 
                       className="w-full"
                       onClick={() => handleSync(connection.id)}
+                      disabled
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
                       Sinkroniziraj
@@ -224,6 +225,7 @@ export default function ChannelConnections() {
                   <Button 
                     variant="outline" 
                     className="w-full"
+                    disabled
                     onClick={() => {
                       setSelectedChannel(key);
                       setDialogOpen(true);
@@ -242,7 +244,7 @@ export default function ChannelConnections() {
       {/* API Integration Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Kako funkcionira integracija?</CardTitle>
+          <CardTitle>Status integracije</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
@@ -252,7 +254,7 @@ export default function ChannelConnections() {
                 Povežite kanal
               </div>
               <p className="text-sm text-muted-foreground">
-                Unesite API ključeve dobivene od platforme
+                Pristup pružatelju još nije konfiguriran
               </p>
             </div>
             <div className="space-y-2">
@@ -261,7 +263,7 @@ export default function ChannelConnections() {
                 Automatska sinkronizacija
               </div>
               <p className="text-sm text-muted-foreground">
-                Rezervacije se automatski povlače u sustav
+                Automatski uvoz nije aktivan
               </p>
             </div>
             <div className="space-y-2">
@@ -270,7 +272,7 @@ export default function ChannelConnections() {
                 Ažuriranje dostupnosti
               </div>
               <p className="text-sm text-muted-foreground">
-                Promjene se šalju natrag na sve platforme
+                Slanje dostupnosti nije aktivno
               </p>
             </div>
           </div>

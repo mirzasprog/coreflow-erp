@@ -6,7 +6,7 @@ import { useHotelDashboardStats } from "@/hooks/useHotel";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function HotelIndex() {
-  const { data: stats, isLoading } = useHotelDashboardStats();
+  const { data: stats, isLoading, isError } = useHotelDashboardStats();
 
   const quickLinks = [
     { label: "Kalendar rezervacija", href: "/hotel/calendar", icon: Calendar },
@@ -33,6 +33,7 @@ export default function HotelIndex() {
       </div>
 
       {/* Stats Grid */}
+      {isError && <p role="alert" className="text-destructive">Podaci nisu dostupni.</p>}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -152,7 +153,7 @@ export default function HotelIndex() {
                     <div className="h-3 w-3 rounded-full bg-yellow-500" />
                     <span>Održavanje</span>
                   </div>
-                  <span className="font-bold">0</span>
+                  <span className="font-bold">{stats?.maintenanceRooms ?? '—'}</span>
                 </div>
               </div>
             )}

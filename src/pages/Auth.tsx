@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { internalReturnTo } from '@/lib/internalReturnTo';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,8 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = internalReturnTo(location.state?.returnTo);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +32,7 @@ export default function Auth() {
       toast.error(error.message);
     } else {
       toast.success('Welcome back!');
-      navigate('/');
+      navigate(returnTo, { replace: true });
     }
   };
 
@@ -50,7 +53,7 @@ export default function Auth() {
       toast.error(error.message);
     } else {
       toast.success('Account created! You can now sign in.');
-      navigate('/');
+      navigate(returnTo, { replace: true });
     }
   };
 

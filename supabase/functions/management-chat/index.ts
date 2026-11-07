@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { AccessError, requireStaff } from '../_shared/staff-auth.ts';
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -12,14 +8,14 @@ serve(async (req) => {
   }
 
   try {
-    const { message, userId } = await req.json();
+    const { user, scoped: supabase } = await requireStaff(req, ['Management', 'Finance', 'Warehouse', 'HR', 'HSEOfficer']);
+    const { message } = await req.json();
+    if (typeof message !== 'string' || !message.trim() || message.length > 8000) throw new AccessError('Invalid message', 400);
+    const userId = user.id;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
     // Gather relevant data based on the query
     let contextData: string[] = [];
@@ -68,7 +64,7 @@ serve(async (req) => {
     }
 
     // Get all stock items with detailed info
-    const { data: allStock } = await supabase
+    const { data: allStock, error: stockError } = await supabase
       .from('stock')
       .select(`
         *,
@@ -76,6 +72,8 @@ serve(async (req) => {
         locations(name)
       `)
       .limit(500);
+
+    if (stockError) contextData.push('Podaci o zalihama nisu dostupni. Ne iznositi procjene ukupne vrijednosti.');
 
     const lowStockItems = (allStock || []).filter((s: any) => 
       s.items?.min_stock && s.quantity < s.items.min_stock
@@ -85,7 +83,7 @@ serve(async (req) => {
       const lowStockInfo = lowStockItems.slice(0, 15).map((s: any) => 
         `- ${s.items?.name || 'N/A'}: trenutno ${s.quantity}, minimalno: ${s.items?.min_stock}, lokacija: ${s.locations?.name || 'N/A'}`
       ).join('\n');
-      contextData.push(`ARTIKLI ISPOD MINIMALNIH ZALIHA (${lowStockItems.length} ukupno):\n${lowStockInfo}`);
+      contextData.push(`ARTIKLI ISPOD MINIMALNIH ZALIHA (u uzorku do 500 dostupnih zapisa; nije potpuni pregled):\n${lowStockInfo}`);
     }
 
     // Calculate total stock value
@@ -94,7 +92,7 @@ serve(async (req) => {
         const price = s.items?.purchase_price || 0;
         return sum + (s.quantity * price);
       }, 0);
-      contextData.push(`UKUPNA VRIJEDNOST ZALIHA: €${totalStockValue.toFixed(2)}`);
+      contextData.push(`VRIJEDNOST DOHVAĆENOG UZORKA ZALIHA (do 500 zapisa, nije ukupna vrijednost): €${totalStockValue.toFixed(2)}`);
     }
 
     // Get sales data for multiple periods
@@ -671,7 +669,7 @@ ${hasKnowledgeGap ? 'NAPOMENA: Za ovo pitanje nema interne dokumentacije - predl
   } catch (e) {
     console.error("chat error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Nepoznata greška" }), {
-      status: 500,
+      status: e instanceof AccessError ? e.status : 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

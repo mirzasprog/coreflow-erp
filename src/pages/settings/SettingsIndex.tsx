@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
+import { Button } from "@/components/ui/button";
 import {
   Building,
   Users,
@@ -62,10 +63,11 @@ export default function SettingsIndex() {
               <h3 className="mb-4 text-lg font-semibold">{section.title}</h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {section.items.map((item) => (
-                  <button
+                  <Button variant="ghost"
                     key={item.label}
+                    disabled={!item.href}
                     onClick={() => item.href && navigate(item.href)}
-                    className={`module-card flex items-start gap-4 text-left transition-all hover:shadow-md ${!item.href ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    className="module-card h-auto whitespace-normal flex items-start justify-start gap-4 text-left transition-all hover:shadow-md"
                   >
                     <div className="rounded-lg bg-primary/10 p-3">
                       <item.icon className="h-6 w-6 text-primary" />
@@ -75,8 +77,9 @@ export default function SettingsIndex() {
                       <p className="mt-1 text-sm text-muted-foreground">
                         {item.description}
                       </p>
+                      {!item.href && <p className="mt-1 text-sm text-muted-foreground">Nedostupno</p>}
                     </div>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -97,7 +100,7 @@ export default function SettingsIndex() {
             </div>
             <div>
               <span className="text-muted-foreground">Last Backup:</span>{" "}
-              <span className="font-medium">2024-01-15 03:00</span>
+              <span className="font-medium">Nije provjereno</span>
             </div>
           </div>
         </div>

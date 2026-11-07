@@ -8,6 +8,7 @@ import { PurchaseOrdersWidget } from "@/components/dashboard/PurchaseOrdersWidge
 import { SuppliersWidget } from "@/components/dashboard/SuppliersWidget";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   Package,
   DollarSign,
@@ -27,7 +28,7 @@ function formatCurrency(value: number): string {
 }
 
 export default function Dashboard() {
-  const { data: stats, isLoading } = useDashboardStats();
+  const { data: stats, isLoading, isError, refetch } = useDashboardStats();
   const navigate = useNavigate();
 
   return (
@@ -43,6 +44,11 @@ export default function Dashboard() {
                 <Skeleton key={i} className="h-[100px] rounded-lg" />
               ))}
             </>
+          ) : isError ? (
+            <div role="alert" className="col-span-full flex items-center justify-between gap-4 border border-destructive p-4">
+              <p>Podaci nisu dostupni.</p>
+              <Button variant="outline" onClick={() => refetch()}>Pokušaj ponovno</Button>
+            </div>
           ) : (
             <>
               <StatCard

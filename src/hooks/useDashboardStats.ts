@@ -85,6 +85,10 @@ export function useDashboardStats() {
           .lte('invoice_date', format(monthEnd, 'yyyy-MM-dd')),
       ]);
 
+      for (const result of [stockResult, invoicesResult, todaySalesResult, employeesResult, absencesResult, safetyDevicesResult, revenueResult]) {
+        if (result.error) throw result.error;
+      }
+
       // Calculate total stock value
       let totalStockValue = 0;
       if (stockResult.data) {

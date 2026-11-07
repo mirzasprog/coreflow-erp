@@ -130,6 +130,7 @@ const App = () => (
             {/* Main app routes with sidebar */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/index" element={<Dashboard />} />
               <Route path="/warehouse" element={<WarehouseIndex />} />
               <Route path="/warehouse/receipts" element={<GoodsReceiptList />} />
               <Route path="/warehouse/receipts/new" element={<GoodsReceiptForm />} />
@@ -175,8 +176,6 @@ const App = () => (
               <Route path="/finance/balance-report" element={<AccountBalanceReport />} />
               <Route path="/finance/controlling" element={<ControllingDashboard />} />
               <Route path="/finance/reconciliation" element={<BankReconciliation />} />
-              <Route path="/finance/gl-entries/:id/edit" element={<GLEntryForm />} />
-              <Route path="/finance/gl-entries/:id/edit" element={<GLEntryForm />} />
               <Route path="/assets" element={<AssetsIndex />} />
               <Route path="/assets/new" element={<AssetForm />} />
               <Route path="/assets/:id" element={<AssetView />} />

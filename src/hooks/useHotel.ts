@@ -301,10 +301,10 @@ export function useChannelConnections() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('channel_connections')
-        .select('*')
+        .select('id, channel_name, property_id, is_active, sync_enabled, last_sync_at, created_at, updated_at')
         .order('channel_name');
       if (error) throw error;
-      return data as ChannelConnection[];
+      return (data ?? []).map(connection => ({ ...connection, api_key: null, settings: {} })) as ChannelConnection[];
     },
   });
 }
@@ -348,35 +348,40 @@ export function useHotelDashboardStats() {
       const today = new Date().toISOString().split('T')[0];
       
       // Get rooms stats
-      const { data: rooms } = await supabase.from('rooms').select('status');
+      const { data: rooms, error: roomsError } = await supabase.from('rooms').select('status').eq('active', true);
+      if (roomsError) throw roomsError;
       const totalRooms = rooms?.length || 0;
       const occupiedRooms = rooms?.filter(r => r.status === 'occupied').length || 0;
       const availableRooms = rooms?.filter(r => r.status === 'available').length || 0;
+      const maintenanceRooms = rooms?.filter(r => r.status === 'maintenance').length || 0;
       
       // Get today's check-ins
-      const { data: checkIns } = await supabase
+      const { data: checkIns, error: checkInsError } = await supabase
         .from('reservations')
         .select('id')
         .eq('check_in', today)
         .in('status', ['confirmed', 'pending']);
       
       // Get today's check-outs
-      const { data: checkOuts } = await supabase
+      const { data: checkOuts, error: checkOutsError } = await supabase
         .from('reservations')
         .select('id')
         .eq('check_out', today)
         .eq('status', 'checked_in');
       
       // Get active reservations
-      const { data: activeReservations } = await supabase
+      const { data: activeReservations, error: reservationsError } = await supabase
         .from('reservations')
         .select('id')
         .in('status', ['confirmed', 'checked_in']);
+
+      if (checkInsError || checkOutsError || reservationsError) throw checkInsError || checkOutsError || reservationsError;
       
       return {
         totalRooms,
         occupiedRooms,
         availableRooms,
+        maintenanceRooms,
         occupancyRate: totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0,
         todayCheckIns: checkIns?.length || 0,
         todayCheckOuts: checkOuts?.length || 0,
