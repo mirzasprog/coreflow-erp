@@ -91,18 +91,8 @@ export function useRegisterCustomer() {
       });
       if (aerr) throw aerr;
 
-      const { data, error } = await supabase
-        .from('ecommerce_customers' as any)
-        .insert({
-          user_id: auth.user?.id || null,
-          email: input.email,
-          first_name: input.first_name || null,
-          last_name: input.last_name || null,
-          phone: input.phone || null,
-          marketing_consent: input.marketing_consent || false,
-        })
-        .select()
-        .single();
+      if (!auth.session) return null;
+      const { data, error } = await supabase.rpc('erp_customer_provision');
       if (error) throw error;
       return data;
     },

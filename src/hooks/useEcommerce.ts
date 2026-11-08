@@ -99,55 +99,13 @@ export function useCreateEcommerceOrder() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (input: { header: Partial<EcommerceOrder>; lines: EcommerceOrderLine[] }) => {
-      const number = await generateOrderNumber();
-      const subtotal = input.lines.reduce((s, l) => s + (l.unit_price * l.quantity), 0);
-      const vat = input.lines.reduce((s, l) => s + (l.vat_amount || 0), 0);
-      const total = subtotal + vat + (input.header.shipping_cost || 0) - (input.header.discount_amount || 0);
-      const { data: order, error } = await supabase
-        .from('ecommerce_orders')
-        .insert({
-          order_number: number,
-          order_date: input.header.order_date || new Date().toISOString(),
-          customer_name: input.header.customer_name || 'Web kupac',
-          customer_email: input.header.customer_email,
-          customer_phone: input.header.customer_phone,
-          shipping_address: input.header.shipping_address,
-          shipping_city: input.header.shipping_city,
-          shipping_postal_code: input.header.shipping_postal_code,
-          shipping_country: input.header.shipping_country,
-          shipping_method: input.header.shipping_method,
-          shipping_cost: input.header.shipping_cost || 0,
-          payment_method: input.header.payment_method,
-          payment_status: input.header.payment_status || 'pending',
-          status: input.header.status || 'new',
-          subtotal,
-          vat_amount: vat,
-          discount_code: input.header.discount_code,
-          discount_amount: input.header.discount_amount || 0,
-          total,
-          notes: input.header.notes,
-          partner_id: input.header.partner_id,
-          location_id: input.header.location_id,
-        })
-        .select()
-        .single();
+    mutationFn: async (input: { header: Partial<EcommerceOrder>; lines: EcommerceOrderLine[]; requestId?: string }) => {
+      const { data, error } = await supabase.rpc('erp_checkout', {
+        p_key: input.requestId ?? crypto.randomUUID(),
+        p_request: { ...input.header, lines: input.lines.map(line => ({ item_id: line.item_id, quantity: line.quantity })) },
+      });
       if (error) throw error;
-      if (input.lines.length) {
-        const ls = input.lines.map(l => ({
-          order_id: order.id,
-          item_id: l.item_id,
-          description: l.description,
-          quantity: l.quantity,
-          unit_price: l.unit_price,
-          vat_rate_id: l.vat_rate_id,
-          vat_amount: l.vat_amount || 0,
-          total: l.total,
-        }));
-        const { error: lerr } = await supabase.from('ecommerce_order_items').insert(ls);
-        if (lerr) throw lerr;
-      }
-      return order;
+      return data as unknown as EcommerceOrder;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ecommerce-orders'] });

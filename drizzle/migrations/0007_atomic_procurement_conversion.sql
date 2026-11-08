@@ -1,0 +1,20 @@
+CREATE SEQUENCE public.erp_document_sequence;
+CREATE FUNCTION public.erp_convert_request(p_id uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ DECLARE pr public.purchase_requests%ROWTYPE; po public.purchase_orders%ROWTYPE; co uuid; BEGIN
+ SELECT * INTO STRICT pr FROM public.purchase_requests WHERE id=p_id FOR UPDATE;
+ SELECT company_id INTO co FROM public.locations WHERE id=pr.location_id;
+ IF co IS NULL OR NOT public.erp_has_role(ARRAY['Warehouse'],co) THEN RAISE EXCEPTION 'Authorized procurement location required'; END IF;
+ IF pr.converted_po_id IS NOT NULL THEN SELECT * INTO po FROM public.purchase_orders WHERE id=pr.converted_po_id; RETURN to_jsonb(po); END IF;
+ IF pr.status<>'approved' OR pr.partner_id IS NULL OR NOT EXISTS(SELECT 1 FROM public.purchase_request_lines WHERE request_id=pr.id) THEN RAISE EXCEPTION 'Approved request with supplier and items required'; END IF;
+ IF EXISTS(SELECT 1 FROM public.purchase_request_lines WHERE request_id=pr.id AND quantity<=0) THEN RAISE EXCEPTION 'Invalid requested quantity'; END IF;
+ INSERT INTO public.purchase_orders(order_number,partner_id,location_id,order_date,expected_date,status,total_value,notes) VALUES('PO-'||to_char(current_date,'YYYY')||'-'||nextval('public.erp_document_sequence'),pr.partner_id,pr.location_id,current_date,pr.needed_by_date,'draft',pr.total_estimated_value,'Iz zahtjeva '||pr.request_number) RETURNING * INTO po;
+ INSERT INTO public.purchase_order_lines(order_id,item_id,quantity,unit_price,total_price,notes) SELECT po.id,item_id,quantity,estimated_unit_price,round(quantity*estimated_unit_price,2),notes FROM public.purchase_request_lines WHERE request_id=pr.id;
+ UPDATE public.purchase_requests SET status='converted',converted_po_id=po.id WHERE id=pr.id;
+ RETURN to_jsonb(po);
+END $$;
+REVOKE ALL ON FUNCTION public.erp_convert_request(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.erp_convert_request(uuid) TO authenticated;
+ALTER TABLE public.warehouse_documents ADD COLUMN production_work_order_id uuid REFERENCES public.production_work_orders(id),ADD COLUMN production_movement text,ADD COLUMN source_order_id uuid REFERENCES public.ecommerce_orders(id);
+ALTER TABLE public.warehouse_document_lines ADD COLUMN purchase_order_line_id uuid REFERENCES public.purchase_order_lines(id),ADD COLUMN production_material_id uuid REFERENCES public.production_work_order_materials(id);
+ALTER TABLE public.invoices ADD COLUMN source_order_id uuid REFERENCES public.ecommerce_orders(id);
+CREATE UNIQUE INDEX ecommerce_invoice_source ON public.invoices(source_order_id) WHERE source_order_id IS NOT NULL;
+CREATE UNIQUE INDEX ecommerce_issue_source ON public.warehouse_documents(source_order_id) WHERE source_order_id IS NOT NULL AND document_type='goods_issue';

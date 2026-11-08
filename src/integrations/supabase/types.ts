@@ -785,6 +785,7 @@ export type Database = {
           id: string
           last_name: string | null
           marketing_consent: boolean | null
+          partner_id: string | null
           phone: string | null
           postal_code: string | null
           status: string
@@ -801,6 +802,7 @@ export type Database = {
           id?: string
           last_name?: string | null
           marketing_consent?: boolean | null
+          partner_id?: string | null
           phone?: string | null
           postal_code?: string | null
           status?: string
@@ -817,13 +819,22 @@ export type Database = {
           id?: string
           last_name?: string | null
           marketing_consent?: boolean | null
+          partner_id?: string | null
           phone?: string | null
           postal_code?: string | null
           status?: string
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ecommerce_customers_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ecommerce_order_items: {
         Row: {
@@ -878,6 +889,8 @@ export type Database = {
       }
       ecommerce_orders: {
         Row: {
+          checkout_hash: string | null
+          checkout_key: string | null
           created_at: string | null
           customer_email: string | null
           customer_id: string | null
@@ -907,6 +920,8 @@ export type Database = {
           vat_amount: number | null
         }
         Insert: {
+          checkout_hash?: string | null
+          checkout_key?: string | null
           created_at?: string | null
           customer_email?: string | null
           customer_id?: string | null
@@ -936,6 +951,8 @@ export type Database = {
           vat_amount?: number | null
         }
         Update: {
+          checkout_hash?: string | null
+          checkout_key?: string | null
           created_at?: string | null
           customer_email?: string | null
           customer_id?: string | null
@@ -1421,6 +1438,7 @@ export type Database = {
           paid_amount: number | null
           partner_id: string | null
           posted_at: string | null
+          source_order_id: string | null
           source_receipt_id: string | null
           status: Database["public"]["Enums"]["document_status"] | null
           subtotal: number | null
@@ -1442,6 +1460,7 @@ export type Database = {
           paid_amount?: number | null
           partner_id?: string | null
           posted_at?: string | null
+          source_order_id?: string | null
           source_receipt_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
           subtotal?: number | null
@@ -1463,6 +1482,7 @@ export type Database = {
           paid_amount?: number | null
           partner_id?: string | null
           posted_at?: string | null
+          source_order_id?: string | null
           source_receipt_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
           subtotal?: number | null
@@ -1484,6 +1504,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_source_order_id_fkey"
+            columns: ["source_order_id"]
+            isOneToOne: false
+            referencedRelation: "ecommerce_orders"
             referencedColumns: ["id"]
           },
           {
@@ -3896,6 +3923,8 @@ export type Database = {
           id: string
           item_id: string
           notes: string | null
+          production_material_id: string | null
+          purchase_order_line_id: string | null
           quantity: number
           total_price: number | null
           unit_price: number | null
@@ -3907,6 +3936,8 @@ export type Database = {
           id?: string
           item_id: string
           notes?: string | null
+          production_material_id?: string | null
+          purchase_order_line_id?: string | null
           quantity: number
           total_price?: number | null
           unit_price?: number | null
@@ -3918,6 +3949,8 @@ export type Database = {
           id?: string
           item_id?: string
           notes?: string | null
+          production_material_id?: string | null
+          purchase_order_line_id?: string | null
           quantity?: number
           total_price?: number | null
           unit_price?: number | null
@@ -3937,6 +3970,20 @@ export type Database = {
             referencedRelation: "items"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "warehouse_document_lines_production_material_id_fkey"
+            columns: ["production_material_id"]
+            isOneToOne: false
+            referencedRelation: "production_work_order_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_document_lines_purchase_order_line_id_fkey"
+            columns: ["purchase_order_line_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_order_lines"
+            referencedColumns: ["id"]
+          },
         ]
       }
       warehouse_documents: {
@@ -3951,7 +3998,10 @@ export type Database = {
           notes: string | null
           partner_id: string | null
           posted_at: string | null
+          production_movement: string | null
+          production_work_order_id: string | null
           purchase_order_id: string | null
+          source_order_id: string | null
           status: Database["public"]["Enums"]["document_status"] | null
           target_location_id: string | null
           total_value: number | null
@@ -3968,7 +4018,10 @@ export type Database = {
           notes?: string | null
           partner_id?: string | null
           posted_at?: string | null
+          production_movement?: string | null
+          production_work_order_id?: string | null
           purchase_order_id?: string | null
+          source_order_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
           target_location_id?: string | null
           total_value?: number | null
@@ -3985,7 +4038,10 @@ export type Database = {
           notes?: string | null
           partner_id?: string | null
           posted_at?: string | null
+          production_movement?: string | null
+          production_work_order_id?: string | null
           purchase_order_id?: string | null
+          source_order_id?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
           target_location_id?: string | null
           total_value?: number | null
@@ -4007,10 +4063,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "warehouse_documents_production_work_order_id_fkey"
+            columns: ["production_work_order_id"]
+            isOneToOne: false
+            referencedRelation: "production_work_orders"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "warehouse_documents_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_documents_source_order_id_fkey"
+            columns: ["source_order_id"]
+            isOneToOne: false
+            referencedRelation: "ecommerce_orders"
             referencedColumns: ["id"]
           },
           {
@@ -4032,6 +4102,9 @@ export type Database = {
         Args: { p_invoice?: string; p_line: string }
         Returns: Json
       }
+      erp_checkout: { Args: { p_key: string; p_request: Json }; Returns: Json }
+      erp_convert_request: { Args: { p_id: string }; Returns: Json }
+      erp_customer_provision: { Args: never; Returns: Json }
       erp_effective_price: {
         Args: { p_date?: string; p_item: string; p_location: string }
         Returns: number
@@ -4063,7 +4136,20 @@ export type Database = {
           vat_rate_id: string
         }[]
       }
+      erp_post_warehouse: { Args: { p_id: string }; Returns: Json }
       erp_reverse_gl: { Args: { p_id: string }; Returns: Json }
+      erp_shop_catalog: {
+        Args: { p_search?: string }
+        Returns: {
+          code: string
+          description: string
+          id: string
+          name: string
+          selling_price: number
+          vat_rate: number
+          vat_rate_id: string
+        }[]
+      }
     }
     Enums: {
       absence_type:

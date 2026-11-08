@@ -25,6 +25,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { serializeWmsLineMeta } from '@/lib/warehouseWms';
 
 interface ReceiptLine {
+  purchase_order_line_id?: string;
   item_id: string;
   ordered_quantity: number;
   previously_received: number;
@@ -97,7 +98,8 @@ export default function GoodsReceiptFromPO() {
       const receiptLines: ReceiptLine[] = order.lines.map(line => {
         const itemData = itemsMap.get(line.item_id);
         return {
-          item_id: line.item_id,
+          purchase_order_line_id: line.id,
+        item_id: line.item_id,
           ordered_quantity: line.quantity,
           previously_received: (line as any).received_quantity || 0,
           receiving_quantity: line.quantity - ((line as any).received_quantity || 0),
@@ -189,6 +191,7 @@ export default function GoodsReceiptFromPO() {
       }) : null;
 
       return {
+        purchase_order_line_id: line.purchase_order_line_id,
         item_id: line.item_id,
         quantity: line.receiving_quantity,
         unit_price: line.unit_price,
@@ -201,40 +204,6 @@ export default function GoodsReceiptFromPO() {
     try {
       const result = await createDocument.mutateAsync({ document, lines: documentLines });
       
-      // Update received quantities on PO lines
-      for (const line of filteredLines) {
-        const poLine = order?.lines?.find(l => l.item_id === line.item_id);
-        if (poLine) {
-          // Keep received quantities additive and avoid operator precedence issues.
-          const previouslyReceived = (poLine as any).received_quantity || 0;
-          const newReceivedQty = previouslyReceived + line.receiving_quantity;
-          await supabase
-            .from('purchase_order_lines')
-            .update({ received_quantity: newReceivedQty })
-            .eq('id', poLine.id);
-        }
-      }
-
-      if (orderId) {
-        const { data: updatedLines, error: updatedLinesError } = await supabase
-          .from('purchase_order_lines')
-          .select('quantity, received_quantity')
-          .eq('order_id', orderId);
-
-        if (updatedLinesError) throw updatedLinesError;
-
-        const isFullyReceived = (updatedLines || []).every((line: any) => (
-          (line.received_quantity || 0) >= line.quantity
-        ));
-
-        if (isFullyReceived) {
-          await supabase
-            .from('purchase_orders')
-            .update({ status: 'received', updated_at: new Date().toISOString() })
-            .eq('id', orderId);
-        }
-      }
-
       if (shouldPost && result?.id) {
         await postDocument.mutateAsync({ id: result.id, documentType: 'goods_receipt' });
       }

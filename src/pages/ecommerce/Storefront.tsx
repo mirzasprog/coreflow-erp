@@ -22,16 +22,13 @@ export default function Storefront() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
 
-  const { data: items } = useQuery({
+  const [checkoutKey, setCheckoutKey] = useState(() => crypto.randomUUID());
+  const { data: items, isError: catalogError } = useQuery({
     queryKey: ['storefront-items', search],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('items')
-        .select('id, code, name, selling_price, description, vat_rate_id, vat_rates:vat_rate_id(rate)')
-        .eq('active', true)
-        .limit(50);
+      const { data, error } = await supabase.rpc('erp_shop_catalog', { p_search: search });
       if (error) throw error;
-      return (data || []).filter((i: any) => !search || i.name.toLowerCase().includes(search.toLowerCase()));
+      return data ?? [];
     },
   });
 
@@ -48,7 +45,7 @@ export default function Storefront() {
         price: Number(item.selling_price) || 0,
         quantity: 1,
         vat_rate_id: item.vat_rate_id || null,
-        vat_rate: Number(item.vat_rates?.rate ?? 17),
+        vat_rate: Number(item.vat_rate),
       }];
     });
   };
@@ -65,6 +62,7 @@ export default function Storefront() {
     if (!checkout.name || !checkout.email) return toast.error("Unesite ime i email");
     try {
       await createOrder.mutateAsync({
+        requestId: checkoutKey,
         header: {
           customer_name: checkout.name,
           customer_email: checkout.email,
@@ -92,8 +90,9 @@ export default function Storefront() {
         }),
       });
       setCart([]);
+      setCheckoutKey(crypto.randomUUID());
       setCheckoutOpen(false);
-      toast.success("Hvala na narudžbi! Možete je pratiti kroz administraciju.");
+      toast.success("Hvala na narudžbi!");
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -101,6 +100,7 @@ export default function Storefront() {
 
   return (
     <div className="min-h-screen bg-background">
+      {catalogError && <p role="alert" className="p-4 text-destructive">Katalog nije dostupan.</p>}
       <header className="border-b bg-card sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold">🛍️ Web Shop</h1>

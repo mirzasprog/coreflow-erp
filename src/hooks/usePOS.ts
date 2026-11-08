@@ -75,76 +75,33 @@ async function generateGLDocumentNumber(): Promise<string> {
   return `${prefix}${String(nextNumber).padStart(6, '0')}`;
 }
 
-// Fetch items for POS with selling prices
+// Both catalog and barcode lookup use the active shift's authorized location.
 export function usePOSItems(searchQuery: string = "") {
+  const { data: shift } = useCurrentShift();
+  const { data: terminals } = usePOSTerminals();
+  const locationId = terminals?.find(t => t.id === shift?.terminal_id)?.location_id;
   return useQuery({
-    queryKey: ["pos-items", searchQuery],
+    queryKey: ['pos-items', searchQuery, locationId],
+    enabled: !!locationId,
+    staleTime: 0,
     queryFn: async () => {
-      let query = supabase
-        .from("items")
-        .select(`
-          id,
-          code,
-          name,
-          barcode,
-          selling_price,
-          vat_rate_id,
-          vat_rates(rate)
-        `)
-        .eq("active", true)
-        .order("name", { ascending: true });
-
-      if (searchQuery) {
-        query = query.or(
-          `name.ilike.%${searchQuery}%,code.ilike.%${searchQuery}%,barcode.ilike.%${searchQuery}%`
-        );
-      }
-
-      const { data, error } = await query.limit(50);
+      if (!locationId) throw new Error('Odaberite lokaciju POS smjene');
+      const { data, error } = await supabase.rpc('erp_pos_items', { p_location: locationId, p_search: searchQuery });
       if (error) throw error;
-
-      return (data || []).map((item) => ({
-        id: item.id,
-        code: item.code,
-        name: item.name,
-        barcode: item.barcode,
-        selling_price: item.selling_price || 0,
-        vat_rate: item.vat_rates?.rate || 0,
-        vat_rate_id: item.vat_rate_id,
-      })) as POSItem[];
+      return (data ?? []) as POSItem[];
     },
   });
 }
 
-// Lookup item by barcode
 export function usePOSItemByBarcode() {
+  const { data: shift } = useCurrentShift();
+  const { data: terminals } = usePOSTerminals();
+  const locationId = terminals?.find(t => t.id === shift?.terminal_id)?.location_id;
   return async (barcode: string): Promise<POSItem | null> => {
-    const { data, error } = await supabase
-      .from("items")
-      .select(`
-        id,
-        code,
-        name,
-        barcode,
-        selling_price,
-        vat_rate_id,
-        vat_rates(rate)
-      `)
-      .eq("active", true)
-      .eq("barcode", barcode)
-      .maybeSingle();
-
-    if (error || !data) return null;
-
-    return {
-      id: data.id,
-      code: data.code,
-      name: data.name,
-      barcode: data.barcode,
-      selling_price: data.selling_price || 0,
-      vat_rate: data.vat_rates?.rate || 0,
-      vat_rate_id: data.vat_rate_id,
-    };
+    if (!locationId) throw new Error('Odaberite lokaciju POS smjene');
+    const { data, error } = await supabase.rpc('erp_pos_items', { p_location: locationId, p_search: barcode });
+    if (error) throw error;
+    return data?.find(item => item.barcode === barcode) as POSItem | null ?? null;
   };
 }
 
@@ -892,7 +849,7 @@ export function usePOSTerminals() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pos_terminals")
-        .select("id, terminal_code, name, terminal_type, active")
+        .select("id, terminal_code, name, terminal_type, active, location_id")
         .eq("active", true)
         .order("name", { ascending: true });
 

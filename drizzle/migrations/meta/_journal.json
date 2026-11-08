@@ -36,6 +36,34 @@
       "when": 1794072342774,
       "tag": "0004_explicit_account_role_mapping",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794126177355,
+      "tag": "0005_atomic_shop_checkout_and_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794126221952,
+      "tag": "0006_correct_checkout_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794126246764,
+      "tag": "0007_atomic_procurement_conversion",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794126273854,
+      "tag": "0008_transactional_warehouse_posting",
+      "breakpoints": true
     }
   ]
 }

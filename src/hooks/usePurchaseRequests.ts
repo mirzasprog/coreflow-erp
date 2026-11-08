@@ -154,70 +154,9 @@ export function useConvertPRToPO() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (requestId: string) => {
-      const { data: pr, error } = await supabase
-        .from('purchase_requests' as any)
-        .select('*')
-        .eq('id', requestId)
-        .single();
+      const { data, error } = await supabase.rpc('erp_convert_request', { p_id: requestId });
       if (error) throw error;
-      if ((pr as any).status !== 'approved') throw new Error('Zahtjev mora biti odobren');
-      const { data: lines, error: lerr } = await supabase
-        .from('purchase_request_lines' as any)
-        .select('*')
-        .eq('request_id', requestId);
-      if (lerr) throw lerr;
-
-      const year = new Date().getFullYear();
-      const prefix = `PO-${year}-`;
-      const { data: last } = await supabase
-        .from('purchase_orders')
-        .select('order_number')
-        .like('order_number', `${prefix}%`)
-        .order('order_number', { ascending: false })
-        .limit(1);
-      let n = 1;
-      if (last && last.length > 0) {
-        const ln = parseInt(last[0].order_number.replace(prefix, ''), 10);
-        if (!isNaN(ln)) n = ln + 1;
-      }
-      const orderNumber = `${prefix}${String(n).padStart(5, '0')}`;
-      const total = (lines || []).reduce((s: number, l: any) => s + (Number(l.estimated_total) || 0), 0);
-
-      const { data: po, error: poerr } = await supabase
-        .from('purchase_orders')
-        .insert({
-          order_number: orderNumber,
-          partner_id: (pr as any).partner_id,
-          location_id: (pr as any).location_id,
-          order_date: new Date().toISOString().split('T')[0],
-          expected_date: (pr as any).needed_by_date,
-          status: 'draft',
-          total_value: total,
-          notes: `Iz zahtjeva ${(pr as any).request_number}`,
-        })
-        .select()
-        .single();
-      if (poerr) throw poerr;
-
-      if (lines && lines.length) {
-        const pol = (lines as any[]).map((l) => ({
-          order_id: (po as any).id,
-          item_id: l.item_id,
-          quantity: Number(l.quantity) || 0,
-          unit_price: Number(l.estimated_unit_price) || 0,
-          total_price: Number(l.estimated_total) || 0,
-          notes: l.notes,
-        }));
-        const { error: polerr } = await supabase.from('purchase_order_lines').insert(pol);
-        if (polerr) throw polerr;
-      }
-
-      await supabase
-        .from('purchase_requests' as any)
-        .update({ status: 'converted', converted_po_id: (po as any).id })
-        .eq('id', requestId);
-
-      return po as any;
+      return data as { id: string; order_number: string };
     },
     onSuccess: (po) => {
       qc.invalidateQueries({ queryKey: ['purchase-requests'] });

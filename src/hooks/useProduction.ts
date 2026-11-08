@@ -251,7 +251,8 @@ export function useCreateWorkOrder() {
         await expandBom(input.header.bom_id, input.header.planned_quantity || 1, accumulator);
         const mats = Array.from(accumulator.values()).map(m => ({
           work_order_id: wo.id,
-          item_id: m.item_id,
+          production_material_id: m.id,
+        item_id: m.item_id,
           planned_quantity: m.planned_quantity,
           consumed_quantity: 0,
           notes: m.notes,
@@ -333,6 +334,8 @@ export function useIssueMaterials() {
           document_date: new Date().toISOString().split('T')[0],
           location_id: wo.location_id,
           status: 'draft',
+          production_work_order_id: workOrderId,
+          production_movement: 'material_issue',
           notes: `Izdavanje materijala za RN ${wo.work_order_number}`,
         })
         .select()
@@ -341,6 +344,7 @@ export function useIssueMaterials() {
 
       const lines = (mats as any[]).map(m => ({
         document_id: doc.id,
+        production_material_id: m.id,
         item_id: m.item_id,
         quantity: Number(m.planned_quantity) - Number(m.consumed_quantity || 0),
         unit_price: 0,
@@ -379,6 +383,8 @@ export function useReceiveProduction() {
           document_date: new Date().toISOString().split('T')[0],
           location_id: wo.location_id,
           status: 'draft',
+          production_work_order_id: workOrderId,
+          production_movement: 'output_receipt',
           notes: `Prijem iz proizvodnje RN ${wo.work_order_number}`,
         })
         .select()
@@ -393,10 +399,6 @@ export function useReceiveProduction() {
         total_price: 0,
       });
 
-      await supabase
-        .from('production_work_orders')
-        .update({ produced_quantity: Number(wo.produced_quantity || 0) + quantity })
-        .eq('id', workOrderId);
 
       return doc;
     },
