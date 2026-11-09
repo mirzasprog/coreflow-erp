@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { invoiceLineAmounts, invoiceTotals, roundMoney } from '@/lib/money';
 
 export type DocumentType = 'goods_receipt' | 'goods_issue' | 'transfer' | 'inventory';
 
@@ -103,7 +104,7 @@ async function createInvoiceProposal(receiptId: string, receipt: any): Promise<s
       };
     });
 
-    const total = subtotal + vatAmount;
+    const total = roundMoney(subtotal + vatAmount);
 
     // Create invoice
     const { data: invoice, error: invoiceError } = await supabase

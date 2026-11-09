@@ -251,7 +251,6 @@ export function useCreateWorkOrder() {
         await expandBom(input.header.bom_id, input.header.planned_quantity || 1, accumulator);
         const mats = Array.from(accumulator.values()).map(m => ({
           work_order_id: wo.id,
-          production_material_id: m.id,
         item_id: m.item_id,
           planned_quantity: m.planned_quantity,
           consumed_quantity: 0,

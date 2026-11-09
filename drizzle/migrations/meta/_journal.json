@@ -64,6 +64,13 @@
       "when": 1794126273854,
       "tag": "0008_transactional_warehouse_posting",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794206923007,
+      "tag": "0009_accounting_balance_and_audit",
+      "breakpoints": true
     }
   ]
 }

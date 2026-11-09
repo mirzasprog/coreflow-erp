@@ -8,6 +8,7 @@
 - [ ] Hotel: stop mock imports; real integration awaits provider access.
 - [ ] E-commerce: authoritative checkout, blocked-customer enforcement and idempotent conversions.
 - [ ] UI/chatbot: routes, errors, disabled placeholders, login return and truthful aggregates.
-- [ ] Deploy database/function changes and verify real flows. Blocker: Lovable Cloud database is paused.
+- [ ] Uploaded specification: reproduce specified live anomalies, reconcile rounding/routes/picking, test isolated posting without emails or real fiscal/card calls.
+- [ ] Deploy database/function changes and verify real flows.
 
 Do not delete or repair historical business records without a separate reviewed reconciliation.

@@ -4098,6 +4098,17 @@ export type Database = {
     }
     Functions: {
       erp_account: { Args: { p_code: string }; Returns: string }
+      erp_accounting_audit: {
+        Args: never
+        Returns: {
+          credit: number
+          debit: number
+          document_number: string
+          entry_id: string
+          finding: string
+          reference_type: string
+        }[]
+      }
       erp_bank_match: {
         Args: { p_invoice?: string; p_line: string }
         Returns: Json

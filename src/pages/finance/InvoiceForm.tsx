@@ -32,6 +32,7 @@ import {
   InvoiceLine
 } from '@/hooks/useInvoices';
 import { toast } from 'sonner';
+import { invoiceLineAmounts, invoiceTotals, roundMoney } from '@/lib/money';
 
 export default function InvoiceForm() {
   const navigate = useNavigate();
@@ -89,9 +90,8 @@ export default function InvoiceForm() {
 
   const calculateLineTotal = (qty: number, price: number, vatRateId: string | null) => {
     const vatRate = vatRates?.find(v => v.id === vatRateId);
-    const baseTotal = qty * price;
-    const vatAmount = vatRate ? baseTotal * (vatRate.rate / 100) : 0;
-    return { baseTotal, vatAmount, total: baseTotal + vatAmount };
+    const amounts = invoiceLineAmounts(qty, price, vatRate?.rate || 0);
+    return { baseTotal: amounts.subtotal, vatAmount: amounts.vatAmount, total: amounts.total };
   };
 
   const addLine = () => {
@@ -127,12 +127,7 @@ export default function InvoiceForm() {
     setLines(lines.filter((_, i) => i !== index));
   };
 
-  const calculateTotals = () => {
-    const subtotal = lines.reduce((sum, line) => sum + (line.quantity * line.unit_price), 0);
-    const vatAmount = lines.reduce((sum, line) => sum + line.vat_amount, 0);
-    const total = subtotal + vatAmount;
-    return { subtotal, vatAmount, total };
-  };
+  const calculateTotals = () => invoiceTotals(lines);;
 
   const handleSave = async (shouldPost = false) => {
     if (!formData.partner_id) {
