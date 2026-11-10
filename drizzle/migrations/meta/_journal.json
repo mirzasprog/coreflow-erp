@@ -71,6 +71,27 @@
       "when": 1794206923007,
       "tag": "0009_accounting_balance_and_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794307967675,
+      "tag": "0010_company_accounts_and_stock_reversal",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794308000060,
+      "tag": "0011_warehouse_lots_and_posting_controls",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794308031744,
+      "tag": "0012_fix_receipt_invoice_aggregate",
+      "breakpoints": true
     }
   ]
 }

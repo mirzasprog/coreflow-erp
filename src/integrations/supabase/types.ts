@@ -58,14 +58,17 @@ export type Database = {
       account_posting_mappings: {
         Row: {
           account_id: string
+          company_id: string | null
           role_key: string
         }
         Insert: {
           account_id: string
+          company_id?: string | null
           role_key: string
         }
         Update: {
           account_id?: string
+          company_id?: string | null
           role_key?: string
         }
         Relationships: [
@@ -74,6 +77,45 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_posting_mappings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_periods: {
+        Row: {
+          closed_at: string | null
+          company_id: string
+          ends_on: string
+          id: string
+          starts_on: string
+        }
+        Insert: {
+          closed_at?: string | null
+          company_id: string
+          ends_on: string
+          id?: string
+          starts_on: string
+        }
+        Update: {
+          closed_at?: string | null
+          company_id?: string
+          ends_on?: string
+          id?: string
+          starts_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_periods_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -4109,11 +4151,19 @@ export type Database = {
           reference_type: string
         }[]
       }
+      erp_assert_open_period: {
+        Args: { p_company: string; p_date: string }
+        Returns: undefined
+      }
       erp_bank_match: {
         Args: { p_invoice?: string; p_line: string }
         Returns: Json
       }
       erp_checkout: { Args: { p_key: string; p_request: Json }; Returns: Json }
+      erp_company_account: {
+        Args: { p_code: string; p_company: string }
+        Returns: string
+      }
       erp_convert_request: { Args: { p_id: string }; Returns: Json }
       erp_customer_provision: { Args: never; Returns: Json }
       erp_effective_price: {
